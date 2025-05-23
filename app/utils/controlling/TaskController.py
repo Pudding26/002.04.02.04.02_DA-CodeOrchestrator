@@ -1,0 +1,198 @@
+import logging
+import time
+import uuid
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.utils.SQL.models.progress.api.api_progressArchive import ProgressArchiveOut
+from app.utils.SQL.SQL_Dict import SQL_Dict  # adjust if your path differs
+from app.utils.SQL.DBEngine import DBEngine  # adjust if your path differs
+
+class TaskController:
+    def __init__(self, task_name: str, db_key: str = "progress", task_uuid: str = None):
+        """
+        db_key: name of your database (e.g., 'progressdb')
+        task_name: table name (1 per task, based on task_name)
+        """
+        self.db = SQL_Dict(db_key=db_key, table_name=task_name)
+        self.task_uuid = task_uuid or str(uuid.uuid4())
+        self.task_name = task_name
+        self._ensure_task_uuid()
+
+        self.db.set("start_time", str(datetime.now()))
+
+
+    def _ensure_task_uuid(self):
+        if not self.db.get("task_uuid"):
+            self.db.set("task_uuid", self.task_uuid)
+
+
+    def request_stop(self):
+        """
+        Signals the task to stop by setting the 'Stop' flag in the DB.
+        """
+        self.db.set("Stop", "1")
+        self.db.set("stop_requested_at", str(datetime.now()))
+        logging.debug2(f"🛑 Stop requested for task '{self.db.table_name}' (UUID: {self.task_uuid})")
+
+
+    def should_stop(self):
+        return self.db.get("Stop", "0") == "1"
+
+    def should_pause(self):
+        return self.db.get("Pause", "0") == "1"
+
+    def is_finished(self):
+        return self.db.get("Finished", "0") == "1"
+
+    def get_item_count(self):
+        return self._safe_int("item_count")
+
+    def get_stack_count(self):
+        return self._safe_int("stack_count")
+
+    def update_progress(self, value: float):
+        self.db.set("progress", str(value))
+
+    def update_message(self, msg: str):
+        self.db.set("message", msg)
+
+    def update_item_count(self, count: int):
+        self.db.set("item_count", str(count))
+
+    def update_stack_count(self, count: int):
+        self.db.set("stack_count", str(count))
+
+    def finalize_success(self):
+        self.db.set("Finished", "1")
+        self.db.set("Status", "Ready")
+        self.db.set("message", "Task completed successfully")
+
+    def finalize_failure(self, error_msg: str):
+        self.db.set("Status", "Failed")
+        self.db.set("message", error_msg)
+
+
+    def wait_if_paused(self):
+        if self.should_pause():
+            self.db.set("Status", "Paused")
+            while self.should_pause():
+                time.sleep(0.5)
+            self.db.set("Status", "Running")
+
+
+    def archive_with_orm(self):
+        """Saves progress keys to ORM table before dropping."""
+
+        now = datetime.now()
+
+        elapsed_time = (now - self._safe_datetime("start_time")).total_seconds() if self._safe_datetime("start_time") else 0
+        data_transferred_gb = self._safe_float("total_size") / (1024 ** 3) if self._safe_float("total_size") else 0
+
+        archive_model = ProgressArchiveOut(
+            task_uuid=self.task_uuid,
+            task_name=self.task_name,
+            start_time = self._safe_datetime("start_time"),
+            finish_time=datetime.now(),
+            status=self.db.get("Status"),
+            finished=self.db.get("Finished"),
+            message=self.db.get("message"),
+            progress=self._safe_float("progress"),
+            elapsed_time=elapsed_time,
+            total_size=self._safe_float("total_size"),
+            data_transferred_gb=data_transferred_gb,
+            item_count=self._safe_int("item_count"),
+            stack_count=self._safe_int("stack_count"),
+        )
+
+        archive_model.persist_to_db(archive_model)
+        logging.debug2(f"📦 Archived progress for task '{self.db.table_name}' with UUID {self.task_uuid}")
+
+        # Drop the live progress table
+        try:
+            with self.db.get_engine().begin() as conn:
+                conn.execute(text(f'DROP TABLE IF EXISTS \"{self.db.table_name}\"'))
+                logging.debug2(f"🧹 Dropped progress table '{self.db.table_name}' after archival.")
+        except Exception as e:
+            logging.error(f"❌ Failed to drop progress table '{self.db.table_name}': {e}")
+
+    def _safe_int(self, key: str) -> int:
+        try:
+            return int(self.db.get(key) or 0)
+        except (ValueError, TypeError):
+            return 0
+
+    def _safe_float(self, key: str) -> float:
+        try:
+            return float(self.db.get(key) or 0.0)
+        except (ValueError, TypeError):
+            return 0.0
+
+    def _safe_datetime(self, key: str) -> Optional[datetime]:
+        val = self.db.get(key)
+        if val:
+            try:
+                return datetime.fromisoformat(val)
+            except ValueError:
+                logging.warning(f"⚠️ Could not parse datetime from key '{key}': {val}")
+        return None
+
+    @classmethod
+    def clean_orphaned_tasks_on_start(cls):
+        logging.info("🔍 Checking for orphaned tasks on startup...")
+        db = DBEngine("progress")  # use your progress DB
+        engine = db.get_engine()
+        session: Session = db.get_session()
+
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
+            task_tables = [row[0] for row in result]
+
+        for task_table in task_tables:
+            if task_table in ["progressArchive", "profileArchive"]:
+                continue
+
+            controller = cls(task_name=task_table, db_key="progress")
+            try:
+                current_status = controller.db.get("Status")
+                if current_status and current_status.lower() == "running":
+                    logging.warning(f"⚠️ Task '{task_table}' was marked running. Marking as failed.")
+                    controller.db.set("Status", "Failed")
+                    controller.db.set("message", "Cleaned up after crash")
+                    controller.db.set("Finished", "False")
+                    controller.archive_with_orm()
+            except Exception as e:
+            
+
+                logging.error(f"❌ Failed to clean task '{task_table}': {e}")
+
+
+
+    @staticmethod
+    def fetch_all_status():
+        
+        db = DBEngine("progress")
+        engine = db.get_engine()
+        results = []
+        
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
+            filtered_tables = [row[0] for row in res if row[0] not in {"progressArchive", "profileArchive"}]
+            
+            for table_name in filtered_tables:
+                sql_dict = SQL_Dict(db_key="progress", table_name=table_name)
+                try:
+                    status = sql_dict.get("Status")
+                    if status != "Ready":
+                        results.append({
+                            "task_name": table_name,
+                            "status": status,
+                            "message": sql_dict.get("message"),
+                            "progress": float(sql_dict.get("progress") or 0.0)
+                        })
+                except Exception as e:
+                    logging.warning(f"⚠️ Failed to read status for {table_name}: {e}")
+        return results

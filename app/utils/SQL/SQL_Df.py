@@ -10,7 +10,7 @@ from app.utils.SQL.DBEngine import DBEngine
 
 
 
-class SQLDf(DBEngine):
+class SQL_Df(DBEngine):
     """
     Universal DataFrame-to-SQL interface using a dynamic table name.
     Inherits database engine setup from DBEngine.
@@ -26,7 +26,7 @@ class SQLDf(DBEngine):
         """
         try:
             df.to_sql(table_name, self.engine, if_exists=method, index=False)
-            logging.debug1(LOGGING_LEVEL, f"Stored DataFrame to table '{table_name}' using method '{method}'.")
+            logging.debug1(f"Stored DataFrame to table '{table_name}' using method '{method}'.")
         except Exception as e:
             logging.exception(f"❌ Failed to store DataFrame to table '{table_name}': {e}")
 
@@ -40,7 +40,7 @@ class SQLDf(DBEngine):
             if limit:
                 query += f" LIMIT {limit}"
             df = pd.read_sql(query, self.engine)
-            logging.debug1(LOGGING_LEVEL, f"Loaded {len(df)} rows from table '{table_name}'.")
+            logging.debug1(f"Loaded {len(df)} rows from table '{table_name}'.")
             return df
         except Exception as e:
             logging.exception(f"❌ Failed to load table '{table_name}': {e}")
@@ -58,7 +58,7 @@ class SQLDf(DBEngine):
         try:
             result = self.get_engine().execute(text(query))
             tables = [row[0] for row in result]
-            logging.debug1(LOGGING_LEVEL, f"Found tables: {tables}")
+            logging.debug1(f"Found tables: {tables}")
             return tables
         except SQLAlchemyError as e:
             logging.exception("❌ Failed to retrieve table names.")
@@ -70,6 +70,6 @@ class SQLDf(DBEngine):
         """
         try:
             self.get_engine().execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
-            logging.debug1(LOGGING_LEVEL, f"Deleted table '{table_name}'.")
+            logging.debug1(f"Deleted table '{table_name}'.")
         except SQLAlchemyError as e:
             logging.exception(f"❌ Failed to delete table '{table_name}': {e}")
