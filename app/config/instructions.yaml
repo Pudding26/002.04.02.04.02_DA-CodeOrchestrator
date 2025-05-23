@@ -1,0 +1,46 @@
+
+
+tasks:
+  TA01_Setup:
+    TA01_A_CreateDatabases:
+      taskName: TA01_A_CreateDatabases
+      prd_db: "prd"
+      source_db: "source"
+      raw_db: "raw"
+
+
+  TA11_DataImport:
+    TA11_0_DataImportWrapper:
+      taskName: TA11_0_DataImportWrapper
+      possible_subTasks:
+        - TA11_A_Import_DS01
+        - TA11_B_Import_DS04
+        - TA11_C_Import_DS07
+        - TA11_D_Import_DS11
+        - TA11_E_Import_SecondaryData
+
+    TA11_A_Import_DS01:
+      TaskName : "TA11_A_Import_DS01"
+      sourceFile_path : "data/sourceData/primary/DS01"
+      sourceFile_path_debug : "data/sourceData/primary/DS01"
+      destFile_path : "data/rawData/primary/DS01.hdf5"
+      DS_Name : "DS01"
+      citeKey : "dasilva_2017"
+      batch_size : 10
+      sourceNo : "DS01"
+
+
+    TA11_B_Import_DS04:
+    TA11_C_Import_DS07:
+    TA11_D_Import_DS11:
+    TA11_E_Import_SecondaryData:
+
+  TA12_DataTransferPrimary:
+    TA12_0_DataTransferPrimaryWrapper:
+    TA12_A_Transfer_DS01:
+    TA12_B_Transfer_DS04:
+    TA12_C_Transfer_DS07:
+    TA12_D_Transfer_DS11:
+
+
+

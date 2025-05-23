@@ -6,7 +6,7 @@ from typing import Optional, List
 from app.utils.SQL.DBEngine import DBEngine
 
 
-class SQLDict(DBEngine):
+class SQL_Dict(DBEngine):
     """
     Dictionary-style key-value store for SQL.
     Table is auto-created if missing.
@@ -27,12 +27,15 @@ class SQLDict(DBEngine):
             value TEXT
         )
         """
+        logging.debug1(f"Eunsuring table in DB: {self.get_engine().url}, table: {self.table_name}")
         try:
-            with self.get_engine().connect() as conn:
+            with self.get_engine().begin() as conn:  # ensures transaction is committed
                 conn.execute(text(query))
+
             logging.debug1(f"Ensured key-value table '{self.table_name}' exists.")
         except SQLAlchemyError as e:
             logging.exception(f"❌ Failed to create table '{self.table_name}': {e}")
+            raise
 
     def set(self, key: str, value: str) -> None:
         """
