@@ -20,7 +20,7 @@ class TaskController:
         self.db = SQL_Dict(db_key=db_key, table_name=task_name)
         self.task_uuid = task_uuid or str(uuid.uuid4())
         self.task_name = task_name
-        self._ensure_task_uuid()
+        #self._ensure_task_uuid()
 
         self.db.set("start_time", str(datetime.now()))
 
