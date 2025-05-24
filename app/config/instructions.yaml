@@ -96,3 +96,13 @@ tasks:
       path_gen_col_rename_mapper: app/config/mapper/TA12_DataTransfer/TA12_DS11_colRenameMapper.yaml
       path_value_mapper: app/config/mapper/TA12_DataTransfer/TA12_valueMapper.yaml
 
+    TA12_E_ConcatPrimaryDataRaw:
+      taskName: TA12_E_ConcatPrimaryDataRaw
+      src_db_name: raw
+      src_table_names: 
+        - DS01
+        - DS04
+        - DS07
+        - DS11
+      dest_db_name: raw
+      dest_table_name: primaryDataRaw
