@@ -84,19 +84,28 @@ class TaskController:
             self.db.set("Status", "Running")
 
 
-    def archive_with_orm(self):
-        """Saves progress keys to ORM table before dropping."""
+    def archive_with_orm(self, force_replace: bool = False):
+        """Saves progress keys to ORM table before dropping. Can force overwrite in archive."""
+
+        logging.info(
+            f"📦 Archiving task '{self.task_name}' with UUID {self.task_uuid} "
+            f"(status: {self.db.get('Status')}, force_replace={force_replace})"
+        )
+        if getattr(self, "_archived", False):
+            logging.debug2(f"📦 Archive already completed for task '{self.task_name}' (UUID: {self.task_uuid}). Skipping.")
+            return
+        self._archived = True
 
         now = datetime.now()
-
-        elapsed_time = (now - self._safe_datetime("start_time")).total_seconds() if self._safe_datetime("start_time") else 0
+        start_dt = self._safe_datetime("start_time")
+        elapsed_time = (now - start_dt).total_seconds() if start_dt else 0
         data_transferred_gb = self._safe_float("total_size") / (1024 ** 3) if self._safe_float("total_size") else 0
 
         archive_model = ProgressArchiveOut(
             task_uuid=self.task_uuid,
             task_name=self.task_name,
-            start_time = self._safe_datetime("start_time"),
-            finish_time=datetime.now(),
+            start_time=start_dt,
+            finish_time=now,
             status=self.db.get("Status"),
             finished=self.db.get("Finished"),
             message=self.db.get("message"),
@@ -108,16 +117,21 @@ class TaskController:
             stack_count=self._safe_int("stack_count"),
         )
 
-        archive_model.persist_to_db(archive_model)
-        logging.debug2(f"📦 Archived progress for task '{self.db.table_name}' with UUID {self.task_uuid}")
 
-        # Drop the live progress table
+        try:
+            archive_model.persist_to_db(archive_model, force_replace=force_replace)
+            logging.debug2(f"✅ Archive persisted for task '{self.task_name}' (UUID: {self.task_uuid})")
+        except Exception as e:
+            logging.error(f"❌ Archive failed for task '{self.task_name}' (UUID: {self.task_uuid}): {e}", exc_info=True)
+            return
+
         try:
             with self.db.get_engine().begin() as conn:
                 conn.execute(text(f'DROP TABLE IF EXISTS \"{self.db.table_name}\"'))
                 logging.debug2(f"🧹 Dropped progress table '{self.db.table_name}' after archival.")
         except Exception as e:
-            logging.error(f"❌ Failed to drop progress table '{self.db.table_name}': {e}")
+            logging.error(f"❌ Failed to drop progress table '{self.db.table_name}': {e}", exc_info=True)
+
 
     def _safe_int(self, key: str) -> int:
         try:
@@ -143,31 +157,52 @@ class TaskController:
     @classmethod
     def clean_orphaned_tasks_on_start(cls):
         logging.info("🔍 Checking for orphaned tasks on startup...")
-        db = DBEngine("progress")  # use your progress DB
-        engine = db.get_engine()
-        session: Session = db.get_session()
 
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
-            task_tables = [row[0] for row in result]
+        db = DBEngine("progress")
+        engine = db.get_engine()
+
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
+                task_tables = [row[0] for row in result]
+                logging.debug2(f"📋 Found {len(task_tables)} tables in 'public' schema.")
+
+        except Exception as e:
+            logging.error(f"❌ Failed to fetch task tables from database: {e}", exc_info=True)
+            return
 
         for task_table in task_tables:
             if task_table in ["progressArchive", "profileArchive"]:
+                logging.debug2(f"🚫 Skipping reserved table: {task_table}")
                 continue
 
+            logging.debug2(f"🔎 Inspecting potential orphaned task table: {task_table}")
             controller = cls(task_name=task_table, db_key="progress")
+
             try:
                 current_status = controller.db.get("Status")
-                if current_status and current_status.lower() == "running":
-                    logging.warning(f"⚠️ Task '{task_table}' was marked running. Marking as failed.")
-                    controller.db.set("Status", "Failed")
-                    controller.db.set("message", "Cleaned up after crash")
-                    controller.db.set("Finished", "False")
-                    controller.archive_with_orm()
-            except Exception as e:
-            
+                task_uuid = controller.db.get("task_uuid")
+                start_time = controller.db.get("start_time")
 
-                logging.error(f"❌ Failed to clean task '{task_table}': {e}")
+                logging.debug2(
+                    f"📄 Task '{task_table}' - status: {current_status}, UUID: {task_uuid}, started at: {start_time}"
+                )
+
+                logging.warning(f"⚠️ Task '{task_table}' was marked {str(current_status)}. Marking as Wiped & archiving...")
+
+                controller.db.set("Status", "Wiped")
+                controller.db.set("message", "Cleaned up after crash. old status: " + str(current_status))
+                controller.db.set("Finished", "False")
+
+                controller.archive_with_orm(force_replace=True)
+                logging.info(f"✅ Cleaned and archived orphaned task: {task_table}")
+
+
+
+            except Exception as e:
+                logging.error(f"❌ Failed to clean or inspect task '{task_table}': {e}", exc_info=True)
+
+
 
 
 
@@ -196,3 +231,24 @@ class TaskController:
                 except Exception as e:
                     logging.warning(f"⚠️ Failed to read status for {table_name}: {e}")
         return results
+    
+
+
+    def progress_table_exists(self) -> bool:
+        """Check if the progress table for this task still exists in the database."""
+        engine = self.db.get_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM pg_tables
+                        WHERE schemaname = 'public'
+                        AND tablename = :task_table
+                    )
+                """), {"task_table": self.db.table_name})
+                exists = result.scalar()
+                logging.debug2(f"🔍 Checked existence of progress table '{self.db.table_name}': {exists}")
+                return exists
+        except Exception as e:
+            logging.error(f"❌ Failed to check existence of progress table '{self.db.table_name}': {e}", exc_info=True)
+            return False
