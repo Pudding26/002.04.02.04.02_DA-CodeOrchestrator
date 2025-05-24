@@ -6,6 +6,7 @@ import yaml
 import importlib
 from threading import Thread
 import uuid
+import time
 
 from app.utils.controlling.TaskController import TaskController
 from app.utils.SQL.SQL_Dict import SQL_Dict
@@ -110,8 +111,33 @@ class TaskHandler:
             logging.debug2(f"Creating task instance: {task_class.__name__}")
             task_instance = task_class(task_config, controller)
 
-            logging.debug2("Launching task in a new thread...")
-            Thread(target=task_instance.run).start()
+            # Attach task_name for logging clarity if missing
+            task_instance.task_name = getattr(task_instance, "task_name", task_name)
+
+            def _safe_task_run(task):
+                try:
+                    logging.debug2(f"[Thread] Running task: {task.task_name}")
+                    task.run()
+                except Exception as e:
+                    logging.error(f"❌ Task {task.task_name} crashed in thread: {e}", exc_info=True)
+                    task.controller.finalize_failure(str(e))
+                    task.cleanup()
+
+            # Launch in background
+            thread = Thread(target=_safe_task_run, args=(task_instance,))
+            thread.start()
+
+            # Watchdog: ensure it starts responding within 10 seconds
+            startup_deadline = time.time() + 10
+            while time.time() < startup_deadline:
+                if db.get("message"):  # means run() has started
+                    break
+                time.sleep(0.5)
+            else:
+                logging.error(f"🚨 Task {task_name} did not initialize within timeout.")
+                db.set("Status", "Failed")
+                db.set("message", "Startup timeout — no message set within 10 seconds.")
+                raise HTTPException(status_code=500, detail="Task failed to initialize (startup timeout).")
 
             logging.debug2(f"Task '{task_name}' started successfully.")
             return {"status": "started", "task": task_name, "config": task_config}
@@ -119,6 +145,7 @@ class TaskHandler:
         except Exception as e:
             logging.exception("Failed to start task:")
             raise HTTPException(status_code=500, detail=f"Failed to start task: {str(e)}")
+
 
     def stop_task(self, task_name: str):
         logging.debug2(f"Received stop request for task: {task_name}")
