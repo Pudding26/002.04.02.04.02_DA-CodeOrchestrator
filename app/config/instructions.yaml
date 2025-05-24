@@ -62,8 +62,23 @@ tasks:
 
   TA12_DataTransferPrimary:
     TA12_0_DataTransferPrimaryWrapper:
+    
     TA12_A_Transfer_DS01:
+      taskName: TA12_A_Transfer_DS01
+      path_DataRaw: data/rawData/primary/DS01.hdf5
+      dest_db_name: raw
+      dest_table_name: DS01
+      path_gen_manual_col_mapper: app/config/mapper/TA12_DataTransfer/TA12_manualColMapper.yaml
+    
     TA12_B_Transfer_DS04:
+      taskName: TA12_B_Transfer_DS04
+      path_DataRaw: data/rawData/primary/DS04.hdf5
+      dest_db_name: raw
+      dest_table_name: DS04
+      path_gen_manual_col_mapper: app/config/mapper/TA12_DataTransfer/TA12_manualColMapper.yaml
+      path_gen_col_rename_mapper: app/config/mapper/TA12_DataTransfer/TA12_DS04_colRenameMapper.yaml
+
+
     TA12_C_Transfer_DS07:
     TA12_D_Transfer_DS11:
 

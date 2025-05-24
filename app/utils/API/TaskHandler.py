@@ -99,6 +99,15 @@ class TaskHandler:
             task_uuid = str(uuid.uuid4())
             logging.debug2(f"Generated task UUID: {task_uuid}")
 
+            # Initialize fresh progress table with new UUID and start_time
+            db.set("task_uuid", task_uuid)
+            db.set("start_time", str(time.strftime("%Y-%m-%d %H:%M:%S")))
+            db.set("Finished", "0")  # clear any stale status
+            db.set("Status", "running")
+            db.set("message", "Starting task...")
+
+
+
             controller = TaskController(
                 db_key="progress",
                 task_name=task_name,
