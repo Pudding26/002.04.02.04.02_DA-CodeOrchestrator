@@ -87,6 +87,12 @@ tasks:
       path_gen_col_rename_mapper: app/config/mapper/TA12_DataTransfer/TA12_DS07_colRenameMapper.yaml
     
     TA12_D_Transfer_DS11:
-
-
+      taskName: TA12_D_Transfer_DS11
+      path_DataRaw: data/sourceData/primary/DS11/DS11.db
+      src_table_name: iwimages
+      dest_db_name: raw
+      dest_table_name: DS11
+      path_gen_manual_col_mapper: app/config/mapper/TA12_DataTransfer/TA12_manualColMapper.yaml
+      path_gen_col_rename_mapper: app/config/mapper/TA12_DataTransfer/TA12_DS11_colRenameMapper.yaml
+      path_value_mapper: app/config/mapper/TA12_DataTransfer/TA12_valueMapper.yaml
 
