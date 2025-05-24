@@ -53,12 +53,12 @@ tasks:
       sourceNo: "DS07"
       progress_update_cylce : 5
 
-
-
-
-    
     TA11_D_Import_DS11:
     TA11_E_Import_SecondaryData:
+      TaskName: "TA11_E_Import_SecondaryData"
+      sourceFile_path: "data/sourceData/secondary"
+      dest_db_name: raw
+
 
   TA12_DataTransferPrimary:
     TA12_0_DataTransferPrimaryWrapper:
