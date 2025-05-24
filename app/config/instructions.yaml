@@ -43,6 +43,20 @@ tasks:
       
       
     TA11_C_Import_DS07:
+      TaskName: "TA11_C_Import_DS07"
+      sourceFile_path: "data/sourceData/primary/DS07"
+      sourceFile_path_debug: "data/sourceData/primary/DS07"
+      destFile_path: "data/rawData/primary/DS07.hdf5"
+      DS_Name: "DS07"
+      citeKey: "martins_2012"
+      batch_size: 10
+      sourceNo: "DS07"
+      progress_update_cylce : 5
+
+
+
+
+    
     TA11_D_Import_DS11:
     TA11_E_Import_SecondaryData:
 
