@@ -100,11 +100,6 @@ class TaskHandler:
             logging.debug2(f"Generated task UUID: {task_uuid}")
 
             # Initialize fresh progress table with new UUID and start_time
-            db.set("task_uuid", task_uuid)
-            db.set("start_time", str(time.strftime("%Y-%m-%d %H:%M:%S")))
-            db.set("Finished", "0")  # clear any stale status
-            db.set("Status", "running")
-            db.set("message", "Starting task...")
 
 
 
@@ -113,6 +108,14 @@ class TaskHandler:
                 task_name=task_name,
                 task_uuid=task_uuid
             )
+
+            controller.db.set("task_uuid", task_uuid)
+            controller.db.set("start_time", str(time.strftime("%Y-%m-%d %H:%M:%S")))
+            controller.db.set("Finished", "0")  # clear any stale status
+            controller.db.set("Status", "running")
+            controller.db.set("message", "Starting task...")
+
+
 
             task_config["Thread_progress_db_path"] = "progress"
             task_config["Thread_progress_table_name"] = task_name
@@ -129,8 +132,13 @@ class TaskHandler:
                     task.run()
                 except Exception as e:
                     logging.error(f"❌ Task {task.task_name} crashed in thread: {e}", exc_info=True)
-                    task.controller.finalize_failure(str(e))
-                    task.cleanup()
+                    if task.controller.progress_table_exists():
+                        logging.warning(f"🗑️ Cleaning up progress in TaskHandler needed table for task {task.task_name} due to crash.")
+                    
+                        task.controller.finalize_failure(str(e))
+                        task.cleanup()
+                    else:
+                        logging.info(f"❌ Task {task.task_name} crashed but no progress table found to clean up.")
 
             # Launch in background
             thread = Thread(target=_safe_task_run, args=(task_instance,))
