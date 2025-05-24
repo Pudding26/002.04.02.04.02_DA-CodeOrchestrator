@@ -1,21 +1,13 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-      {
-        "name": "Uvicorn: Debug FastAPI",
-        "type": "python",
-        "request": "launch",
-        "module": "uvicorn",
-        "args": [
-          "app.main:app",
-          "--reload",
-          "--host", "0.0.0.0",
-          "--port", "8000"
-        ],
-        "jinja": true,
-        "justMyCode": true,
-        "console": "integratedTerminal"
-      }
-    ]
-  }
-  
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run: Custom Logging",
+      "type": "python",
+      "request": "launch",
+      "program": "run.py",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

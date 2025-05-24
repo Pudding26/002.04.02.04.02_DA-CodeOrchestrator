@@ -79,6 +79,12 @@ class TA11_A_Import_DS01(TaskBase):
         items = list(self.image_dict.items())
         total = len(items)
 
+        self.controller.update_item_count(total)
+        stack_count = total / batch_size
+        self.controller.update_stack_count(stack_count)
+
+
+        logging.debug3(f"Writing {total} images to HDF5 in batches of {batch_size}")
         for i in range(0, total, batch_size):
             self.check_control()
 

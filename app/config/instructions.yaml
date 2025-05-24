@@ -1,12 +1,12 @@
 
 
 tasks:
-  TA01_Setup:
-    TA01_A_CreateDatabases:
-      taskName: TA01_A_CreateDatabases
-      prd_db: "prd"
-      source_db: "source"
-      raw_db: "raw"
+  #TA01_Setup:
+  #  TA01_A_CreateDatabases:
+  #    taskName: TA01_A_CreateDatabases
+  #    prd_db: "prd"
+  #    source_db: "source"
+  #    raw_db: "raw"
 
 
   TA11_DataImport:
@@ -31,6 +31,17 @@ tasks:
 
 
     TA11_B_Import_DS04:
+      TaskName : "TA11_B_Import_DS04"
+      sourceFile_path : "data/sourceData/primary/DS04/DS04.h5"
+      sourceFile_path_debug : "data/sourceData/primary/DS04"
+      destFile_path : "data/rawData/primary/DS04.hdf5"
+      DS_Name : "DS04"
+      citeKey : "sugiyama_2020"
+      chunk_size : 512
+      sourceNo : "DS04"
+      progress_update_cylce : 5
+      
+      
     TA11_C_Import_DS07:
     TA11_D_Import_DS11:
     TA11_E_Import_SecondaryData:

@@ -11,7 +11,7 @@ from app.utils.HDF5.HDF5Utils import HDF5Utils
 from app.utils.controlling.TaskController import TaskController
 
 logger = logging.getLogger(__name__)
-LoggingHandler(logging_level="DEBUG-1")
+LoggingHandler(logging_level="DEBUG-2")
 
 
 @asynccontextmanager
