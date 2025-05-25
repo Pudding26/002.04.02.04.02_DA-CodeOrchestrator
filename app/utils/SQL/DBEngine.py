@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.utils.SQL.models.OrmBase import OrmBase
 
-
+from sqlalchemy.schema import CreateTable
 
 import logging
 
@@ -14,24 +14,34 @@ import logging
 load_dotenv()
 
 def create_all_tables():
+    
+    #progress
     from app.utils.SQL.models.progress.orm.ProfileArchive import ProfileArchive
     from app.utils.SQL.models.progress.orm.ProgressArchive import ProgressArchive
+    
+    
+    # production
+    from app.utils.SQL.models.production.orm.PrimaryDataRaw import PrimaryDataRaw
+    from app.utils.SQL.models.production.orm.DS09 import DS09
+    from app.utils.SQL.models.production.orm.DS40 import DS40
+    from app.utils.SQL.models.production.orm.WoodTableA import WoodTableA
 
-    db_keys = ["progress"]
+    grouped_models = {
+        "progress": [ProfileArchive, ProgressArchive],
+        "production": [WoodTableA, PrimaryDataRaw, DS09, DS40],
+    }
 
-    for key in db_keys:
+    for db_key, model_list in grouped_models.items():
         try:
-            db = DBEngine(key)
+            db = DBEngine(db_key)
             engine = db.get_engine()
+            for model in model_list:
+                model.__table__.create(bind=engine, checkfirst=True)
+                logging.debug3(f"✅ Created table '{model.__tablename__}' in {db_key}")
 
-            # Debug what tables are registered
-            for table in OrmBase.metadata.tables:
-                logging.debug3(f"🧩 Registered table: {table}")
-
-            OrmBase.metadata.create_all(bind=engine)
-            logging.debug3(f"✅ Tables created for {key} database.")
         except Exception as e:
-            logging.debug3(f"❌ Failed to create tables for {key}: {e}")
+            logging.debug3(f"❌ Failed to create tables for {db_key}: {e}")
+
 
 
 

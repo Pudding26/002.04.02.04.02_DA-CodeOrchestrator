@@ -4,13 +4,17 @@ from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.mapping.YamlColumnMapper import YamlColumnMapper
 import logging
+from sqlalchemy.orm import Session
+from app.utils.SQL.DBEngine import DBEngine
+
+
+from app.utils.SQL.models.production.orm.DS40 import DS40
 
 
 
 class TA13_B_DataTransfer_DS40(TaskBase):
     def setup(self):
         self.src_db = SQL_Df(self.instructions["src_db_name"])
-        self.dest_db = SQL_Df(self.instructions["dest_db_name"])
         self.table_name = self.instructions["table_name"]
         self.dataset_name = self.instructions["taskName"]
         self.data_raw = None
@@ -32,7 +36,8 @@ class TA13_B_DataTransfer_DS40(TaskBase):
             self.check_control()
 
             self.controller.update_message("Storing in destination DB...")
-            self.dest_db.store(self.table_name, self.data_cleaned)
+            DS40.store_dataframe(self.data_cleaned, db_key="production", method="replace")
+
             logging.info(f"[{self.dataset_name}] ✅ Stored cleaned data to production.")
             self.controller.update_progress(1.0)
 

@@ -1,18 +1,21 @@
+# Refactored TA13_A_DataTransfer_DS09 using ORM and TaskBase
+
 import re
 import pandas as pd
+import logging
+from sqlalchemy.orm import Session
 
 from app.tasks.TaskBase import TaskBase
 from app.utils.controlling.TaskController import TaskController
-from app.utils.SQL.SQL_Df import SQL_Df
+from app.utils.SQL.DBEngine import DBEngine
 from app.utils.mapping.YamlColumnMapper import YamlColumnMapper
-
-import logging
-
+from app.utils.SQL.models.production.orm.DS09 import DS09
+from app.utils.SQL.SQL_Df import SQL_Df
 
 class TA13_A_DataTransfer_DS09(TaskBase):
     def setup(self):
+        self.db_session: Session = DBEngine(self.instructions["dest_db_name"]).get_session()
         self.src_db = SQL_Df(self.instructions["src_db_name"])
-        self.dest_db = SQL_Df(self.instructions["dest_db_name"])
         self.table_name = self.instructions["table_name"]
         self.dataset_name = self.instructions["taskName"]
         self.data_raw = None
@@ -46,9 +49,8 @@ class TA13_A_DataTransfer_DS09(TaskBase):
             self.finalize_data()
             self.controller.update_progress(0.8)
 
-            self.controller.update_message("Storing in destination DB...")
-            self.dest_db.store(self.table_name, self.data_cleaned)
-            logging.info(f"[{self.dataset_name}] ✅ Data written to production DB: {self.table_name}")
+            self.controller.update_message("Storing cleaned data in destination DB using ORM...")
+            self.persist_cleaned_data()
             self.controller.update_progress(1.0)
 
             self.controller.finalize_success()
@@ -62,6 +64,7 @@ class TA13_A_DataTransfer_DS09(TaskBase):
     def cleanup(self):
         logging.debug2(f"[{self.dataset_name}] 🧹 Running cleanup.")
         self.controller.archive_with_orm()
+        self.db_session.close()
 
     def rename_columns(self):
         logging.debug2(f"[{self.dataset_name}] 🔤 Renaming columns using YamlColumnMapper.")
@@ -75,11 +78,9 @@ class TA13_A_DataTransfer_DS09(TaskBase):
             yaml_path=self.instructions["path_col_name_mapper"],
             keys_list=[self.dataset_name, "rename"]
         )
-        logging.debug2(f"[{self.dataset_name}] 🔤 Columns renamed successfully.")
-        logging.debug2(f"[{self.dataset_name}] Columns after renaming: {self.data_raw.columns.tolist()}")
+        logging.debug2(f"[{self.dataset_name}] 🔤 Columns renamed: {self.data_raw.columns.tolist()}")
 
     def annotate_ifaw_state(self):
-        logging.debug2(f"[{self.dataset_name}] 🧮 Annotating IFAW states.")
         def classify_code(code: str) -> int | None:
             if isinstance(code, str):
                 code = code.strip().upper()
@@ -92,27 +93,23 @@ class TA13_A_DataTransfer_DS09(TaskBase):
         self.data_raw["ifaw_state_temp"] = self.data_raw["IFAW_code"].apply(classify_code)
 
     def split_data_based_on_ifaw_state(self):
-        logging.debug1(f"[{self.dataset_name}] 🪓 Splitting data by IFAW classification.")
         data_case_1 = self.handle_case_1(self.data_raw[self.data_raw["ifaw_state_temp"] == 1])
         data_case_2 = self.handle_case_2(self.data_raw[self.data_raw["ifaw_state_temp"] == 2])
         data_case_3 = self.handle_case_3(self.data_raw[self.data_raw["ifaw_state_temp"] == 3])
         self.data_cleaned = pd.concat([data_case_1, data_case_2, data_case_3], ignore_index=True)
 
     def handle_case_1(self, df):
-        logging.debug2(f"[{self.dataset_name}] 🐾 Handling case 1 (fully specified species).")
         df = df.copy()
         df["species"] = df["species_todo"].apply(self.to_upper_camel_case)
         df = df[~df["species_todo"].str.contains("spp", case=False, na=False)]
         return df
 
     def handle_case_2(self, df):
-        logging.debug2(f"[{self.dataset_name}] 🌱 Handling case 2 (genus-level codes).")
         df = df.copy()
         df["genus"] = df["species_todo"].apply(self.extract_genus)
         return df
 
     def handle_case_3(self, df):
-        logging.debug2(f"[{self.dataset_name}] 🧠 Handling case 3 (manual matches).")
         manual_matches = {
             "ATTX": ["AntiarisToxicaria"],
             "BLTX": ["BaillonellaToxisperma"],
@@ -136,7 +133,6 @@ class TA13_A_DataTransfer_DS09(TaskBase):
         return match_df.merge(df, how="left", on="IFAW_code")
 
     def addgenus(self):
-        logging.debug2(f"[{self.dataset_name}] 🧬 Inferring genus from species.")
         data_gen = self.data_cleaned
         mask = data_gen["genus"].isna() & data_gen["species"].notna()
         data_gen.loc[mask, "genus"] = data_gen.loc[mask, "species"].apply(
@@ -144,13 +140,16 @@ class TA13_A_DataTransfer_DS09(TaskBase):
         )
         self.data_cleaned = data_gen
 
-    def finalize_data(self):
-        logging.debug2(f"[{self.dataset_name}] 🗑 Dropping temp columns.")
-        self.data_cleaned.rename(columns={"species_todo": "species_drop"}, inplace=True)
-        self.data_cleaned.drop(
-            columns=[col for col in self.data_cleaned.columns if col.endswith("drop") or col.endswith("temp")],
-            inplace=True
-        )
+    def extract_genus(self, species_str):
+        try:
+            if isinstance(species_str, str):
+                parts = species_str.strip().split()
+                if parts:
+                    return parts[0].capitalize()
+        except Exception as e:
+            logging.warning(f"extract_genus failed: {e}")
+        return None
+
 
     def to_upper_camel_case(self, species_str):
         try:
@@ -162,12 +161,16 @@ class TA13_A_DataTransfer_DS09(TaskBase):
             logging.warning(f"to_upper_camel_case failed: {e}")
         return None
 
-    def extract_genus(self, species_str):
-        try:
-            if isinstance(species_str, str):
-                parts = species_str.strip().split()
-                if parts:
-                    return parts[0].capitalize()
-        except Exception as e:
-            logging.warning(f"extract_genus failed: {e}")
-        return None
+
+
+    def finalize_data(self):
+        self.data_cleaned.rename(columns={"species_todo": "species_drop"}, inplace=True)
+        self.data_cleaned.drop(
+            columns=[col for col in self.data_cleaned.columns if col.endswith("drop") or col.endswith("temp")],
+            inplace=True
+        )
+
+    def persist_cleaned_data(self):
+        
+        DS09.store_dataframe(self.data_cleaned, db_key="production", method="replace")
+
