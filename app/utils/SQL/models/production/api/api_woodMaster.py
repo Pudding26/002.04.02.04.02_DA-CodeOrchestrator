@@ -1,7 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
 from models.sharedBaseModel import SharedBaseModel
-from models.prd.api.api_segmentationResults import SegmentationResultOut
+from models.production.api.api_segmentationResults import SegmentationResultOut
 
 class WoodMasterBase(SharedBaseModel):
     family: Optional[str]
