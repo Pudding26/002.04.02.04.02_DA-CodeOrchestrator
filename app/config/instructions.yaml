@@ -106,3 +106,24 @@ tasks:
         - DS11
       dest_db_name: raw
       dest_table_name: primaryDataRaw
+
+  TA13_Transfer_SecondaryData:
+    TA13_0_TransferSecondaryDataWrapper:
+      taskName: TA13_0_TransferSecondaryDataWrapper
+      instruction_path: app/config/instructions.yaml
+      api_base_url: http://localhost:8000
+      task_dir_path: app/tasks/TA13_DataTransferSecondary  # Adjust if your subtasks live elsewhere
+
+
+    TA13_A_DataTransfer_DS09:
+      taskName: TA13_A_DataTransfer_DS09
+      table_name: "DS09"
+      src_db_name: "raw"
+      dest_db_name: "production"
+      path_col_name_mapper: app/config/mapper/TA13_TransferSecondaryData/TA13_colRenameMapper.yaml
+
+    TA13_B_DataTransfer_DS40:
+      taskName: TA13_B_DataTransfer_DS40
+      table_name: "DS40"
+      src_db_name: "raw"
+      dest_db_name: "production"

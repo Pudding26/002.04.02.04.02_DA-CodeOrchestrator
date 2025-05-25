@@ -52,7 +52,7 @@ class TaskHandler:
             task_names = []
 
             for task_name in tasks:
-                label = f"{task_name} [WRAPPER]" if "Wrapper" in task_name else task_name
+                label = f"{task_name}" if "Wrapper" in task_name else task_name
                 task_names.append(label)
                 logging.debug2(f" - Task registered: {label}")
 
