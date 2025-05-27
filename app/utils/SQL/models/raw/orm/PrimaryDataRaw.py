@@ -1,13 +1,13 @@
 # ORM Model: app/utils/SQL/models/raw/orm/PrimaryDataRaw.py
 
-from sqlalchemy import Column, String, Integer, Float, Boolean
-from app.utils.SQL.models.OrmBase import OrmBase
+from sqlalchemy import Column, String, String, String, Boolean, BigInteger
+from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
-class PrimaryDataRaw(OrmBase):
+class PrimaryDataRaw(orm_BaseModel):
     __tablename__ = "primaryDataRaw"
     
     
-    UUID = Column(Integer, primary_key=True, autoincrement=True)
+    UUID = Column(BigInteger, primary_key=True, autoincrement=True)
     citeKey = Column(String)
     filename = Column(String)
     sourceNo = Column(String)
@@ -21,12 +21,12 @@ class PrimaryDataRaw(OrmBase):
     specimenID_old = Column(String)
     shotNo = Column(String)
     specimenNo = Column(String)
-    pixel_x = Column(Integer)
-    pixel_y = Column(Integer)
+    pixel_x = Column(String)
+    pixel_y = Column(String)
     family = Column(String)
-    GPS_Alt = Column(Float)
-    GPS_Lat = Column(Float)
-    GPS_Long = Column(Float)
+    GPS_Alt = Column(String)
+    GPS_Lat = Column(String)
+    GPS_Long = Column(String)
     japName = Column(String)
     specimenNo_old = Column(String)
     order_old = Column(String)
@@ -41,22 +41,22 @@ class PrimaryDataRaw(OrmBase):
     individuals_drop = Column(String)
     n_individuals_drop = Column(String)
     view = Column(String)
-    lens = Column(Integer)
+    lens = Column(String)
     microscopicTechnic = Column(String)
     bitDepth = Column(String)
     colorSpace = Column(String)
     colorDepth = Column(String)
     DPI = Column(String)
-    totalNumberShots = Column(Integer)
+    totalNumberShots = Column(String)
     institution = Column(String)
     contributor = Column(String)
     origin = Column(String)
     digitizedDate = Column(String)
-    area_x_mm = Column(Float)
-    area_y_mm = Column(Float)
-    pixelSize_um_per_pixel = Column(Float)
-    numericalAperature_NA = Column(Float)
-    sourceStoredLocally = Column(Boolean)
+    area_x_mm = Column(String)
+    area_y_mm = Column(String)
+    pixelSize_um_per_pixel = Column(String)
+    numericalAperature_NA = Column(String)
+    sourceStoredLocally = Column(String)
     institutionCode = Column(String)
     sourceFilePath_abs = Column(String)
     woodType = Column(String)
@@ -66,7 +66,9 @@ class PrimaryDataRaw(OrmBase):
     source_drop = Column(String)
     todo_bitdepth_old = Column(String)
     engName_old = Column(String)
-    version_old = Column(String)
     contributor_old = Column(String)
     institution_old = Column(String)
     view_old = Column(String)
+    anatomy1_DS04 = Column(String)
+    anatomy2_DS04 = Column(String)
+    version_old = Column(String)

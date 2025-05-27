@@ -1,9 +1,9 @@
 from typing import Optional, List
 from datetime import datetime
-from models.sharedBaseModel import SharedBaseModel
-from models.production.api.api_segmentationResults import SegmentationResultOut
+from app.utils.SQL.models.api_BaseModel import api_BaseModel
 
-class WoodMasterBase(SharedBaseModel):
+
+class WoodMasterBase(api_BaseModel):
     family: Optional[str]
     genus: Optional[str]
     species: Optional[str]
@@ -31,9 +31,3 @@ class WoodMasterBase(SharedBaseModel):
     filterNo: Optional[int]
     stackID: Optional[str]
 
-class WoodMasterOut(WoodMasterBase):
-    sampleID: str
-    segmentation_results: Optional[List[SegmentationResultOut]] = []
-
-    class Config:
-        orm_mode = True

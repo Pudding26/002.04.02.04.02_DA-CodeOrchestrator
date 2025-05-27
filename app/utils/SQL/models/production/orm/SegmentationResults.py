@@ -1,8 +1,8 @@
 from sqlalchemy import Column, String, Integer, Float, ForeignKey
 from sqlalchemy.orm import relationship
-from app.utils.SQL.models.sharedBaseModel import SharedBaseModel
+from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
-class SegmentationResults(SharedBaseModel):
+class SegmentationResultsAPI(orm_BaseModel):
     __tablename__ = "segmentationResults"
 
     ROWID = Column(Integer, primary_key=True, autoincrement=True)

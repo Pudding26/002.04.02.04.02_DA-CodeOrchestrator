@@ -6,9 +6,10 @@ import logging
 
 from app.utils.SQL.DBEngine import DBEngine
 from app.utils.SQL.models.progress.orm.ProgressArchive import ProgressArchive
+from app.utils.SQL.models.api_BaseModel import api_BaseModel
 
 
-class ProgressArchiveBase(BaseModel):
+class ProgressArchiveOut(api_BaseModel):
     task_uuid: str
     task_name: str
     start_time: Optional[datetime]
@@ -22,11 +23,6 @@ class ProgressArchiveBase(BaseModel):
     data_transferred_gb: Optional[float]
     item_count: Optional[int]
     stack_count: Optional[int]
-
-
-class ProgressArchiveOut(ProgressArchiveBase):
-    class Config:
-        orm_mode = True
 
     @classmethod
     def persist_to_db(cls, data: "ProgressArchiveOut", force_replace: bool = False):

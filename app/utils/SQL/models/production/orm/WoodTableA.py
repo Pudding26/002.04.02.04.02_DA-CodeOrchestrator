@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer
-from app.utils.SQL.models.OrmBase import OrmBase
+from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
-class WoodTableA(OrmBase):
+class WoodTableA(orm_BaseModel):
     __tablename__ = "WoodTableA"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

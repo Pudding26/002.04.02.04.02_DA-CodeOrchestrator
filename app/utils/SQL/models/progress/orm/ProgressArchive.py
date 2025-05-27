@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Float, Integer, DateTime
-from app.utils.SQL.models.OrmBase import OrmBase
+from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 from datetime import datetime
 from typing import Optional
 
-class ProgressArchive(OrmBase):
+class ProgressArchive(orm_BaseModel):
     __tablename__ = "progressArchive"
 
     task_uuid: str = Column(String, primary_key=True, nullable=False)
