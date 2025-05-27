@@ -1,7 +1,7 @@
 from typing import Optional
-from models.sharedBaseModel import SharedBaseModel
+from app.utils.SQL.models.api_BaseModel import api_BaseModel
 
-class SegmentationResultBase(SharedBaseModel):
+class SegmentationResultBase(api_BaseModel):
     sampleID: str
     shotID: Optional[str]
     position: Optional[int]
@@ -12,9 +12,3 @@ class SegmentationResultBase(SharedBaseModel):
     feature_value: Optional[float]
     unit: Optional[str]
     object_count: Optional[int]
-
-class SegmentationResultOut(SegmentationResultBase):
-    ROWID: int
-
-    class Config:
-        orm_mode = True

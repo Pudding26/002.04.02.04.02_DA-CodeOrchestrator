@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.utils.SQL.models.sharedBaseModel import SharedBaseModel
+from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
-class WoodMaster(SharedBaseModel):
+class WoodMaster(orm_BaseModel):
     __tablename__ = "woodMaster"
 
     sampleID = Column(String, primary_key=True)

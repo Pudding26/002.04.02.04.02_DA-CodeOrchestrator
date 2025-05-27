@@ -1,11 +1,11 @@
 from sqlalchemy import Column, String, Float, Integer, DateTime
 from sqlalchemy.dialects.postgresql import UUID
-from app.utils.SQL.models.OrmBase import OrmBase
+from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 import uuid
 from datetime import datetime
 
 
-class ProfileArchive(OrmBase):
+class ProfileArchive(orm_BaseModel):
     __tablename__ = "profileArchive"
 
     id = Column(Integer, primary_key=True, index=True)

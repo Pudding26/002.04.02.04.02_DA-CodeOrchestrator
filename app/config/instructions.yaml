@@ -127,3 +127,7 @@ tasks:
       table_name: "DS40"
       src_db_name: "raw"
       dest_db_name: "production"
+
+  TA20_CreateWoodTable:
+    TA20_A_CreateWoodTableA:
+      taskName: TA20_A_CreateWoodTableA

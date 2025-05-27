@@ -19,16 +19,18 @@ def create_all_tables():
     from app.utils.SQL.models.progress.orm.ProfileArchive import ProfileArchive
     from app.utils.SQL.models.progress.orm.ProgressArchive import ProgressArchive
     
+    # raw
+    from app.utils.SQL.models.raw.orm.PrimaryDataRaw import PrimaryDataRaw
     
     # production
-    from app.utils.SQL.models.production.orm.PrimaryDataRaw import PrimaryDataRaw
     from app.utils.SQL.models.production.orm.DS09 import DS09
     from app.utils.SQL.models.production.orm.DS40 import DS40
     from app.utils.SQL.models.production.orm.WoodTableA import WoodTableA
 
     grouped_models = {
         "progress": [ProfileArchive, ProgressArchive],
-        "production": [WoodTableA, PrimaryDataRaw, DS09, DS40],
+        "raw": [PrimaryDataRaw],
+        "production": [WoodTableA, DS09, DS40],
     }
 
     for db_key, model_list in grouped_models.items():

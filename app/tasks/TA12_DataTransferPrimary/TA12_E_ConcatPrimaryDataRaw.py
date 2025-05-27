@@ -1,7 +1,14 @@
 import pandas as pd
+import numpy as np
+
 import logging
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
+
+
+from app.utils.SQL.models.raw.orm.PrimaryDataRaw import PrimaryDataRaw
+from app.utils.SQL.models.raw.api.api_primaryDataRaw import PrimaryDataRawOut
+
 
 
 class TA12_E_ConcatPrimaryDataRaw(TaskBase):
@@ -46,14 +53,36 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
             self.cleanup()
 
     def store_data(self):
+        
+        def _prepare_for_orm(df):
+            df = df.rename(columns={
+                "area_x [mm]": "area_x_mm",
+                "area_y [mm]": "area_y_mm",
+                "pixelSize [um/pixel]": "pixelSize_um_per_pixel",
+                "numericalAperature [NA]": "numericalAperature_NA",
+                "source-UUID" : "source_UUID",
+                'anatomy1_DS-4' : 'anatomy1_DS04',
+                'anatomy2_DS-4' : "anatomy2_DS04",
+                '_version_old': "version_old",
+
+            })
+
+            df["version_old"] = df["version_old"].astype(str)
+            return df
+
+
+            
+
+
+        
         table_name = self.instructions["dest_table_name"]
-        self.logger.debug2(f"[Store] Writing to table: {table_name}")
-
-        self.dest_db.store(table_name=table_name, df=self.data, method="replace")
-        self.logger.debug2("[Store] Data written to dest_db_1")
+        self.data = _prepare_for_orm(self.data)
 
 
-        self.logger.info(f"[Store] Data stored in both destinations under table: {table_name}")
+        PrimaryDataRawOut.store_dataframe(self.data, db_key="raw", method="replace")
+
+
+        self.logger.info(f"[Store] Data stored via ORM.")
 
     def cleanup(self):
         self.logger.info("[Cleanup] Flushing memory logs and archiving task progress.")
