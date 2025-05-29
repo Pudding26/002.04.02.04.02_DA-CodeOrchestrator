@@ -8,6 +8,7 @@ class PrimaryDataRaw(orm_BaseModel):
     
     
     raw_UUID = Column(String, primary_key=True)
+    citeKey = Column(String)
     filename = Column(String)
     sourceNo = Column(String)
     path = Column(String)
@@ -31,8 +32,6 @@ class PrimaryDataRaw(orm_BaseModel):
     order_old = Column(String)
     section_drop = Column(String)
     subgenus_drop = Column(String)
-    anatomy1_DS_4 = Column(String)
-    anatomy2_DS_4 = Column(String)
     otherNo_drop = Column(String)
     prepNo_drop = Column(String)
     samplingPoint = Column(String)

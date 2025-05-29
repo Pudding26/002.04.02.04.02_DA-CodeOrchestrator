@@ -11,7 +11,7 @@ from app.utils.general.HelperFunctions import generate_deterministic_string_uuid
 
 
 from app.utils.SQL.models.raw.orm.PrimaryDataRaw import PrimaryDataRaw
-from app.utils.SQL.models.raw.api.api_primaryDataRaw import PrimaryDataRawOut
+from app.utils.SQL.models.raw.api.api_primaryDataRaw import PrimaryDataRaw_Out
 
 
 
@@ -95,7 +95,7 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
             length=6)
 
 
-        PrimaryDataRawOut.store_dataframe(self.data, db_key="raw", method="replace")
+        PrimaryDataRaw_Out.store_dataframe(self.data, db_key="raw", method="replace")
 
 
         self.logger.info(f"[Store] Data stored via ORM.")

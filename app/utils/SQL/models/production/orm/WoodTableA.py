@@ -8,7 +8,7 @@ class WoodTableA(orm_BaseModel):
     family = Column(String)
     genus = Column(String)
     species = Column(String)
-    IFAW_ID = Column(String)
+    IFAW_code = Column(String)
     engName = Column(String)
     deName = Column(String)
     frName = Column(String)
