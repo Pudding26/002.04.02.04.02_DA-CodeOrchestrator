@@ -7,8 +7,7 @@ class PrimaryDataRaw(orm_BaseModel):
     __tablename__ = "primaryDataRaw"
     
     
-    UUID = Column(BigInteger, primary_key=True, autoincrement=True)
-    citeKey = Column(String)
+    raw_UUID = Column(String, primary_key=True)
     filename = Column(String)
     sourceNo = Column(String)
     path = Column(String)

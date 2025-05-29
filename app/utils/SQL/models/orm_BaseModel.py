@@ -5,7 +5,7 @@ import pandas as pd
 import logging
 
 
-class orm_BaseModel:
+class _Base:
     @classmethod
     def store_dataframe(cls, df: pd.DataFrame, db_key: str, method: str = "append"):
         from app.utils.SQL.DBEngine import DBEngine
@@ -65,4 +65,4 @@ class orm_BaseModel:
 
 
 # Base class for all ORM models
-OrmBase = declarative_base(cls=_Base)
+orm_BaseModel = declarative_base(cls=_Base)

@@ -1,10 +1,12 @@
-from typing import List, Type, TypeVar
+from typing import List, Type, TypeVar, Optional, Any
 from sqlalchemy.orm import Session
 from app.utils.SQL.DBEngine import DBEngine
 from pydantic import BaseModel
 import pandas as pd
 import numpy as np
 import logging
+from pydantic import TypeAdapter
+
 
 T = TypeVar("T", bound="SharedBaseModel")
 
@@ -13,7 +15,8 @@ class api_BaseModel(BaseModel):
     Shared base for all Pydantic models in the application.
     """
     class Config:
-        orm_mode = True
+        from_attributes = True
+        str_strip_whitespace = True
         anystr_strip_whitespace = True
         use_enum_values = True
         extra = "forbid"
@@ -27,27 +30,43 @@ class api_BaseModel(BaseModel):
         return self.model_dump_json(indent=2, exclude_none=True, **kwargs)
     
     @classmethod
-    def store_dataframe(
-        cls: Type[T], df: pd.DataFrame, orm_class: Type, session: Session
-    ) -> None:
-        """Validate and store a DataFrame using the ORM class and session."""
-        try:
-            validated = cls.from_dataframe(df)
-            orm_objs = [item.to_orm(orm_class) for item in validated]
-            session.bulk_save_objects(orm_objs)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            logging.error(f"❌ Failed to store data for {cls.__name__}: {e}", exc_info=True)
-            raise
-        finally:
-            session.close()
+    def store_dataframe(cls, df: pd.DataFrame, db_key: str, method: str = "append") -> None:
+        """
+        Validate DataFrame using Pydantic v2 (vectorized), then store it via to_sql.
+        Only supports 'append' or 'replace'.
+        """
+        from app.utils.SQL.DBEngine import DBEngine
+        engine = DBEngine(db_key).get_engine()
 
+        # ✅ Vectorized Pydantic validation
+        try:
+            validated_df = cls._model_validate_dataframe(df)
+        except Exception as e:
+            logging.error(f"❌ Pydantic validation failed in {cls.__name__}: {e}", exc_info=True)
+            raise
+
+        # ✅ Store to SQL
+        try:
+            validated_df.to_sql(
+                name=cls.orm_class.__tablename__,
+                con=engine,
+                if_exists=method,
+                index=False,
+                method="multi",
+                chunksize=10_000
+            )
+            logging.info(f"✅ Stored {len(validated_df)} rows to {cls.orm_class.__tablename__} using to_sql ({method})")
+        except Exception as e:
+            logging.error(f"❌ Failed to store to SQL in {cls.__name__}: {e}", exc_info=True)
+            raise
 
     @classmethod
-    def fetch_all(cls: Type[T], orm_class: Type, db_key: str = "raw") -> List[T]:
-        """Fetch all records for the given ORM class and return them as Pydantic models."""
-        session: Session = DBEngine(db_key).get_session()
+    def fetch_all(cls: Type[T], db_key: str = "raw", orm_class: Optional[Type] = None) -> List[T]:
+        orm_class = orm_class or getattr(cls, "orm_class", None)
+        if orm_class is None:
+            raise ValueError(f"{cls.__name__} must define 'orm_class' or pass it explicitly.")
+        
+        session = DBEngine(db_key).get_session()
         try:
             results = session.query(orm_class).all()
             return [cls.model_validate(r) for r in results]
@@ -57,3 +76,8 @@ class api_BaseModel(BaseModel):
         finally:
             session.close()
 
+    @classmethod
+    def _model_validate_dataframe(cls, df: pd.DataFrame) -> pd.DataFrame:
+        adapter = TypeAdapter(list[cls])
+        validated = adapter.validate_python(df.to_dict(orient="records"))
+        return pd.DataFrame([item.model_dump(exclude_none=True) for item in validated])
