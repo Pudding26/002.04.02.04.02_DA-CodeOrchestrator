@@ -6,7 +6,7 @@ from app.utils.SQL.models.api_BaseModel import api_BaseModel
 
 from app.utils.SQL.models.raw.orm.PrimaryDataRaw import PrimaryDataRaw
 
-class PrimaryDataRawOut(api_BaseModel):
+class PrimaryDataRaw_Out(api_BaseModel):
 
     orm_class: ClassVar = PrimaryDataRaw
 

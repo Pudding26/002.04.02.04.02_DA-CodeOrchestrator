@@ -61,12 +61,15 @@ class api_BaseModel(BaseModel):
             raise
 
     @classmethod
-    def fetch_all(cls: Type[T], db_key: str = "raw", orm_class: Optional[Type] = None) -> List[T]:
+    def fetch_all(cls: Type[T], db_key: str = None, orm_class: Optional[Type] = None) -> List[T]:
         orm_class = orm_class or getattr(cls, "orm_class", None)
+        db_key = db_key or getattr(cls, "db_key", "raw")
+
         if orm_class is None:
             raise ValueError(f"{cls.__name__} must define 'orm_class' or pass it explicitly.")
         
         session = DBEngine(db_key).get_session()
+        logging.debug2(f"🔍 Fetching all entries from {orm_class.__name__} in {db_key} database")
         try:
             results = session.query(orm_class).all()
             return [cls.model_validate(r) for r in results]
