@@ -1,9 +1,13 @@
 import pandas as pd
 import numpy as np
 
+
 import logging
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
+
+
+from app.utils.general.HelperFunctions import generate_deterministic_string_uuid
 
 
 from app.utils.SQL.models.raw.orm.PrimaryDataRaw import PrimaryDataRaw
@@ -38,6 +42,10 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
                 progress = (idx + 1) / len(table_list)
                 self.controller.update_progress(min(progress, 0.9))
 
+
+            
+
+
             self.controller.update_message("Storing result tables...")
             self.logger.info("[Run] Concatenation complete. Proceeding to store data.")
             self.store_data()
@@ -51,6 +59,11 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
             raise
         finally:
             self.cleanup()
+
+
+
+
+
 
     def store_data(self):
         
@@ -77,6 +90,9 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
         
         table_name = self.instructions["dest_table_name"]
         self.data = _prepare_for_orm(self.data)
+        self.data["raw_UUID"] = "r_" + generate_deterministic_string_uuid(
+            self.data["source_UUID"].astype(str).str.cat(self.data["sourceNo"].astype(str), na_rep=""),
+            length=6)
 
 
         PrimaryDataRawOut.store_dataframe(self.data, db_key="raw", method="replace")
