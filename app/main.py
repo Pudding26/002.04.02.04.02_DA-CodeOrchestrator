@@ -6,6 +6,8 @@ from app.utils.logger.loggingWrapper import LoggingHandler
 from app.utils.API.TaskRouter import router as task_router
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.tasks.TA01_setup.TA01_A_SQLSetup import TA01_A_SQLSetup
+
 from app.utils.SQL.DBEngine import create_all_tables
 from app.utils.HDF5.HDF5Utils import HDF5Utils
 from app.utils.controlling.TaskController import TaskController
@@ -18,6 +20,8 @@ LoggingHandler(logging_level="DEBUG-2")
 async def lifespan(app: FastAPI):
     TaskController.clean_orphaned_tasks_on_start()
     
+    TA01_A_SQLSetup.createDatabases()
+
     create_all_tables()
 
     directories = [

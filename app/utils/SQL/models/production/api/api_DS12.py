@@ -6,17 +6,17 @@ from sqlalchemy.orm import Session
 import logging
 from app.utils.SQL.models.api_BaseModel import api_BaseModel
 
-from app.utils.SQL.models.production.orm.DS40 import DS40
+from app.utils.SQL.models.production.orm.DS12 import DS12
 
-class DS40_Out(api_BaseModel):
+class DS12_Out(api_BaseModel):
     
 
 
-    orm_class: ClassVar = DS40
+    orm_class: ClassVar = DS12
     db_key: ClassVar[str] = "production"
 
-    id: int
-    genus: int
-    family: str
+    species: str
+    engName: Optional[str]
+    deName: Optional[str]
 
 

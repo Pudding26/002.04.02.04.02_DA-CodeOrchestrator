@@ -6,6 +6,8 @@ from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 class WoodMaster(orm_BaseModel):
     __tablename__ = "woodMaster"
 
+
+
     sampleID = Column(String, primary_key=True)
 
     family = Column(String)
@@ -35,9 +37,9 @@ class WoodMaster(orm_BaseModel):
     filterNo = Column(Integer)
     stackID = Column(String)
 
-    # ✅ Add relationship to segmentationResults
-    segmentation_results = relationship(
-        "SegmentationResults",
-        back_populates="wood_sample",
-        cascade="all, delete-orphan"
-    )
+    ## ✅ Add relationship to segmentationResults
+    #segmentation_results = relationship(
+    #    "SegmentationResults",
+    #    back_populates="wood_sample",
+    #    cascade="all, delete-orphan"
+    #)

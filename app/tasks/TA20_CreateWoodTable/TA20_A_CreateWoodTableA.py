@@ -1,135 +1,194 @@
-import logging
 import pandas as pd
+import logging
+from typing import Dict
+from memory_profiler import profile
 
 from app.tasks.TaskBase import TaskBase
+from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.SQL.models.production.api.api_WoodTableA import WoodTableA_Out
-from app.utils.SQL.models.production.api.api_DS09 import DS09_Out
-from app.utils.SQL.models.raw.api.api_primaryDataRaw import PrimaryDataRaw_Out
-
 
 class TA20_A_CreateWoodTableA(TaskBase):
-    def setup(self):
-        self.controller.update_message("Initialized wood table construction")
-        logging.debug2("✅ Task setup complete.")
+    def setup(self) -> None:
+        """Initialize controller message and SQL connection."""
+        self.controller.update_message("Initializing Wood Table Creation")
+        self.controller.update_progress(0.0)
+        self.ds_SQL = SQL_Df(self.instructions["src_db_key"]) ## production
 
-    def run(self):
+    def run(self) -> None:
+        """Run task logic: load → clean → enrich → filter → store."""
         try:
-            self.controller.update_message("Loading source data")
+            self.controller.update_message("Loading required data")
             data_dict = self.load_needed_data()
-            logging.debug2(f"📦 Loaded {len(data_dict)} source tables")
+            self.controller.update_progress(0.2)
 
-            cleaned_df = self.clean_and_enrich_data(data_dict)
-            logging.debug2("🧹 Cleaned and enriched source data")
+            self.controller.update_message("Cleaning and enriching data")
+            cleaned_df = self.clean_data(data_dict)
+            self.controller.update_progress(0.5)
 
-            merged_df = self.merge_with_DS09(cleaned_df, data_dict.get("DS09"))
-            logging.debug2("🔗 Merged with DS09 reference")
+            self.controller.update_message("Merging with DS09 reference")
+            merged_df = self.merge_with_ds09(cleaned_df, data_dict.get("DS09"))
+            self.controller.update_progress(0.7)
 
+            self.controller.update_message("Filtering relevant entries")
             final_df = self.filter_data(merged_df)
-            logging.debug2(f"🔍 Filtered final dataset: {len(final_df)} rows")
-            final_df = final_df.where(pd.notna(final_df), None)
-            logging.debug2("📦 Final DataFrame ready for storage")
+            self.controller.update_progress(0.9)
+
+            self.controller.update_message("Storing result")
+            final_df = final_df.where(pd.notnull(final_df), None)
+            if "todo_lens" in final_df.columns:
+                final_df.drop(columns=["todo_lens"], inplace=True)
 
             WoodTableA_Out.store_dataframe(final_df, db_key="production", method="replace")
-
-            logging.info(f"✅ Stored {len(final_df)} records into WoodTableA ORM")
+            logging.info(f"✅ Stored {len(final_df)} rows to WoodTableA")
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
-
         except Exception as e:
-            logging.error(f"❌ Task failed: {e}", exc_info=True)
+            logging.exception("❌ TA20_A_CreateWoodTableA failed.")
             self.controller.finalize_failure(str(e))
             raise
         finally:
             self.cleanup()
 
-    def cleanup(self):
-        logging.debug2("🧹 Starting cleanup...")
+    def cleanup(self) -> None:
+        """Flush memory profile logs and archive progress."""
         self.flush_memory_logs()
-        logging.debug2("📦 Archiving logs with ORM controller...")
         self.controller.archive_with_orm()
-        logging.debug2("✅ Cleanup complete.")
 
-    def load_needed_data(self):
+    def load_needed_data(self) -> Dict[str, pd.DataFrame]:
+        """
+        Load primaryDataRaw from raw DB, and all other tables from production DB.
+        
+        Returns:
+            dict: Mapping of table name → DataFrame
+        """
+        expected_tables = self.instructions["src_table_names"]
+        raw_loader = SQL_Df("raw")
+        prod_loader = SQL_Df("production")
+        
+        raw_available = raw_loader.get_table_names()
+        prod_available = prod_loader.get_table_names()
+        
         data_dict = {}
 
-        logging.debug2("📥 Fetching raw primary data from ORM...")
-        raw_data = PrimaryDataRaw_Out.fetch_all()
-        raw_df = pd.DataFrame([r.model_dump() for r in raw_data])
-        data_dict["Data1Raw"] = raw_df
-        logging.debug2(f"✅ Fetched {len(raw_df)} rows of raw primary data.")
-
-        logging.debug2("📥 Fetching DS09 reference data from ORM...")
-        ds09_data = DS09_Out.fetch_all()
-        ds09_df = pd.DataFrame([r.model_dump() for r in ds09_data])
-        data_dict["DS09"] = ds09_df if not ds09_df.empty else None
-        logging.debug2(f"✅ Fetched {len(ds09_df)} rows from DS09." if ds09_df is not None else "⚠️ DS09 data is empty.")
-
+        for table in expected_tables:
+            if table == "primaryDataRaw":
+                if table in raw_available:
+                    df = raw_loader.load(table)
+                    data_dict[table] = df
+                    logging.debug2(f"✅ Loaded '{table}' from raw DB ({len(df)} rows).")
+                else:
+                    logging.warning(f"⚠️ '{table}' not found in raw DB.")
+            else:
+                if table in prod_available:
+                    df = prod_loader.load(table)
+                    data_dict[table] = df
+                    logging.debug2(f"✅ Loaded '{table}' from production DB ({len(df)} rows).")
+                else:
+                    logging.warning(f"⚠️ '{table}' not found in production DB.")
+        
         return data_dict
 
-    def clean_and_enrich_data(self, data_dict):
-        logging.debug2("🧽 Starting cleaning and enrichment of raw data...")
-        cols = ["sourceNo", "family", "IFAW_code", "genus", "species", "engName", "deName", "frName", "japName", "origin"]
+
+    def clean_data(self, data_dict: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+        """
+        Extracts relevant columns and enriches missing family names in primaryDataRaw.
+
+        Args:
+            data_dict: Dict of all loaded tables
+
+        Returns:
+            pd.DataFrame: Cleaned and enriched primaryDataRaw
+        """
+        cols_to_keep = ["family", "IFAW_ID", "genus", "species", "engName", "deName", "frName", "japName", "origin"]
         df_with_fam = pd.DataFrame()
 
+
+
         for name, df in data_dict.items():
-            if df is None:
-                logging.debug2(f"⚠️ Skipping '{name}' as it is None.")
-                continue
-            logging.debug2(f"🔍 Processing columns for dataset '{name}'...")
-            df = df.loc[:, df.columns.intersection(cols + ["genus", "family"])]
-            data_dict[name] = df
+            logging.debug3(f"📦 Processing non-raw table: {name}")
+            df = df.loc[:, df.columns.intersection(cols_to_keep)]
             if "family" in df.columns:
-                fam = df.dropna(subset=["family"])[["family", "genus"]]
-                df_with_fam = pd.concat([df_with_fam, fam])
-                logging.debug2(f"📊 Found {len(fam)} non-null family entries in '{name}'.")
+                fam_subset = df.dropna(subset=["family"])[["family", "genus"]]
+                df_with_fam = pd.concat([df_with_fam, fam_subset])
 
-        fam_reference = df_with_fam.drop_duplicates()
-        logging.debug2(f"🧬 Constructed family reference table with {len(fam_reference)} unique rows.")
 
-        df_raw = data_dict["Data1Raw"]
+        df_with_fam_dropped = df_with_fam.drop_duplicates()
+        logging.debug2(f"🔍 Extracted {len(df_with_fam_dropped)} unique family-genus pairs.")
 
-        with_fam = df_raw[df_raw["family"].notna()]
-        no_fam = df_raw[df_raw["family"].isna()].drop(columns="family")
-        enriched = no_fam.merge(fam_reference, on="genus", how="left").dropna(subset=["family"])
+        df_raw = data_dict["primaryDataRaw"]
+        df_with_family = df_raw[df_raw["family"].notna()].copy()
+        df_missing_family = df_raw[df_raw["family"].isna()].copy().drop(columns="family")
 
-        logging.debug2(f"🔗 Enriched {len(enriched)} rows by merging missing family values.")
-        logging.debug2(f"📦 Final raw data size after enrichment: {len(with_fam) + len(enriched)} rows.")
+        enriched_fam = df_missing_family[["genus"]].drop_duplicates().merge(
+            df_with_fam_dropped, on="genus", how="left"
+        ).dropna()
 
-        return pd.concat([with_fam, enriched])
+        enriched_df = df_missing_family.merge(enriched_fam, on="genus", how="left").dropna(subset=["family"])
 
-    def merge_with_DS09(self, merged, DS09):
-        logging.debug2("🔗 Merging cleaned data with DS09 reference table...")
-        if DS09 is None:
-            logging.warning("⚠️ DS09 reference table missing. Skipping merge.")
-            return merged
+        logging.debug2(f"🧬 Enriched {len(enriched_df)} rows with missing family info.")
+        final_df = pd.concat([df_with_family, enriched_df])
 
-        DS09 = DS09.dropna(subset=["species"]).copy()
-        logging.debug2(f"🔍 Merging on {len(DS09)} non-null species rows.")
+   
 
-        DS09["keep_drop"] = True
-        merged = merged.merge(DS09, on="species", how="left", suffixes=('', '_DS09'))
+        logging.debug1(f"📊 Cleaned DataFrame total rows: {len(final_df)}")
+        return final_df
 
-        updated_cols = 0
-        for col in [c for c in DS09.columns if c != "species"]:
-            ds09_col = f"{col}_DS09"
-            if ds09_col in merged.columns:
-                merged[col] = merged[ds09_col].combine_first(merged[col])
-                merged.drop(columns=[ds09_col], inplace=True)
-                updated_cols += 1
+    def merge_with_ds09(self, merged_df: pd.DataFrame, ds09_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Enrich merged_df using DS09 table based on 'species'.
 
-        logging.debug2(f"✅ Merged and updated {updated_cols} columns from DS09.")
-        return merged
+        Args:
+            merged_df: Cleaned DataFrame from clean_data
+            ds09_df: Reference table
 
-    def filter_data(self, df):
-        logging.debug2("🚿 Filtering merged data by source and dropping temp columns...")
-        original_len = len(df)
+        Returns:
+            pd.DataFrame: Enriched DataFrame
+        """
+        if ds09_df is None:
+            logging.warning("⚠️ DS09 reference table is missing — skipping merge.")
+            return merged_df
+
+        ds09_df = ds09_df.dropna(subset=["species"]).copy()
+        ds09_df["keep_drop"] = True
+
+        result = merged_df.merge(ds09_df, on="species", how="left", suffixes=('', '_DS09'))
+        logging.debug2(f"🔗 Merged with DS09 → {len(result)} rows")
+
+        overlapping = [col for col in ds09_df.columns if col != "species" and col in merged_df.columns]
+        logging.debug3(f"🔁 Overriding {len(overlapping)} overlapping columns")
+
+        for col in overlapping:
+            override = col + "_DS09"
+            if override in result.columns:
+                result[col] = result[override].combine_first(result[col])
+                result.drop(columns=[override], inplace=True)
+
+        return result
+
+    def filter_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Filters rows by sourceNo and drops temp/drop/old columns.
+
+        Args:
+            df: Enriched and merged DataFrame
+
+        Returns:
+            pd.DataFrame: Final filtered DataFrame
+        """
+        logging.debug2(f"Start: Cleaning df for Storage:")
+        rouge_cols = ["sourceFilePath_abs", "id"]
+        for col in rouge_cols:
+            if col in df.columns:
+                df.drop(columns=col, inplace=True)
+                logging.debug3(f"🗑️ Dropped column '{col}' from DataFrame.")
+
+
 
         df['keep_drop'] = df['sourceNo'].isin(["DS01", "DS04", "DS07"])
-        df = df[df['keep_drop']].drop(columns=["keep_drop"])
+        filtered = df[df['keep_drop']].drop(columns=["keep_drop"])
+        drop_cols = [col for col in filtered.columns if col.endswith(("drop", "temp", "old"))]
+        cleaned = filtered.drop(columns=drop_cols, errors='ignore')
 
-        drop_cols = [c for c in df.columns if c.endswith(("drop", "temp", "old"))]
-        df = df.drop(columns=drop_cols)
-
-        logging.debug2(f"✅ Filtered data: {original_len} → {len(df)} rows. Dropped columns: {drop_cols}")
-        return df
+        logging.debug2(f"🧹 Filtered down to {len(cleaned)} rows, dropped {len(drop_cols)} columns.")
+        return cleaned

@@ -25,12 +25,18 @@ def create_all_tables():
     # production
     from app.utils.SQL.models.production.orm.DS09 import DS09
     from app.utils.SQL.models.production.orm.DS40 import DS40
+    from app.utils.SQL.models.production.orm.DS12 import DS12
     from app.utils.SQL.models.production.orm.WoodTableA import WoodTableA
+    from app.utils.SQL.models.production.orm.WoodMaster import WoodMaster
+
+    # temp
+    from app.utils.SQL.models.temp.orm.PrimaryDataJobs import PrimaryDataJobs
 
     grouped_models = {
         "progress": [ProfileArchive, ProgressArchive],
         "raw": [PrimaryDataRaw],
-        "production": [WoodTableA, DS09, DS40],
+        "production": [WoodMaster, WoodTableA, DS09, DS12, DS40],
+        "temp" : [PrimaryDataJobs],
     }
 
     for db_key, model_list in grouped_models.items():
@@ -42,7 +48,7 @@ def create_all_tables():
                 logging.debug3(f"✅ Created table '{model.__tablename__}' in {db_key}")
 
         except Exception as e:
-            logging.debug3(f"❌ Failed to create tables for {db_key}: {e}")
+            logging.warning(f"❌ Failed to create tables for {db_key}: {e}")
 
 
 
@@ -86,3 +92,7 @@ class DBEngine:
             raise ValueError(f"❌ Missing env vars for {db_key} DB")
 
         return f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
+    
+
+
+
