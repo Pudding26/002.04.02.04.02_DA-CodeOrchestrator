@@ -13,6 +13,8 @@ class DS40_Out(api_BaseModel):
 
 
     orm_class: ClassVar = DS40
+    db_key: ClassVar[str] = "production"
+
     id: int
     genus: int
     family: str

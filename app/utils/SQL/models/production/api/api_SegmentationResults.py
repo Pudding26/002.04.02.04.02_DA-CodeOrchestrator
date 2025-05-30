@@ -2,6 +2,10 @@ from typing import Optional
 from app.utils.SQL.models.api_BaseModel import api_BaseModel
 
 class SegmentationResultBase(api_BaseModel):
+
+    orm_class: ClassVar = SegmentationResults
+    db_key: ClassVar[str] = "production"
+
     sampleID: str
     shotID: Optional[str]
     position: Optional[int]

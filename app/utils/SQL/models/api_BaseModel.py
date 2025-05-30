@@ -60,8 +60,16 @@ class api_BaseModel(BaseModel):
             logging.error(f"❌ Failed to store to SQL in {cls.__name__}: {e}", exc_info=True)
             raise
 
+
+
+
     @classmethod
-    def fetch_all(cls: Type[T], db_key: str = None, orm_class: Optional[Type] = None) -> List[T]:
+    def fetch_all(cls: Type[T], db_key: str = None, orm_class: Optional[Type] = None) -> pd.DataFrame:
+        """
+        Fetch all entries from the database and return as a DataFrame.
+        If the query succeeds but returns no rows, return a DataFrame with correct schema.
+        If the query fails, return a truly empty DataFrame.
+        """
         orm_class = orm_class or getattr(cls, "orm_class", None)
         db_key = db_key or getattr(cls, "db_key", "raw")
 
@@ -70,14 +78,25 @@ class api_BaseModel(BaseModel):
         
         session = DBEngine(db_key).get_session()
         logging.debug2(f"🔍 Fetching all entries from {orm_class.__name__} in {db_key} database")
+
         try:
             results = session.query(orm_class).all()
-            return [cls.model_validate(r) for r in results]
+
+            if not results:
+                logging.debug1(f"📭 No entries found in table {orm_class.__tablename__}")
+                field_names = list(cls.model_fields)
+                return pd.DataFrame(columns=field_names)
+
+            validated = [cls.model_validate(row).model_dump() for row in results]
+            return pd.DataFrame(validated)
+
         except Exception as e:
             logging.error(f"❌ Failed to fetch {orm_class.__name__} entries: {e}", exc_info=True)
-            return []
+            return pd.DataFrame()
         finally:
             session.close()
+
+
 
     @classmethod
     def _model_validate_dataframe(cls, df: pd.DataFrame) -> pd.DataFrame:

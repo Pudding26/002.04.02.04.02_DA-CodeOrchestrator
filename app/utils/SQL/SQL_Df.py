@@ -56,8 +56,9 @@ class SQL_Df(DBEngine):
         WHERE table_schema='public'
         """
         try:
-            result = self.get_engine().execute(text(query))
-            tables = [row[0] for row in result]
+            with self.get_engine().connect() as conn:
+                result = conn.execute(text(query))
+                tables = [row[0] for row in result]
             logging.debug1(f"Found tables: {tables}")
             return tables
         except SQLAlchemyError as e:
@@ -69,7 +70,8 @@ class SQL_Df(DBEngine):
         Deletes the specified SQL table.
         """
         try:
-            self.get_engine().execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
-            logging.debug1(f"Deleted table '{table_name}'.")
+            with self.get_engine().connect() as conn:
+                conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
+            logging.debug1(f"🗑️ Deleted table '{table_name}'.")
         except SQLAlchemyError as e:
             logging.exception(f"❌ Failed to delete table '{table_name}': {e}")

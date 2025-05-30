@@ -1,22 +1,52 @@
-from typing import Optional, List, ClassVar, Any
-
-
+from typing import Optional, ClassVar
 from app.utils.SQL.models.api_BaseModel import api_BaseModel
-
-from app.utils.SQL.models.production.orm.WoodTableA import WoodTableA  # Assuming this ORM class exists
+from app.utils.SQL.models.production.orm.WoodTableA import WoodTableA
 
 class WoodTableA_Out(api_BaseModel):
+    orm_class: ClassVar = WoodTableA
+    db_key: ClassVar[str] = "production"
 
-    orm_class: ClassVar = WoodTableA 
-
-    family: Optional[str]
-    genus: Optional[str]
+    raw_UUID: Optional[str]
+    citeKey: Optional[str]
+    filename: Optional[str]
+    sourceNo: Optional[str]
+    path: Optional[str]
+    sourceFilePath_rel: Optional[str]
     species: Optional[str]
+    genus: Optional[str]
+    source_UUID: Optional[str]
+    shotNo: Optional[float]
+    specimenNo: Optional[int]
+    pixel_x: Optional[str]
+    pixel_y: Optional[str]
+    family: Optional[str]
+    GPS_Alt: Optional[str]
+    GPS_Lat: Optional[str]
+    GPS_Long: Optional[str]
+    japName: Optional[str]
+    samplingPoint: Optional[str]
+    view: Optional[str]
+    lens: Optional[float]
+    microscopicTechnic: Optional[str]
+    bitDepth: Optional[str]
+    colorSpace: Optional[str]
+    colorDepth: Optional[str]
+    DPI: Optional[str]
+    totalNumberShots: Optional[str]
+    institution: Optional[str]
+    contributor: Optional[str]
+    origin: Optional[str]
+    digitizedDate: Optional[str]
+    area_x_mm: Optional[str]
+    area_y_mm: Optional[str]
+    pixelSize_um_per_pixel: Optional[str]
+    numericalAperature_NA: Optional[str]
+    sourceStoredLocally: Optional[float]
+    institutionCode: Optional[str]
+    woodType: Optional[str]
+    anatomy1_DS04: Optional[str]
+    anatomy2_DS04: Optional[str]
     IFAW_code: Optional[str]
     engName: Optional[str]
     deName: Optional[str]
     frName: Optional[str]
-    japName: Optional[str]
-    origin: Optional[str]
-    sourceNo: Optional[str]
-

@@ -128,6 +128,29 @@ tasks:
       src_db_name: "raw"
       dest_db_name: "production"
 
+    TA13_C_DataTransfer_DS12:
+      taskName: TA13_C_DataTransfer_DS12
+      table_name: "DS12"
+      src_db_name: "raw"
+      dest_db_name: "production"
+
+
+
+
   TA20_CreateWoodTable:
     TA20_A_CreateWoodTableA:
       taskName: TA20_A_CreateWoodTableA
+      src_db_key: "production"
+      src_table_names:
+        - "primaryDataRaw"
+        - "DS09"
+        - "DS12"
+        - "DS40"
+
+
+
+  TA23_CreateWoodMaster:
+    TA23_0_CreateWoodMaster:
+      taskName: TA23_0_CreateWoodMaster
+      HDF5_file_path: "data/productionData/primaryData.hdf5"
+      woodTypeMapper_path: "app/config/mapper/TA23_CreateWoodmaster/TA23_0_woodTypeMapper.yaml"

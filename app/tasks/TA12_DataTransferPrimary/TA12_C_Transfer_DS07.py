@@ -71,7 +71,9 @@ class TA12_C_Transfer_DS07(TaskBase):
     @profile(stream=mem_Streams["step2"])
     def step_2_preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         logging.debug5("🔄 Starting column renaming")
-        df = YamlColumnMapper.rename_columns(df, self.instructions["path_gen_col_rename_mapper"])
+        logging.debug3(f"🪄 Columns before renaming: {list(df.columns)}")
+
+        df = YamlColumnMapper.rename_columns(df, self.instructions["path_gen_col_rename_mapper"]) #NOT FUNCTIONAL
         logging.debug3(f"🪄 Columns after renaming: {list(df.columns)}")
 
         logging.debug5("🧬 Extracting metadata from path structure")
@@ -82,6 +84,9 @@ class TA12_C_Transfer_DS07(TaskBase):
         df["genus"] = df["col-1"].apply(lambda x: x.split(" ")[1])
         df["specimenNo_old"] = df["col-2"].apply(lambda x: x.split(".")[0][-2:])
         df["source-UUID"] = df["col-2"].apply(lambda x: x.split(".")[0])
+        if "path" in df.columns:
+            logging.debug2(f"🗂️ Path column found, proceeding with renaming")
+            df.rename(columns={"path": "sourceFilePath_rel"}, inplace=True)
         df.drop(columns=["col-1", "col-2"], inplace=True)
 
         logging.debug5("📥 Adding static YAML columns")
