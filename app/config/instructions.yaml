@@ -147,10 +147,16 @@ tasks:
         - "DS12"
         - "DS40"
 
-
-
   TA23_CreateWoodMaster:
     TA23_0_CreateWoodMaster:
       taskName: TA23_0_CreateWoodMaster
       HDF5_file_path: "data/productionData/primaryData.hdf5"
       woodTypeMapper_path: "app/config/mapper/TA23_CreateWoodmaster/TA23_0_woodTypeMapper.yaml"
+
+  TA25_CreateWoodHDF:
+    TA25_0_CreateWoodHDF:
+      debug : True
+      taskName: TA25_0_CreateWoodHDF
+      src_db_key: "production"
+      HDF5_file_path: "data/productionData/primaryData.hdf5"
+      debug_sample_rate: 100

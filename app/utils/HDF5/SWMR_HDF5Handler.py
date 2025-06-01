@@ -32,7 +32,7 @@ class SWMR_HDF5Handler:
             except Exception as e:
                 logging.error(f"[SWMR] Failed to create HDF5 file: {e}", exc_info=True)
         else:
-            logging.debug3(f"[SWMR] HDF5 file already exists: {self.file_path}")
+            logging.debug1(f"[SWMR] HDF5 file already exists: {self.file_path}")
 
 
 

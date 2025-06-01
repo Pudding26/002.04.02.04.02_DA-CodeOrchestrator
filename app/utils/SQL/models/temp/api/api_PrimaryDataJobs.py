@@ -1,4 +1,4 @@
-from typing import Optional, List, ClassVar
+from typing import Optional, List, ClassVar, Any
 from datetime import datetime
 from app.utils.SQL.models.api_BaseModel import api_BaseModel
 
@@ -20,11 +20,11 @@ class PrimaryDataJobs_Out(api_BaseModel):
 
     view: Optional[str]
 
-    lens: Optional[float]
+    lens: Optional[int]
     totalNumberShots: Optional[int]
 
     #filterNo: Optional[int]
-    DPI: Optional[int]
+    DPI: Optional[float]
     pixelSize_um_per_pixel: Optional[float]
     #bitDepth: Optional[int]
     #colorDepth: Optional[str]
@@ -48,15 +48,15 @@ class PrimaryDataJobs_Out(api_BaseModel):
     institution: Optional[str]
     institutionCode: Optional[str]
     contributor: Optional[str]
-    digitizedDate: Optional[datetime]
+    digitizedDate: Optional[datetime] = None
     sourceNo: Optional[str]
     raw_UUID: str
 
-    GPS_Alt: Optional[float]
-    GPS_Lat: Optional[float]
-    GPS_Long: Optional[float]
+    GPS_Alt: Optional[float] = None
+    GPS_Lat: Optional[float] = None
+    GPS_Long: Optional[float] = None
 
-    sourceFilePath_rel: Optional[str]
+    sourceFilePath_rel: Any
     hdf5_dataset_path: Optional[str]
     stackID: Optional[str]
     specimenID: Optional[str]
