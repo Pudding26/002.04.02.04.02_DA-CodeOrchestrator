@@ -61,10 +61,3 @@ class WoodMaster_Out(api_BaseModel):
     stackID: str
     specimenID: str
     sourceID: str
-
-    ## ✅ Add relationship to segmentationResults
-    #segmentation_results = relationship(
-    #    "SegmentationResults",
-    #    back_populates="wood_sample",
-    #    cascade="all, delete-orphan"
-    #)
