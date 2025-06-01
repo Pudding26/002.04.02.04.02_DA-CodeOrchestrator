@@ -6,6 +6,7 @@ import pandas as pd
 from memory_profiler import profile
 from datetime import datetime
 from typing import Optional
+import numpy as np
 from uuid import uuid4
 
 from app.tasks.TaskBase import TaskBase
@@ -14,6 +15,7 @@ from app.utils.SQL.models.production.api.api_WoodTableA import WoodTableA_Out
 from app.utils.SQL.models.production.api.api_WoodMaster import WoodMaster_Out
 from app.utils.SQL.models.temp.api.api_PrimaryDataJobs import PrimaryDataJobs_Out
 from app.utils.HDF5.HDF5_Inspector import HDF5Inspector
+
 
 
 WOOD_MASTER_AGG_CONFIG = {
@@ -65,7 +67,7 @@ class TA23_0_CreateWoodMaster(TaskBase):
             logging.info(f"Identified {len(job_df)} new samples.")
 
             self.controller.update_message("Storing new jobs...")
-            job_df["sourceFilePath_rel"] = job_df["sourceFilePath_rel"].apply(json.dumps)
+            #job_df["sourceFilePath_rel"] = job_df["sourceFilePath_rel"].apply(json.dumps) #Not needed anymore, as SQL alchemycan handle lists. was needed for SQLite
             job_df = self.prepare_for_sql(job_df)
 
             logging.debug3(f"Prepared job DataFrame for SQL. Shape: {job_df.shape}")
@@ -80,6 +82,7 @@ class TA23_0_CreateWoodMaster(TaskBase):
             raise
         finally:
             self.cleanup()
+
 
     def cleanup(self):
         logging.info("🧹 Running cleanup and archiving task state.")
@@ -120,6 +123,7 @@ class TA23_0_CreateWoodMaster(TaskBase):
 
     def create_woodMaster_new(self, df: pd.DataFrame) -> pd.DataFrame:
         logging.debug3("🧪 START: Creating the woodMaster_new.")
+        logging.debug2(f"Initial woodTable shape: {df.shape}")
 
         agg_dict = {col: 'first' for col in WOOD_MASTER_AGG_CONFIG["group_first_cols"]}
         agg_dict.update({col: list for col in WOOD_MASTER_AGG_CONFIG["group_list_cols"]})
@@ -132,29 +136,43 @@ class TA23_0_CreateWoodMaster(TaskBase):
         other_cols = [col for col in result.columns if col not in reordered_cols]
         result = result[reordered_cols + other_cols]
 
+        logging.debug2(f"Reordered woodMaster_new DataFrame: {result.shape[0]} rows, {result.shape[1]} columns")
         logging.debug3("✅ END: Created the woodMaster_new.")
         return result
 
     @staticmethod
     def refresh_woodMaster(hdf5_path: str) -> pd.DataFrame:
         logging.info(f"🔄 Refreshing woodMaster from: {hdf5_path}")
+
         if not os.path.exists(hdf5_path):
-            logging.warning(f"HDF5 file not found at path: {hdf5_path}")
+            logging.warning(f"❌ HDF5 file not found at path: {hdf5_path}")
             return pd.DataFrame(columns=list(PrimaryDataJobs_Out.model_fields.keys()))
 
-        df = HDF5Inspector.HDF5_meta_to_df(hdf5_path)
-        if "dataset_shape_drop" in df.columns:
-            df = df.drop(columns=["dataset_shape_drop"])
-        if df.empty:
-            logging.warning("HDF5 metadata DataFrame is empty.")
+        shape_old = WoodMaster_Out.db_shape()
+
+        try:
+            df = HDF5Inspector.HDF5_meta_to_df(hdf5_path)
+
+            if df.empty:
+                logging.warning("⚠️ HDF5 metadata DataFrame is empty.")
+                return pd.DataFrame(columns=list(PrimaryDataJobs_Out.model_fields.keys()))
+
+            if "dataset_shape_drop" in df.columns:
+                df = df.drop(columns=["dataset_shape_drop"])
+
+            df["stackID"] = df["path"].apply(lambda x: x.split("/")[-1])
+            #df = TA23_0_CreateWoodMaster._reorder_woodMaster(df)
+
+            WoodMaster_Out.store_dataframe(df, db_key="production", method="replace")
+            shape_new = WoodMaster_Out.db_shape()
+
+            logging.debug3(f"✅ Refreshed and stored woodMaster from HDF5. Old shape: {shape_old}, New shape: {shape_new}")
+            return df
+
+        except Exception as e:
+            logging.error(f"❌ Failed to refresh woodMaster: {e}", exc_info=True)
             return pd.DataFrame(columns=list(PrimaryDataJobs_Out.model_fields.keys()))
 
-        df["stackID"] = df["path"].apply(lambda x: x.split("/")[-1])
-        df = TA23_0_CreateWoodMaster._reorder_woodMaster(df)
-
-        WoodMaster_Out.store_dataframe(df, db_key="production", method="replace")
-        logging.info("✅ Refreshed and stored woodMaster from HDF5.")
-        return df
 
     @staticmethod
     def _reorder_woodMaster(df: pd.DataFrame) -> pd.DataFrame:
@@ -166,6 +184,16 @@ class TA23_0_CreateWoodMaster(TaskBase):
     def prepare_for_sql(df: pd.DataFrame) -> pd.DataFrame:
         logging.debug3("🧪 Preparing DataFrame for SQL storage...")
         df = df.copy()
+        
+        def _clean_nulls(df: pd.DataFrame) -> pd.DataFrame:
+            df = df.copy()
+            for col in df.columns:
+                df[col] = df[col].map(lambda x: None if pd.isna(x) else x)
+            return df
+
+                
+        
+        
         orig_shape = df.shape
 
         df.replace(to_replace=["unknown", "null", "None", "[null]"], value=pd.NA, inplace=True)
@@ -179,10 +207,22 @@ class TA23_0_CreateWoodMaster(TaskBase):
         ]
         for col in numeric_cols:
             if col in df.columns:
+                # Try to convert to numeric
                 df[col] = pd.to_numeric(df[col], errors="coerce")
+
+                # Check if column can safely be cast to int (ignoring NaNs)
+                col_series = df[col].dropna()
+                is_integral = np.all(col_series == col_series.astype(int))
+
+                if is_integral:
+                    df[col] = df[col].astype(pd.Int64Dtype())  # Nullable integer type
+                else:
+                    df[col] = df[col].astype(float)
 
         if "digitizedDate" in df.columns:
             df["digitizedDate"] = pd.to_datetime(df["digitizedDate"], errors="coerce")
+            df["digitizedDate"] = df["digitizedDate"].astype("object").where(df["digitizedDate"].notnull(), None) #pandas uses Nat by default for missing time values. sql alchemy cant handle
+
 
         for field in PrimaryDataJobs_Out.model_fields:
             if field not in df.columns:
@@ -193,12 +233,33 @@ class TA23_0_CreateWoodMaster(TaskBase):
                 lambda x: str(uuid4()) if pd.isna(x) or x in ["", "None", None] else x
             )
 
-        df = df.astype(object).where(pd.notnull(df), None)
+        df = df.where(pd.notnull(df), None)
         before_drop = len(df)
         df = df.dropna(subset=["sampleID"])
         dropped = before_drop - len(df)
         if dropped:
             logging.info(f"🗑️ Dropped {dropped} rows due to missing sampleID.")
+
+
+        # Convert to proper int (Python int, not pandas nullable)
+        int_columns = ['lens', 'totalNumberShots', 'DPI']
+        for col in int_columns:
+            df[col] = df[col].astype('float').astype('Int64')  # still nullable
+            df[col] = df[col].apply(lambda x: int(x) if pd.notna(x) else None)
+
+        contributor_mapper = {
+            "DS01" : "Da Silva",
+            "DS04" : "Junji Sugiyama",
+            "DS07" : "J. Martins",
+        }
+
+        if "contributor" in df.columns and "sourceNo" in df.columns:
+            df["contributor"] = df.apply(
+                lambda row: contributor_mapper.get(row["sourceNo"], row["contributor"]),
+                axis=1
+    )
+
+        df = _clean_nulls(df)
 
         logging.debug3(f"✅ Prepared DataFrame for SQL: {df.shape} (was {orig_shape})")
         return df

@@ -39,6 +39,7 @@ def create_all_tables():
         "temp" : [PrimaryDataJobs],
     }
 
+
     for db_key, model_list in grouped_models.items():
         try:
             db = DBEngine(db_key)

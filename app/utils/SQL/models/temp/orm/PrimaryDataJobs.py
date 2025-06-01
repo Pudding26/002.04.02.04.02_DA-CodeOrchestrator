@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
@@ -17,18 +18,18 @@ class PrimaryDataJobs(orm_BaseModel):
 
     view = Column(String)
 
-    lens = Column(Float)
+    lens = Column(Integer)
     totalNumberShots = Column(Integer)
     
     
-    filterNo = Column(Integer)
-    DPI = Column(Integer)
+    #filterNo = Column(Integer)
+    DPI = Column(Float)
     pixelSize_um_per_pixel = Column(Float)
-    bitDepth = Column(Integer)
-    colorDepth = Column(String)
-    colorSpace = Column(String)
-    pixel_x = Column(Integer)
-    pixel_y = Column(Integer)
+    #bitDepth = Column(Integer)
+    #colorDepth = Column(String)
+    #colorSpace = Column(String)
+    #pixel_x = Column(Integer)
+    #pixel_y = Column(Integer)
     microscopicTechnic = Column(String)
     area_x_mm = Column(Float)
     area_y_mm = Column(Float)
@@ -54,7 +55,7 @@ class PrimaryDataJobs(orm_BaseModel):
     GPS_Lat = Column(Float)
     GPS_Long = Column(Float)
     
-    sourceFilePath_rel = Column(String)
+    sourceFilePath_rel = Column(JSONB)
     hdf5_dataset_path = Column(String)
     stackID = Column(String)
     specimenID = Column(String)
