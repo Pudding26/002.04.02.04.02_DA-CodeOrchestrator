@@ -8,6 +8,10 @@ from app.tasks.TA27_DesignOfExperiments.TA27_A_DoEJobGenerator import TA27_A_DoE
 from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.YAML.YAMLUtils import YAMLUtils
 
+from app.utils.SQL.models.production.api.api_DoEArchive import DoEArchive_Out
+from app.utils.SQL.models.temp.api.api_DoEJobs import DoEJobs_Out
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,6 @@ class TA27_0_DoEWrapper(TaskBase):
 
             logger.debug3("🧮 Expanding parameter combinations...")
             df = TA27_B_DoEExpander.expand(raw_yaml)
-            df["DoE_UUID"] = df.apply(TA27_B_DoEExpander.short_hash, axis=1)
             logger.debug3(f"🔢 Expanded DoE to {len(df)} combinations")
 
             df_safe = df.applymap(lambda x: json.dumps(x) if isinstance(x, list) else x)
@@ -61,13 +64,14 @@ class TA27_0_DoEWrapper(TaskBase):
             raise
 
     def archive_old_doe(self, new_df: pd.DataFrame):
-        table_name = self.instructions["dest_db_table_name"]
-        backup = f"{table_name}_backup"
-        if table_name in self.sql.get_table_names():
-            logger.info(f"📦 Archiving existing DoE table to: {backup}")
-            df_old = self.sql.load(table_name).drop_duplicates(subset="DoE_UUID")
-            self.sql.store(backup, df_old, method="replace")
-            logger.debug3(f"📂 Archived {len(df_old)} rows to backup table")
+        df_old = DoEJobs_Out.fetch_all()
+        logging.debug2(f"📂 Found {len(df_old)} old DoE rows to archive")
+        df_archive_raw = DoEArchive_Out.fetch_all()
+        df_old.debug2(f"📂 Found {len(df_archive_raw)} DoE rows in Archive")
+        new_rows = df_old[~df_old['DoE_UUID'].isin(df_archive_raw['DoE_UUID'])]
+        
+        DoEArchive_Out.store_dataframe(new_rows, method="append")
+        logger.debug3(f"📂 Archived {len(new_rows)} rows to backup table")
 
     def cleanup(self):
         logger.debug3("🧹 Running cleanup phase...")

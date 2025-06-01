@@ -160,3 +160,12 @@ tasks:
       src_db_key: "production"
       HDF5_file_path: "data/productionData/primaryData.hdf5"
       debug_sample_rate: 100
+  
+  TA27_0_DesignOfExperiments:
+    TA27_0_DoEWrapper:
+      taskName: TA27_0_DoEWrapper
+      dest_db_path_1: source
+      dest_db_table_name: DoE_table
+      doe_yaml_path: app/config/DoE/DesignOfExperiments.yaml
+      job_template_path: app/config/templates/DoE_job_template.yaml
+      output_jobs_yaml: path/to/DoE_jobs_expanded.yaml

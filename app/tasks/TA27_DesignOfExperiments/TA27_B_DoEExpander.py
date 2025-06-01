@@ -36,17 +36,9 @@ class TA27_B_DoEExpander:
                 row = dict(zip(list(primary_keys) + other_keys, list(p_combo) + list(o_combo)))
                 row = {k: v if isinstance(v, list) else [v] for k, v in row.items()}
                 base_str = str(sorted(row.items()))
-                row["DoE_UUID"] = [hashlib.sha1(base_str.encode()).hexdigest()[:10]]
+                row["DoE_UUID"] = "DoE_" + [hashlib.sha1(base_str.encode()).hexdigest()[:10]]
                 combined_rows.append(row)
 
         df = pd.DataFrame(combined_rows)
         logger.info(f"✅ Expanded DoE to {len(df)} combinations with {len(df.columns)} columns.")
         return df
-
-    @staticmethod
-    def short_hash(row: pd.Series) -> str:
-        row_str = "_".join(
-            f"{k}={','.join(row[k]) if isinstance(row[k], list) else str(row[k])}"
-            for k in sorted(row.keys())
-        )
-        return hashlib.sha256(row_str.encode("utf-8")).hexdigest()[:10]

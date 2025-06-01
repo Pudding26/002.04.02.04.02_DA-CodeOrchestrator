@@ -1,0 +1,63 @@
+# Step 1:
+primary_data:
+  woodType:
+    - [Softwood, Hardwood]
+    - Softwood
+    #- Hardwood
+  sourceNo:
+    - [DS01, DS04, DS07]
+    - DS04
+    #- DS07
+
+  family:
+    - [Pinaceae, Fagaceae,]
+    #- ['Annonaceae', 'Ephedraceae', 'Fabaceae', 'Lauraceae']
+    #- None
+
+  genus:
+    - [Pinus, Picea, Abies, Larix, Tsuga, Cedrus]
+    #- ['Quercus', 'Fagus', 'Castanea', 'Nothofagus']
+    #- None
+  
+  species:
+    - [PinusSylvestris, PiceaAbies, AbiesAlba]
+    - [LarixDecidua, TsugaHeterophylla, CedrusAtlantica]
+
+  view:
+    - TS # Cross Section
+    #- RLS # Radial Longitudinal Section
+    #- TLS # Tangential Longitudinal Section
+
+  lens:
+    - [10, 25]
+    - None
+
+  maxShots:
+    - 1000
+    - 500
+
+  noShotsRange:
+    - [1, 8]
+
+  segmentation:
+    - FF01
+    #- FF02
+    #- FF03
+
+secondary_data:
+  - SD01
+
+
+# Step 2:
+preProcessing:
+  - PPNO1
+  #- PP02
+  #- PP03
+
+
+# Step 3:
+
+modeling:
+  - MM01
+  - MM02
+
