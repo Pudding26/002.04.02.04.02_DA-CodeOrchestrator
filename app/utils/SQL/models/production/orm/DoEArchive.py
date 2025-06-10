@@ -3,39 +3,39 @@ from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
 
 from sqlalchemy import Column, String
-from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
+from sqlalchemy.dialects.postgresql import JSONB
 
 class DoEArchive(orm_BaseModel):
     __tablename__ = "DoEArchive"
 
-    DoE_UUID = Column(String, primary_key=True)
-    
+    DoE_UUID = Column(String, primary_key=True)    
     
     ## PrimaryDataFactors##
-    sourceNo = Column(String)
-    woodType = Column(String)
-    family = Column(String)
-    genus = Column(String)
-    species = Column(String)
+    sourceNo = Column(JSONB)
+    woodType = Column(JSONB)
+    family = Column(JSONB)
+    genus = Column(JSONB)
+    species = Column(JSONB)
     
-    view = Column(String)
-    lens = Column(String)
+    filterNo = Column(JSONB)
+
+    view = Column(JSONB)
+    lens = Column(JSONB)
     
-    maxShots = Column(String)
+    maxShots = Column(JSONB)
     
-    noShotsRange = Column(String)
+    noShotsRange = Column(JSONB)
     
     ## SecondaryDataFactors##
-
+    secondaryDataBins = Column(JSONB)
 
     ## 2. PreprocessingFactors##
-    preProcessingNo = Column(String)
+    preProcessingNo = Column(JSONB)
 
 
     ## 3. SegmentationFactors##
-    filterNo = Column(String)
 
     
     ## 4. ModelFactors##
-    featureBins = Column(List)
-    modelNo = Column(String)
+    featureBins = Column(JSONB)
+    metricModelNo = Column(JSONB)

@@ -39,25 +39,29 @@ primary_data:
   noShotsRange:
     - [1, 8]
 
-  segmentation:
+  filterNo:
     - FF01
     #- FF02
     #- FF03
 
-secondary_data:
+secondaryDataBins:
   - SD01
 
 
 # Step 2:
-preProcessing:
+preProcessingNo:
   - PPNO1
   #- PP02
   #- PP03
 
+featureBins:
+  - FB01
+  #- FB02
+  #- FB03
 
 # Step 3:
 
-modeling:
+metricModelNo:
   - MM01
   - MM02
 

@@ -15,13 +15,13 @@ from app.utils.HDF5.SWMR_HDF5Handler import SWMR_HDF5Handler
 class TA35_0_BackendOrchestrator(TaskBase):
     def setup(self):
         logging.debug3("🔧 [TA35] Setup started.")
-        self.src_HDF5_inst_1 = SWMR_HDF5Handler(self.instructions["src_db_path_1"])
-        self.src_SQLiteHandler_inst_2 = self.instructions["src_SQLiteHandler"]
-        self.dest_SQLiteHandler_inst_2 = self.instructions["dest_SQLiteHandler"]
-        self.doe_df_raw = pd.DataFrame()
-        self.ml_table_raw = pd.DataFrame()
-        self.doe_df = pd.DataFrame()
-        self.doe_job_list = []
+        #self.src_HDF5_inst_1 = SWMR_HDF5Handler(self.instructions["src_db_path_1"])
+        #self.src_SQLiteHandler_inst_2 = self.instructions["src_SQLiteHandler"]
+        #self.dest_SQLiteHandler_inst_2 = self.instructions["dest_SQLiteHandler"]
+        #self.doe_df_raw = pd.DataFrame()
+        #self.ml_table_raw = pd.DataFrame()
+        #self.doe_df = pd.DataFrame()
+        #self.doe_job_list = []
         self.api_base_url = self.instructions.get("api_base_url", "http://localhost:8000")
         logging.debug3("✅ [TA35] Setup complete.")
 
@@ -29,11 +29,13 @@ class TA35_0_BackendOrchestrator(TaskBase):
         try:
             self.controller.update_message("🔄 Starting DoE pipeline orchestration")
 
-            self.trigger_task_via_http("TA31_0_DesignOfExperiments")
+            generalJob_df = self.trigger_task_via_http("TA27_0_DoEWrapper")
 
             if self.instructions.get("update_HDF5"):
                 self.trigger_task_via_http("TA23_0_CreateWoodMaster")
                 self.trigger_task_via_http("TA25_0_CreateWoodHDF")
+
+
 
             self.create_job_df()
             self.create_job_queue()
