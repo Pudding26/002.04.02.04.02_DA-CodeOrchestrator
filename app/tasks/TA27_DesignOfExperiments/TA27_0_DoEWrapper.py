@@ -29,26 +29,30 @@ class TA27_0_DoEWrapper(TaskBase):
             logger.debug3(f"📥 Loading DoE YAML from: {self.instructions['doe_yaml_path']}")
             raw_yaml = YAMLUtils.load_yaml(self.instructions["doe_yaml_path"])
 
+
             logger.debug3("🧮 Expanding parameter combinations...")
             df = TA27_B_DoEExpander.expand(raw_yaml)
             logger.debug3(f"🔢 Expanded DoE to {len(df)} combinations")
 
-            df_safe = df.applymap(lambda x: json.dumps(x) if isinstance(x, list) else x)
-
+            #df_safe = df.map(lambda x: json.dumps(x) if isinstance(x, list) else x)
+            df_safe = df
             self.controller.update_message("📦 Archiving old DoE")
-            logger.info("📦 Archiving old DoE table if exists...")
-            #self.archive_old_doe(df_safe)
-
-            self.controller.update_message("🧪 Saving new DoE to SQL")
-            logger.debug3(f"💾 Writing to table: {self.instructions['dest_db_table_name']}")
-            #self.sql.store(self.instructions["dest_db_table_name"], df_safe, method="replace")
+            logging.debug3("📦 Archiving old DoE table if exists...")
+            self.archive_old_doe(df_safe)
+            logger.debug3("📦 Old DoE archived successfully")
+            
+            self.controller.update_message("🧪 Saving new DoEJobs to SQL")
+            logger.debug3("💾 Storing new DoEJobs in SQL...")
+            DoEJobs_Out.store_dataframe(df_safe, method="replace", db_key="temp")
+            
             logger.info("✅ New DoE table stored")
 
             self.controller.update_message("🛠 Generating job definitions")
             logger.debug3("🧬 Starting job generation...")
             jobs = TA27_A_DoEJobGenerator.generate(df, self.instructions["job_template_path"])
             logger.debug3(f"📦 Generated {len(jobs)} job definitions")
-
+            
+            return jobs
             output_yaml_path = self.instructions["output_jobs_yaml"]
             with open(output_yaml_path, "w") as f:
                 yaml.dump({"jobs": jobs}, f, allow_unicode=True)
@@ -67,10 +71,10 @@ class TA27_0_DoEWrapper(TaskBase):
         df_old = DoEJobs_Out.fetch_all()
         logging.debug2(f"📂 Found {len(df_old)} old DoE rows to archive")
         df_archive_raw = DoEArchive_Out.fetch_all()
-        df_old.debug2(f"📂 Found {len(df_archive_raw)} DoE rows in Archive")
+        logging.debug2(f"📂 Found {len(df_archive_raw)} DoE rows in Archive")
         new_rows = df_old[~df_old['DoE_UUID'].isin(df_archive_raw['DoE_UUID'])]
         
-        DoEArchive_Out.store_dataframe(new_rows, method="append")
+        DoEArchive_Out.store_dataframe(new_rows, method="append", db_key="production")
         logger.debug3(f"📂 Archived {len(new_rows)} rows to backup table")
 
     def cleanup(self):
