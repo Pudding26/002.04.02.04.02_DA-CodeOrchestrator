@@ -29,6 +29,7 @@ def create_all_tables():
     from app.utils.SQL.models.production.orm.WoodTableA import WoodTableA
     from app.utils.SQL.models.production.orm.WoodMaster import WoodMaster
     from app.utils.SQL.models.production.orm.DoEArchive import DoEArchive
+    from app.utils.SQL.models.production.orm.ModellingResults import ModellingResults
 
     # temp
     from app.utils.SQL.models.temp.orm.PrimaryDataJobs import PrimaryDataJobs
@@ -37,7 +38,7 @@ def create_all_tables():
     grouped_models = {
         "progress": [ProfileArchive, ProgressArchive],
         "raw": [PrimaryDataRaw],
-        "production": [WoodMaster, WoodTableA, DoEArchive, DS09, DS12, DS40],
+        "production": [WoodMaster, WoodTableA, DoEArchive, DS09, DS12, DS40, ModellingResults],
         "temp" : [PrimaryDataJobs, DoEJobs],
     }
 

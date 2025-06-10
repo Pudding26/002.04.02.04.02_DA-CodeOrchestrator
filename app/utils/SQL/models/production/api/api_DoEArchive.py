@@ -20,11 +20,11 @@ class DoEArchive_Out(api_BaseModel):
     filterNo: List[str]
 
     view: List[str]
-    lens: List[str]
+    lens: List[Any]
     
-    maxShots: List[str]
+    maxShots: List[int]
     
-    noShotsRange: List[str]
+    noShotsRange: List[int]
     
     ## SecondaryDataFactors##
     secondaryDataBins: List[str]

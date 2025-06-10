@@ -3,6 +3,7 @@ import time
 import uuid
 from datetime import datetime
 from typing import Optional
+import time
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -252,3 +253,51 @@ class TaskController:
         except Exception as e:
             logging.error(f"❌ Failed to check existence of progress table '{self.db.table_name}': {e}", exc_info=True)
             return False
+
+
+    @staticmethod
+    def is_task_done(task_name: str) -> bool:
+        """
+        Check whether a task has finished by verifying if its progress table exists.
+        If the table is missing, assume it's completed and archived.
+        """
+        db = DBEngine("progress")
+        engine = db.get_engine()
+
+        query = f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = :table_name
+            )
+        """
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text(query), {"table_name": task_name}).scalar()
+                return not result  # If table doesn't exist, task is done
+        except Exception as e:
+            logging.error(f"❌ Error checking task status for '{task_name}': {e}")
+            return True  # Assume done if there's an error
+
+    @staticmethod
+    def watch_task_completion(task_name: str, timeout_sec: int = 30, poll_interval: float = 1.0) -> bool:
+        """
+        Polls for task completion by checking if the task's progress table has been deleted.
+        Returns True if task completed (table deleted) within timeout, False otherwise.
+
+        :param task_name: Name of the task to monitor.
+        :param timeout_sec: Maximum time to wait in seconds.
+        :param poll_interval: Time to wait between checks.
+        """
+        logging.info(f"🔍 Watching task '{task_name}' for completion (timeout={timeout_sec}s)...")
+        start_time = time.time()
+
+        while time.time() - start_time < timeout_sec:
+            if TaskController.is_task_done(task_name):
+                logging.info(f"✅ Task '{task_name}' has completed within {int(time.time() - start_time)}s.")
+                return True
+            logging.debug3(f"⏳ Task '{task_name}' still running... sleeping for {poll_interval}s")
+            time.sleep(poll_interval)
+
+        logging.warning(f"⚠️ Timeout reached. Task '{task_name}' still not marked complete after {timeout_sec}s.")
+        return False

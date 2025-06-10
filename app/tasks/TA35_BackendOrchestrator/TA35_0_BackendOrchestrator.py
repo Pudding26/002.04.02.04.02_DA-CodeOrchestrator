@@ -5,11 +5,13 @@ import pprint
 import pandas as pd
 import httpx
 
+from app.utils.controlling.TaskController import TaskController
 from app.tasks.TaskBase import TaskBase
 from app.utils.HDF5.SWMR_HDF5Handler import SWMR_HDF5Handler
 
 
-
+from app.utils.SQL.models.temp.api.api_DoEJobs import DoEJobs_Out
+from app.utils.SQL.models.production.api.api_ModellingResults import ModellingResults_Out
 
 
 class TA35_0_BackendOrchestrator(TaskBase):
@@ -23,6 +25,8 @@ class TA35_0_BackendOrchestrator(TaskBase):
         #self.doe_df = pd.DataFrame()
         #self.doe_job_list = []
         self.api_base_url = self.instructions.get("api_base_url", "http://localhost:8000")
+        self.doe_df_raw = pd.DataFrame()
+        self.ml_table_raw = pd.DataFrame()
         logging.debug3("✅ [TA35] Setup complete.")
 
     def run(self):
@@ -34,8 +38,9 @@ class TA35_0_BackendOrchestrator(TaskBase):
             if self.instructions.get("update_HDF5"):
                 self.trigger_task_via_http("TA23_0_CreateWoodMaster")
                 self.trigger_task_via_http("TA25_0_CreateWoodHDF")
+                TaskController.watch_task_completion(task_name="TA23_0_CreateWoodMaster", timeout_sec=300, poll_interval=10.0)
 
-
+            TaskController.watch_task_completion(task_name="TA27_0_DoEWrapper",  timeout_sec=300, poll_interval=10.0)
 
             self.create_job_df()
             self.create_job_queue()
@@ -75,8 +80,8 @@ class TA35_0_BackendOrchestrator(TaskBase):
             return df.applymap(lambda x: json.loads(x) if isinstance(x, str) and x.strip().startswith("[") else x)
 
         logging.debug3("📥 Loading DoE and ML tables.")
-        self.doe_df_raw = _deserialize(self._load_table(self.src_SQLiteHandler_inst_2, self.instructions["src_db_name_2"]))
-        self.ml_table_raw = _deserialize(self._load_table(self.src_SQLiteHandler_inst_2, self.instructions["src_db_name_2B"]))
+        self.doe_df_raw = DoEJobs_Out.fetch_all()
+        self.ml_table_raw = ModellingResults_Out.fetch_all()
 
         if self.ml_table_raw.empty:
             self.doe_df = self.doe_df_raw
