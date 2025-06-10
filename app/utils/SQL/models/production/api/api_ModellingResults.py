@@ -1,9 +1,9 @@
-from typing import Optional, ClassVar, List, Any
+from typing import List, ClassVar, Any
 from app.utils.SQL.models.api_BaseModel import api_BaseModel
-from app.utils.SQL.models.production.orm.DoEArchive import DoEArchive
+from app.utils.SQL.models.production.orm.ModellingResults import ModellingResults
 
-class DoEArchive_Out(api_BaseModel):
-    orm_class: ClassVar = DoEArchive
+class ModellingResults_Out(api_BaseModel):
+    orm_class: ClassVar = ModellingResults
     db_key: ClassVar[str] = "production"
 
 
@@ -22,9 +22,9 @@ class DoEArchive_Out(api_BaseModel):
     view: List[str]
     lens: List[Any]
     
-    maxShots: List[int]
+    maxShots: List[Any]
     
-    noShotsRange: List[int]
+    noShotsRange: List[Any]
     
     ## SecondaryDataFactors##
     secondaryDataBins: List[str]
@@ -36,4 +36,6 @@ class DoEArchive_Out(api_BaseModel):
     ## 3. MetricModelFactors##
     featureBins: List[str]
     metricModelNo: List[str]
+
+
 

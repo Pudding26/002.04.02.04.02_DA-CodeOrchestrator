@@ -47,16 +47,12 @@ class TA27_0_DoEWrapper(TaskBase):
             
             logger.info("✅ New DoE table stored")
 
-            self.controller.update_message("🛠 Generating job definitions")
-            logger.debug3("🧬 Starting job generation...")
-            jobs = TA27_A_DoEJobGenerator.generate(df, self.instructions["job_template_path"])
-            logger.debug3(f"📦 Generated {len(jobs)} job definitions")
+            #self.controller.update_message("🛠 Generating job definitions")
+            #logger.debug3("🧬 Starting job generation...")
+            #jobs = TA27_A_DoEJobGenerator.generate(df, self.instructions["job_template_path"])
+            #logger.debug3(f"📦 Generated {len(jobs)} job definitions")
             
-            return jobs
-            output_yaml_path = self.instructions["output_jobs_yaml"]
-            with open(output_yaml_path, "w") as f:
-                yaml.dump({"jobs": jobs}, f, allow_unicode=True)
-            logger.info(f"📝 Jobs written to YAML: {output_yaml_path}")
+           
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
@@ -66,6 +62,8 @@ class TA27_0_DoEWrapper(TaskBase):
             logger.error(f"❌ Error during DoE task: {e}", exc_info=True)
             self.controller.finalize_failure(str(e))
             raise
+        finally:
+            self.cleanup()
 
     def archive_old_doe(self, new_df: pd.DataFrame):
         df_old = DoEJobs_Out.fetch_all()
@@ -82,3 +80,4 @@ class TA27_0_DoEWrapper(TaskBase):
         self.flush_memory_logs()
         self.controller.archive_with_orm()
         logger.debug3("🧼 Cleanup complete.")
+
