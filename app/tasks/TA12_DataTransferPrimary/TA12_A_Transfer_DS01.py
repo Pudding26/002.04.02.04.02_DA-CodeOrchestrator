@@ -1,6 +1,9 @@
 import logging, io, os
 import pandas as pd
 from memory_profiler import profile
+if os.getenv("DEBUG_MODE") == "True":
+    import memory_profiler
+    memory_profiler.profile.disable = lambda: None
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.HDF5.HDF5_Inspector import HDF5Inspector
