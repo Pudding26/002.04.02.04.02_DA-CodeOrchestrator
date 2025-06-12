@@ -58,6 +58,8 @@ class TA12_C_Transfer_DS07(TaskBase):
         logging.debug5("🧹 Running cleanup")
         self.flush_memory_logs()
         self.controller.archive_with_orm()
+        self.set_needs_running(False) #mark as already processed for the wrapper
+
         logging.debug5("📦 Cleanup and archival complete")
 
     @profile(stream=mem_Streams["step1"])

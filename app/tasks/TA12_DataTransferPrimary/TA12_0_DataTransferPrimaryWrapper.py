@@ -16,12 +16,10 @@ from app.utils.SQL.models.production.api.api_ModellingResults import ModellingRe
 
 logger = logging.getLogger(__name__)
 
-class TA11_0_DataImportWrapper(TaskBase):
+class TA12_0_DataTransferPrimaryWrapper(TaskBase):
 
     def setup(self):
-        logger.debug3("🔧 Setting up SQL interface...")
-        self.sql = SQL_Df(self.instructions["dest_db_path_1"])
-        self.controller.update_message("DoE Task Initialized.")
+        logger.debug3("🔧 Setting up TA12_0_DataTransferPrimaryWrapper...")
 
     def run(self):
         try:
@@ -29,6 +27,8 @@ class TA11_0_DataImportWrapper(TaskBase):
             self.controller.update_message("📂 Starting the T1-Tasks")
             
             task_list_T1 = self.instructions["tasks_T1"]
+            task_list_T1 = self.filter_runnable_tasks(task_list_T1)
+
             for task_name in task_list_T1:
                 self.trigger_task_via_http(task_name=task_name)
 
@@ -40,6 +40,8 @@ class TA11_0_DataImportWrapper(TaskBase):
             
             
             task_list_T2 = self.instructions["tasks_T2"]
+            task_list_T2 = self.filter_runnable_tasks(task_list_T2)
+
             for task_name in task_list_T2:
                 self.trigger_task_via_http(task_name=task_name)
             
@@ -47,10 +49,10 @@ class TA11_0_DataImportWrapper(TaskBase):
             self.controller.update_message("📂 Cleaning up")
 
             self.controller.finalize_success()
-            logger.info("🎉 TA11_0_DataImportWrapper completed successfully.")
+            logger.info("🎉 TA12_0_DataTransferPrimaryWrapper completed successfully.")
 
         except Exception as e:
-            logger.error(f"❌ Error during TA11_0_DataImportWrapper: {e}", exc_info=True)
+            logger.error(f"❌ Error during TA12_0_DataTransferPrimaryWrapper: {e}", exc_info=True)
             self.controller.finalize_failure(str(e))
             raise
         finally:

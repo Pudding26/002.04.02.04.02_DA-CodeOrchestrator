@@ -4,6 +4,8 @@ import io
 import os
 import logging
 import httpx
+from pathlib import Path
+import yaml
 from datetime import datetime
 from app.utils.controlling.TaskController import TaskController
 from app.utils.SQL.DBEngine import DBEngine
@@ -30,6 +32,7 @@ class TaskBase(ABC):
         self.task_uuid = self.controller.task_uuid
         self.enable_profiling = enable_profiling
         self._profiler_streams = {}
+        self.needs_running_yaml = Path("app/config/taskNeedsRunning.yaml")
 
         if self.enable_profiling:
             self._setup_memory_profiling()
@@ -111,7 +114,7 @@ class TaskBase(ABC):
 
     @staticmethod
     def trigger_task_via_http(task_name):
-        BACKEND_ORCH_BASE_PORT = os.getenv(BACKEND_ORCH_BASE_PORT)
+        BACKEND_ORCH_BASE_PORT = os.getenv("BACKEND_ORCH_BASE_PORT")
         api_base_url = f"http://localhost:{BACKEND_ORCH_BASE_PORT}"
         
         url = f"{api_base_url}/tasks/start"
@@ -126,3 +129,43 @@ class TaskBase(ABC):
                 logging.error(f"❌ Failed to trigger {task_name}: {res.status_code} {res.text}")
         except Exception as e:
             logging.exception(f"❌ HTTP error while triggering {task_name}: {e}")
+
+    def set_needs_running(self, value: bool):
+        """
+        Sets a flag in the YAML indicating whether this task should run in the future.
+        Example file:
+            TA11_A_Import_DS01: false
+            TA11_B_Import_DS04: true
+        """
+        data = {}
+        if self.needs_running_yaml.exists():
+            with self.needs_running_yaml.open("r") as f:
+                data = yaml.safe_load(f) or {}
+
+        data[self.task_name] = value
+
+        with self.needs_running_yaml.open("w") as f:
+            yaml.safe_dump(data, f, sort_keys=False)
+
+        logging.debug2(f"📝 Set needs_running[{self.task_name}] = {value} in {self.needs_running_yaml}")
+
+    def filter_runnable_tasks(self, task_list: list) -> list:
+        """
+        Filters out tasks marked as 'False' in the needs_running.yaml.
+        Returns only the tasks allowed to run.
+        """
+        if not self.needs_running_yaml.exists():
+            logging.debug2("🔍 No needs_running.yaml found. Assuming all tasks runnable.")
+            return task_list
+
+        with self.needs_running_yaml.open("r") as f:
+            data = yaml.safe_load(f) or {}
+
+        filtered = [task for task in task_list if data.get(task, True)]
+        skipped = set(task_list) - set(filtered)
+
+        logging.debug2(f"✅ Filtered runnable tasks: {filtered}")
+        if skipped:
+            logging.debug2(f"⛔ Skipped tasks due to needs_running = False: {list(skipped)}")
+
+        return filtered

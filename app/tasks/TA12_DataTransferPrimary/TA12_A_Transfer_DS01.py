@@ -64,6 +64,7 @@ class TA12_A_Transfer_DS01(TaskBase):
 
     def cleanup(self):
         logging.debug5("🧹 Running cleanup and profiling flush")
+        self.set_needs_running(False) #mark as already processed for the wrapper
         self.flush_memory_logs()
         self.controller.archive_with_orm()
 

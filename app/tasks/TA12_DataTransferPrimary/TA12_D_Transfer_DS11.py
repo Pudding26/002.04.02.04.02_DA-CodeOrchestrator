@@ -16,6 +16,7 @@ class TA12_D_Transfer_DS11(TaskBase):
         logging.info("🔧 Setting up TA12_D_Transfer_DS11")
         self.controller.update_message("Initialized DS11 Transfer")
         self.controller.update_progress(0.01)
+
         logging.debug3(f"🧾 Instructions received: {self.instructions}")
 
     def run(self):
@@ -79,6 +80,7 @@ class TA12_D_Transfer_DS11(TaskBase):
 
     def cleanup(self):
         logging.debug5("🧹 Running cleanup")
+        self.set_needs_running(False) #mark as already processed for the wrapper
         self.flush_memory_logs()
         self.controller.archive_with_orm()
         logging.debug5("📦 Cleanup and archival complete")

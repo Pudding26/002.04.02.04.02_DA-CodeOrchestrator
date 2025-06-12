@@ -37,6 +37,7 @@ class TA11_B_Import_DS04(TaskBase):
             raise
 
     def cleanup(self):
+        self.set_needs_running(False) #mark as already processed for the wrapper
         self.flush_memory_logs()
         self.controller.archive_with_orm()
 
