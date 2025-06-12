@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-
+import os
 import logging
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
@@ -24,7 +24,6 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
         self.controller.update_message("Initializing TA12_E_ConcatPrimaryDataRaw Task")
 
         self.src_db = SQL_Df(db_key=self.instructions["src_db_name"])
-        self.dest_db= SQL_Df(db_key=self.instructions["dest_db_name"])
         self.data = pd.DataFrame()
 
     def run(self):
@@ -104,6 +103,8 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
 
     def cleanup(self):
         self.logger.info("[Cleanup] Flushing memory logs and archiving task progress.")
+        self.set_needs_running(False) #mark as already processed for the wrapper
+
         self.flush_memory_logs()
         self.controller.archive_with_orm()
         self.logger.info("[Cleanup] Task cleanup completed.")

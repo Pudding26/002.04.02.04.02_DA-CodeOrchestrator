@@ -32,7 +32,6 @@ class TA35_0_BackendOrchestrator(TaskBase):
         try:
             self.controller.update_message("🔄 Starting DoE pipeline orchestration")
 
-            generalJob_df = TaskBase.trigger_task_via_http("TA27_0_DoEWrapper")
             
             if self.instructions.get("do_import") is True:
                     logging.info("📦 Starting import pipeline (TA11_0_DataImportWrapper)")
@@ -51,6 +50,18 @@ class TA35_0_BackendOrchestrator(TaskBase):
             TaskController.watch_task_completion(task_names="TA13_0_TransferSecondaryDataWrapper", timeout_sec=300, poll_interval=10.0)
 
 
+            self.trigger_task_via_http("TA20_0_CreateWoodTableWrapper")
+            logging.info("🕐 Waiting for TA20_0_CreateWoodTableWrapper to complete")
+            TaskController.watch_task_completion(task_names="TA20_0_CreateWoodTableWrapper", timeout_sec=300, poll_interval=10.0)
+
+
+            self.trigger_task_via_http("TA23_0_CreateWoodMaster")
+            logging.info("🕐 Waiting for TA23_0_CreateWoodMaster to complete")
+            TaskController.watch_task_completion(task_names="TA23_0_CreateWoodMaster", timeout_sec=300, poll_interval=10.0)
+
+
+
+            generalJob_df = TaskBase.trigger_task_via_http("TA27_0_DoEWrapper")
             TaskController.watch_task_completion(task_names="TA27_0_DoEWrapper",  timeout_sec=300, poll_interval=10.0)
 
             self.create_job_df()

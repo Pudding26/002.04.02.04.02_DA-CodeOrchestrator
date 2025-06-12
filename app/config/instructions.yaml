@@ -157,6 +157,12 @@ tasks:
 
 
   TA20_CreateWoodTable:
+    TA20_0_CreateWoodTableWrapper:
+      taskName: TA20_0_CreateWoodTableWrapper
+      tasks_T1:
+        - TA20_A_CreateWoodTableA
+    
+    
     TA20_A_CreateWoodTableA:
       taskName: TA20_A_CreateWoodTableA
       src_db_key: "production"
