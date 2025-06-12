@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 
 from app.tasks.TaskBase import TaskBase
+from app.utils.controlling.TaskController import TaskController
 from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.YAML.YAMLUtils import YAMLUtils
 
@@ -19,7 +20,6 @@ class TA11_0_DataImportWrapper(TaskBase):
 
     def setup(self):
         logger.debug3("🔧 Setting up SQL interface...")
-        self.sql = SQL_Df(self.instructions["dest_db_path_1"])
         self.controller.update_message("DoE Task Initialized.")
 
     def run(self):
@@ -28,8 +28,11 @@ class TA11_0_DataImportWrapper(TaskBase):
             self.controller.update_message("📂 Starting the tasks")
             
             task_list = self.instructions["tasks_T1"]
+            task_list = self.filter_runnable_tasks(task_list)
             for task_name in task_list:
                 self.trigger_task_via_http(task_name=task_name)
+
+            TaskController.watch_task_completion(task_list, timeout_sec = 1200)
 
             
             self.controller.update_progress(1.0)

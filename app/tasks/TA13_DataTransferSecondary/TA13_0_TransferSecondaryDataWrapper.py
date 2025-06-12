@@ -29,6 +29,7 @@ class TA13_0_TransferSecondaryDataWrapper(TaskBase):
             self.valid_tasks = [t for t in known_tasks if t in matching_files]
             logging.debug3(f"✅ Valid subtasks to trigger: {self.valid_tasks}")
             self.controller.update_item_count(len(self.valid_tasks))
+            self.valid_tasks = self.filter_runnable_tasks(self.valid_tasks)
 
             for idx, task_name in enumerate(self.valid_tasks):
                 self.check_control()
@@ -86,18 +87,3 @@ class TA13_0_TransferSecondaryDataWrapper(TaskBase):
         except Exception as e:
             logging.error(f"❌ Failed scanning task directory: {e}")
             return []
-
-    def trigger_task_via_http(self, task_name):
-        url = f"{self.base_url}/tasks/start"
-        payload = {"task_name": task_name}
-        logging.debug(f"🌐 Sending POST request to: {url} with payload {payload}")
-        try:
-            res = httpx.post(url, json=payload)
-            if res.status_code == 200:
-                logging.info(f"✅ Successfully triggered {task_name}")
-            else:
-                logging.error(f"❌ Failed to trigger {task_name}: {res.status_code} {res.text}")
-        except Exception as e:
-            logging.exception(f"❌ Error sending HTTP request for {task_name}: {e}")
-
-

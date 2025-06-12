@@ -51,6 +51,8 @@ class TA13_C_DataTransfer_DS12(TaskBase):
 
     def cleanup(self):
         logging.debug2(f"[{self.dataset_name}] 🧹 Cleanup triggered.")
+        self.set_needs_running(False) #mark as already processed for the wrapper
+
         self.controller.archive_with_orm()
 
     def process(self):

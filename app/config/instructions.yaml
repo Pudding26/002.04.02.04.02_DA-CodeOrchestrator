@@ -22,7 +22,7 @@ tasks:
         - TA11_A_Import_DS01
         - TA11_B_Import_DS04
         - TA11_C_Import_DS07
-        - TA11_D_Import_DS11
+        #- TA11_D_Import_DS11
         - TA11_E_Import_SecondaryData
 
 
@@ -193,12 +193,17 @@ tasks:
     TA35_0_BackendOrchestrator:
       taskName: TA35_0_BackendOrchestrator
       api_base_url: http://localhost:8000
-      tasks_T1:
-        - TA11_0_DataImportWrapper
-      tasks_T2:
-        - TA12_0_DataTransferPrimaryWrapper
-        - TA13_0_TransferSecondaryDataWrapper
-      tasks_T3:
+      
+      
+      do_import: True
+      do_transfer: True
+      do_update_hdf5: True
+      #tasks_T1:
+      #  - TA11_0_DataImportWrapper
+      #tasks_T2:
+      #  - TA12_0_DataTransferPrimaryWrapper
+      #  - TA13_0_TransferSecondaryDataWrapper
+      #tasks_T3:
       
 
 

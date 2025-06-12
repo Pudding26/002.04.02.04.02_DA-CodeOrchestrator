@@ -32,19 +32,31 @@ class TA35_0_BackendOrchestrator(TaskBase):
         try:
             self.controller.update_message("🔄 Starting DoE pipeline orchestration")
 
-            generalJob_df = self.trigger_task_via_http("TA27_0_DoEWrapper")
+            generalJob_df = TaskBase.trigger_task_via_http("TA27_0_DoEWrapper")
+            
+            if self.instructions.get("do_import") is True:
+                    logging.info("📦 Starting import pipeline (TA11_0_DataImportWrapper)")
+                    TaskBase.trigger_task_via_http("TA11_0_DataImportWrapper")
+                    TaskController.watch_task_completion(task_names="TA11_0_DataImportWrapper", timeout_sec=1200, poll_interval=10.0)
 
-            if self.instructions.get("update_HDF5"):
-                self.trigger_task_via_http("TA23_0_CreateWoodMaster")
-                self.trigger_task_via_http("TA25_0_CreateWoodHDF")
-                TaskController.watch_task_completion(task_name="TA23_0_CreateWoodMaster", timeout_sec=300, poll_interval=10.0)
+            if self.instructions.get("do_transfer") is True:
+                logging.info("📤 Starting primary and secondary transfer tasks")
+                TaskBase.trigger_task_via_http("TA12_0_DataTransferPrimaryWrapper")
+                TaskBase.trigger_task_via_http("TA13_0_TransferSecondaryDataWrapper")
 
-            TaskController.watch_task_completion(task_name="TA27_0_DoEWrapper",  timeout_sec=300, poll_interval=10.0)
+            logging.info("🕐 Waiting for TA12_0_DataTransferPrimaryWrapper to complete")
+            TaskController.watch_task_completion(task_names="TA12_0_DataTransferPrimaryWrapper", timeout_sec=300, poll_interval=10.0)
+
+            logging.info("🕐 Waiting for TA13_0_TransferSecondaryDataWrapper to complete")
+            TaskController.watch_task_completion(task_names="TA13_0_TransferSecondaryDataWrapper", timeout_sec=300, poll_interval=10.0)
+
+
+            TaskController.watch_task_completion(task_names="TA27_0_DoEWrapper",  timeout_sec=300, poll_interval=10.0)
 
             self.create_job_df()
             self.create_job_queue()
 
-            self.trigger_task_via_http("TA30_B_SegmentationOrchestrator")
+            TaskBase.trigger_task_via_http("TA30_B_SegmentationOrchestrator")
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
@@ -60,19 +72,7 @@ class TA35_0_BackendOrchestrator(TaskBase):
         self.controller.archive_with_orm()
         logging.debug3("🧼 [TA35] Cleanup complete.")
 
-    def trigger_task_via_http(self, task_name):
-        url = f"{self.api_base_url}/tasks/start"
-        payload = {"task_name": task_name}
 
-        logging.debug(f"🌐 Triggering subtask via HTTP POST: {url} with payload {payload}")
-        try:
-            res = httpx.post(url, json=payload)
-            if res.status_code == 200:
-                logging.info(f"✅ Successfully triggered {task_name}")
-            else:
-                logging.error(f"❌ Failed to trigger {task_name}: {res.status_code} {res.text}")
-        except Exception as e:
-            logging.exception(f"❌ HTTP error while triggering {task_name}: {e}")
 
 
 
