@@ -9,7 +9,7 @@ from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 from sqlalchemy.schema import CreateTable
 
 import logging
-
+_engine_cache = {}  # Module-level cache, To allow to reuse engine connections
 
 load_dotenv()
 
@@ -68,8 +68,15 @@ class DBEngine:
         
         if not self.database_url:
             raise ValueError(f"❌ No DB URL found in .env for key: {db_key}")
-
-        self.engine = create_engine(self.database_url)
+        
+        # Reuse engine from cache if it exists
+        if db_key not in _engine_cache:
+            _engine_cache[db_key] = create_engine(self.database_url)
+            logging.debug3(f"✅ Created new SQLAlchemy engine for {db_key} at {self.database_url}")
+        else:
+            logging.debug1(f"🔄 Reusing existing SQLAlchemy engine for {db_key} at {self.database_url}")
+        
+        self.engine = _engine_cache[db_key]
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def get_session(self):
