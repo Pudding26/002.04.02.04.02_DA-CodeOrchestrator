@@ -18,12 +18,13 @@ tasks:
   TA11_DataImport:
     TA11_0_DataImportWrapper:
       taskName: TA11_0_DataImportWrapper
-      possible_subTasks:
+      tasks_T1:
         - TA11_A_Import_DS01
         - TA11_B_Import_DS04
         - TA11_C_Import_DS07
         - TA11_D_Import_DS11
         - TA11_E_Import_SecondaryData
+
 
     TA11_A_Import_DS01:
       TaskName : "TA11_A_Import_DS01"
@@ -68,6 +69,18 @@ tasks:
 
   TA12_DataTransferPrimary:
     TA12_0_DataTransferPrimaryWrapper:
+      taskName: TA12_0_DataTransferPrimaryWrapper
+      tasks_T1:
+        - TA12_A_Transfer_DS01
+        - TA12_B_Transfer_DS04
+        - TA12_C_Transfer_DS07
+        - TA12_D_Transfer_DS11
+      tasks_T2:
+        - TA12_E_ConcatPrimaryDataRaw
+        
+      
+
+
     
     TA12_A_Transfer_DS01:
       taskName: TA12_A_Transfer_DS01
@@ -180,4 +193,12 @@ tasks:
     TA35_0_BackendOrchestrator:
       taskName: TA35_0_BackendOrchestrator
       api_base_url: http://localhost:8000
+      tasks_T1:
+        - TA11_0_DataImportWrapper
+      tasks_T2:
+        - TA12_0_DataTransferPrimaryWrapper
+        - TA13_0_TransferSecondaryDataWrapper
+      tasks_T3:
+      
+
 

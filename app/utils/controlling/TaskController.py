@@ -2,7 +2,7 @@ import logging
 import time
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union, List
 import time
 
 from sqlalchemy import text
@@ -279,25 +279,37 @@ class TaskController:
             logging.error(f"❌ Error checking task status for '{task_name}': {e}")
             return True  # Assume done if there's an error
 
-    @staticmethod
-    def watch_task_completion(task_name: str, timeout_sec: int = 30, poll_interval: float = 1.0) -> bool:
+    def watch_task_completion(
+        task_names: Union[str, List[str]],
+        timeout_sec: int = 30,
+        poll_interval: float = 1.0
+    ) -> bool:
         """
-        Polls for task completion by checking if the task's progress table has been deleted.
-        Returns True if task completed (table deleted) within timeout, False otherwise.
+        Polls for completion of one or more tasks by checking if their progress tables are deleted.
 
-        :param task_name: Name of the task to monitor.
-        :param timeout_sec: Maximum time to wait in seconds.
+        :param task_names: Single task name or list of task names.
+        :param timeout_sec: Maximum time to wait (per task) in seconds.
         :param poll_interval: Time to wait between checks.
+        :return: True if all tasks completed within timeout, False otherwise.
         """
-        logging.info(f"🔍 Watching task '{task_name}' for completion (timeout={timeout_sec}s)...")
-        start_time = time.time()
+        if isinstance(task_names, str):
+            task_names = [task_names]
 
-        while time.time() - start_time < timeout_sec:
-            if TaskController.is_task_done(task_name):
-                logging.info(f"✅ Task '{task_name}' has completed within {int(time.time() - start_time)}s.")
-                return True
-            logging.debug3(f"⏳ Task '{task_name}' still running... sleeping for {poll_interval}s")
-            time.sleep(poll_interval)
+        logging.info(f"🔍 Watching {len(task_names)} task(s) for completion (timeout={timeout_sec}s each)...")
 
-        logging.warning(f"⚠️ Timeout reached. Task '{task_name}' still not marked complete after {timeout_sec}s.")
-        return False
+        start_times = {task: time.time() for task in task_names}
+        remaining_tasks = set(task_names)
+
+        while remaining_tasks:
+            for task in list(remaining_tasks):
+                if TaskController.is_task_done(task):
+                    logging.info(f"✅ Task '{task}' completed in {int(time.time() - start_times[task])}s.")
+                    remaining_tasks.remove(task)
+                elif time.time() - start_times[task] > timeout_sec:
+                    logging.warning(f"⚠️ Timeout reached for task '{task}' after {timeout_sec}s.")
+                    remaining_tasks.remove(task)
+
+            if remaining_tasks:
+                time.sleep(poll_interval)
+
+        return len(remaining_tasks) == 0

@@ -64,6 +64,7 @@ class TA11_B_Import_DS04(TaskBase):
                 fdst.write(chunk)
                 copied_size += len(chunk)
                 progress = round(copied_size / total_size, 2)
+                self.controller.update_progress(progress)
 
                 if progress * 100 >= progress_update:
                     progress_update += update_interval

@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 import uuid
 import io
+import os
+import logging
+import httpx
 from datetime import datetime
 from app.utils.controlling.TaskController import TaskController
 from app.utils.SQL.DBEngine import DBEngine
@@ -27,7 +30,6 @@ class TaskBase(ABC):
         self.task_uuid = self.controller.task_uuid
         self.enable_profiling = enable_profiling
         self._profiler_streams = {}
-        
 
         if self.enable_profiling:
             self._setup_memory_profiling()
@@ -106,3 +108,21 @@ class TaskBase(ABC):
         if self.controller.should_stop():
             self.status = "Stopped"
             raise InterruptedError("Task was stopped.")
+
+    @staticmethod
+    def trigger_task_via_http(task_name):
+        BACKEND_ORCH_BASE_PORT = os.getenv(BACKEND_ORCH_BASE_PORT)
+        api_base_url = f"http://localhost:{BACKEND_ORCH_BASE_PORT}"
+        
+        url = f"{api_base_url}/tasks/start"
+        payload = {"task_name": task_name}
+
+        logging.debug(f"🌐 Triggering subtask via HTTP POST: {url} with payload {payload}")
+        try:
+            res = httpx.post(url, json=payload)
+            if res.status_code == 200:
+                logging.info(f"✅ Successfully triggered {task_name}")
+            else:
+                logging.error(f"❌ Failed to trigger {task_name}: {res.status_code} {res.text}")
+        except Exception as e:
+            logging.exception(f"❌ HTTP error while triggering {task_name}: {e}")
