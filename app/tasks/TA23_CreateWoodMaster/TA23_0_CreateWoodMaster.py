@@ -4,6 +4,9 @@ import json
 import yaml
 import pandas as pd
 from memory_profiler import profile
+if os.getenv("DEBUG_MODE") == "True":
+    import memory_profiler
+    memory_profiler.profile.disable = lambda: None
 from datetime import datetime
 from typing import Optional
 import numpy as np

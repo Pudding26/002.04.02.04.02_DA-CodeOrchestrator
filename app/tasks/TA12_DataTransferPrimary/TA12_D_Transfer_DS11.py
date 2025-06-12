@@ -1,6 +1,9 @@
 import re
 import pandas as pd
 import logging
+if os.getenv("DEBUG_MODE") == "True":
+    import memory_profiler
+    memory_profiler.profile.disable = lambda: None
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.controlling.TaskController import TaskController

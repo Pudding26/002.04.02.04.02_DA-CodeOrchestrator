@@ -6,7 +6,9 @@ import logging
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
 
-
+if os.getenv("DEBUG_MODE") == "True":
+    import memory_profiler
+    memory_profiler.profile.disable = lambda: None
 from app.utils.general.HelperFunctions import generate_deterministic_string_uuid
 
 
