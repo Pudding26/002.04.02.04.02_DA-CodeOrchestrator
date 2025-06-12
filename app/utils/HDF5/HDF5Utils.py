@@ -80,6 +80,7 @@ class HDF5Utils:
     @staticmethod
     def unlock_dirty_hdf5_files(directories: str):
         logging.info(f"🔍 Scanning for locked HDF5 files in: {directories}")
+        
     
     
     
@@ -92,9 +93,11 @@ class HDF5Utils:
                 for file in files:
                     if file.endswith(".hdf5"):
                         file_path = os.path.join(root, file)
+                        file_path = os.path.abspath(file_path)
                         try:
                             logging.debug2(f"Running h5clear: h5clear -s {file_path}")
                             subprocess.run(["h5clear", "-s", file_path], check=True)
                             logging.info(f"✅ Cleared HDF5 lock: {file_path}")
                         except Exception as e:
                             logging.error(f"⚠️ Failed to clear '{file_path}': {e}")
+                            
