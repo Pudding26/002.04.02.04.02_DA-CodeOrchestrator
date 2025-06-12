@@ -185,17 +185,18 @@ class LoggingHandler:
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         load_dotenv(os.path.join(BASE_DIR, "..", ".env"))
         
-        PAPERTRAIL_HOST = os.getenv("PAPERTRAIL_HOST")
-        PAPERTRAIL_PORT = int(os.getenv("PAPERTRAIL_PORT"))
+
         SYS_LOG_ACTIVE = os.getenv("SYS_LOG_ACTIVE")
-        syslog_handler = logging.handlers.SysLogHandler(
-            address=(PAPERTRAIL_HOST, PAPERTRAIL_PORT),
-        )
-        syslog_handler.setLevel(logging.DEBUG)  # Ensure all logs are written to file
-        syslog_handler.setFormatter(formatter_paperTrail)
-        syslog_handler.addFilter(ClassNameFilter())
         
         if SYS_LOG_ACTIVE == "True":
+            syslog_handler = logging.handlers.SysLogHandler(
+                address=(PAPERTRAIL_HOST, PAPERTRAIL_PORT),
+            )
+            PAPERTRAIL_HOST = os.getenv("PAPERTRAIL_HOST")
+            PAPERTRAIL_PORT = int(os.getenv("PAPERTRAIL_PORT"))
+            syslog_handler.setLevel(logging.DEBUG)  # Ensure all logs are written to file
+            syslog_handler.setFormatter(formatter_paperTrail)
+            syslog_handler.addFilter(ClassNameFilter())
             logger.addHandler(syslog_handler)
 
 
