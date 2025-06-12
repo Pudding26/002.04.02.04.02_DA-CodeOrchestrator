@@ -2,6 +2,7 @@
 import logging
 from fastapi import HTTPException
 from pathlib import Path
+from typing import Optional
 import yaml
 import importlib
 from threading import Thread
@@ -64,19 +65,36 @@ class TaskHandler:
         logging.debug2("Task group collection complete.")
         return task_groups
 
-    def start_task(self, task_name: str):
+    def start_task(self, task_name: str, custom_task_name: Optional[str] = None, custom_params: Optional[dict] = None):
+        
+        
         logging.debug2(f"Starting task: {task_name}")
         task_config = self.find_task_config(task_name)
         logging.debug2(f"Task config found: {task_config}")
+        
+        
 
-        logging.debug2(f"Checking if task '{task_name}' is already running...")
-        db = SQL_Dict(db_key="progress", table_name=task_name)
+        
+        if custom_params:
+            logging.debug2(f"Custom parameters provided: {custom_params}")
+            task_config.update(custom_params)
+        if custom_task_name:
+            logging.debug2(f"Custom task name provided: {custom_task_name}")
+            task_config["task_name"] = task_name  # static, from YAML
+            task_config["custom_task_name"] = custom_task_name  # dynamic
+
+
+
+        actual_task_name = custom_task_name or task_name
+        logging.debug2(f"Checking if task '{actual_task_name}' is already running...")
+        db = SQL_Dict(db_key="progress", table_name=actual_task_name)
         current_status = db.get("Status")
         if current_status and current_status.lower() == "running":
-            logging.warning(f"Task '{task_name}' is already running.")
-            raise HTTPException(status_code=409, detail=f"Task '{task_name}' is already running.")
+            logging.warning(f"Task '{actual_task_name}' is already running.")
+            raise HTTPException(status_code=409, detail=f"Task '{actual_task_name}' is already running.")
 
-        logging.debug2(f"Task '{task_name}' is not running. Proceeding to start...")
+
+        logging.debug2(f"Task '{actual_task_name}' is not running. Proceeding to start...")
         try:
             db.set("Status", "running")
             prefix = task_name.split("_")[0]
@@ -105,7 +123,7 @@ class TaskHandler:
 
             controller = TaskController(
                 db_key="progress",
-                task_name=task_name,
+                task_name=actual_task_name,
                 task_uuid=task_uuid
             )
 
@@ -118,13 +136,13 @@ class TaskHandler:
 
 
             task_config["Thread_progress_db_path"] = "progress"
-            task_config["Thread_progress_table_name"] = task_name
+            task_config["Thread_progress_table_name"] = actual_task_name
 
             logging.debug2(f"Creating task instance: {task_class.__name__}")
             task_instance = task_class(task_config, controller)
 
             # Attach task_name for logging clarity if missing
-            task_instance.task_name = getattr(task_instance, "task_name", task_name)
+            task_instance.task_name = getattr(task_instance, "task_name", actual_task_name)
 
             def _safe_task_run(task):
                 try:

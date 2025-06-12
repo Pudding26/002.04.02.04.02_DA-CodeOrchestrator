@@ -10,8 +10,7 @@ from app.tasks.TaskBase import TaskBase
 from app.utils.HDF5.SWMR_HDF5Handler import SWMR_HDF5Handler
 
 
-from app.utils.SQL.models.temp.api.api_DoEJobs import DoEJobs_Out
-from app.utils.SQL.models.production.api.api_ModellingResults import ModellingResults_Out
+
 
 
 class TA35_0_BackendOrchestrator(TaskBase):
@@ -75,20 +74,7 @@ class TA35_0_BackendOrchestrator(TaskBase):
         except Exception as e:
             logging.exception(f"❌ HTTP error while triggering {task_name}: {e}")
 
-    def create_job_df(self):
-        def _deserialize(df):
-            return df.applymap(lambda x: json.loads(x) if isinstance(x, str) and x.strip().startswith("[") else x)
 
-        logging.debug3("📥 Loading DoE and ML tables.")
-        self.doe_df_raw = DoEJobs_Out.fetch_all()
-        self.ml_table_raw = ModellingResults_Out.fetch_all()
-
-        if self.ml_table_raw.empty:
-            self.doe_df = self.doe_df_raw
-        else:
-            self.doe_df = self.doe_df_raw[~self.doe_df_raw["DoE_UUID"].isin(self.ml_table_raw["DoE_UUID"])]
-
-        logging.info(f"✅ Loaded {len(self.doe_df)} DoE jobs.")
 
     def create_job_queue(self):
         self.doe_job_list = []
