@@ -8,6 +8,12 @@ tasks:
   #    source_db: "source"
   #    raw_db: "raw"
 
+  TA05_PassiveRsyncWatcher:
+    TA05_0_PassiveRsyncWatcher:
+      taskName: TA05_0_PassiveRsyncWatcher
+    TA05_A_SingleRsyncWorker:
+      taskName: TA05_A_SingleRsyncWorker
+
 
   TA11_DataImport:
     TA11_0_DataImportWrapper:

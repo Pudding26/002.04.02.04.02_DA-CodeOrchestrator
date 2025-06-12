@@ -18,9 +18,9 @@ LoggingHandler(logging_level="DEBUG-2")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    TaskController.clean_orphaned_tasks_on_start()
     
     TA01_A_SQLSetup.createDatabases()
+    TaskController.clean_orphaned_tasks_on_start()
 
     create_all_tables()
 

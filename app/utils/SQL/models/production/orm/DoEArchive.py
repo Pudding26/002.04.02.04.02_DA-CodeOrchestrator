@@ -32,10 +32,8 @@ class DoEArchive(orm_BaseModel):
     ## 2. PreprocessingFactors##
     preProcessingNo = Column(JSONB)
 
-
     ## 3. SegmentationFactors##
 
-    
     ## 4. ModelFactors##
     featureBins = Column(JSONB)
     metricModelNo = Column(JSONB)

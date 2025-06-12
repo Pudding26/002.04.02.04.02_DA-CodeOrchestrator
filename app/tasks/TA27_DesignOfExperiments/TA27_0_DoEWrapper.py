@@ -10,7 +10,7 @@ from app.utils.YAML.YAMLUtils import YAMLUtils
 
 from app.utils.SQL.models.production.api.api_DoEArchive import DoEArchive_Out
 from app.utils.SQL.models.temp.api.api_DoEJobs import DoEJobs_Out
-
+from app.utils.SQL.models.production.api.api_ModellingResults import ModellingResults_Out
 
 
 logger = logging.getLogger(__name__)
@@ -31,21 +31,28 @@ class TA27_0_DoEWrapper(TaskBase):
 
 
             logger.debug3("🧮 Expanding parameter combinations...")
-            df = TA27_B_DoEExpander.expand(raw_yaml)
-            logger.debug3(f"🔢 Expanded DoE to {len(df)} combinations")
+            self.doe_df_raw = TA27_B_DoEExpander.expand(raw_yaml)
+            logger.debug3(f"🔢 Expanded DoE to {len(self.doe_df_raw)} combinations")
 
+            self.controller.update_message("🧪 Filtering new DoEJobs agains ModellingResults SQL")
+            logger.debug3("🔍 Filtering new DoEJobs against ModellingResults...")
+            self.create_job_df()
             #df_safe = df.map(lambda x: json.dumps(x) if isinstance(x, list) else x)
-            df_safe = df
+ 
             self.controller.update_message("📦 Archiving old DoE")
             logging.debug3("📦 Archiving old DoE table if exists...")
-            self.archive_old_doe(df_safe)
+            self.archive_old_doe()
             logger.debug3("📦 Old DoE archived successfully")
+
+
+
             
             self.controller.update_message("🧪 Saving new DoEJobs to SQL")
             logger.debug3("💾 Storing new DoEJobs in SQL...")
-            DoEJobs_Out.store_dataframe(df_safe, method="replace", db_key="temp")
+            DoEJobs_Out.store_dataframe(self.doe_df, method="replace", db_key="temp")
             
             logger.info("✅ New DoE table stored")
+
 
             #self.controller.update_message("🛠 Generating job definitions")
             #logger.debug3("🧬 Starting job generation...")
@@ -65,10 +72,29 @@ class TA27_0_DoEWrapper(TaskBase):
         finally:
             self.cleanup()
 
-    def archive_old_doe(self, new_df: pd.DataFrame):
+
+
+    def create_job_df(self):
+        def _deserialize(df):
+            return df.applymap(lambda x: json.loads(x) if isinstance(x, str) and x.strip().startswith("[") else x)
+
+        logging.debug2("📥 Loading DoE and ML tables.")
+        self.ml_table_raw = ModellingResults_Out.fetch_all()
+
+        if self.ml_table_raw.empty:
+            self.doe_df = self.doe_df_raw
+        else:
+            self.doe_df = self.doe_df_raw[~self.doe_df_raw["DoE_UUID"].isin(self.ml_table_raw["DoE_UUID"])]
+
+        logging.debug5(f"✅ Loaded {len(self.doe_df)} DoE jobs.")
+
+
+
+    def archive_old_doe(self):
         df_old = DoEJobs_Out.fetch_all()
         logging.debug2(f"📂 Found {len(df_old)} old DoE rows to archive")
         df_archive_raw = DoEArchive_Out.fetch_all()
+
         logging.debug2(f"📂 Found {len(df_archive_raw)} DoE rows in Archive")
         new_rows = df_old[~df_old['DoE_UUID'].isin(df_archive_raw['DoE_UUID'])]
         

@@ -18,8 +18,12 @@ def get_tasks():
 
 @router.post("/start")
 def start_task(req: TaskRequest):
-    logging.info(f"Starting task: {req.task_name}")
-    return handler.start_task(req.task_name)
+    logging.info(f"Starting task: {req.task_name} → {req.custom_task_name or req.task_name}")
+    return handler.start_task(
+        task_name=req.task_name,
+        custom_task_name=req.custom_task_name,
+        custom_params=req.params
+    )
 
 @router.post("/stop")
 def stop_task(req: TaskRequest):
