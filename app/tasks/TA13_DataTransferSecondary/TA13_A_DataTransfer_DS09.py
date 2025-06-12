@@ -1,8 +1,7 @@
-# Refactored TA13_A_DataTransfer_DS09 using ORM and TaskBase
-
 import re
 import pandas as pd
 import logging
+import os
 from sqlalchemy.orm import Session
 
 from app.tasks.TaskBase import TaskBase
@@ -11,6 +10,10 @@ from app.utils.SQL.DBEngine import DBEngine
 from app.utils.mapping.YamlColumnMapper import YamlColumnMapper
 from app.utils.SQL.models.production.orm.DS09 import DS09
 from app.utils.SQL.SQL_Df import SQL_Df
+
+if os.getenv("DEBUG_MODE") == "True":
+    import memory_profiler
+    memory_profiler.profile.disable = lambda: None
 
 class TA13_A_DataTransfer_DS09(TaskBase):
     def setup(self):
