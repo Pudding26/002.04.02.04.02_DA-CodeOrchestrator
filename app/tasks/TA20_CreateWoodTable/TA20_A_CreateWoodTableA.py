@@ -12,7 +12,6 @@ class TA20_A_CreateWoodTableA(TaskBase):
         """Initialize controller message and SQL connection."""
         self.controller.update_message("Initializing Wood Table Creation")
         self.controller.update_progress(0.0)
-        self.ds_SQL = SQL_Df(self.instructions["src_db_key"]) ## production
 
     def run(self) -> None:
         """Run task logic: load → clean → enrich → filter → store."""
@@ -53,6 +52,7 @@ class TA20_A_CreateWoodTableA(TaskBase):
     def cleanup(self) -> None:
         """Flush memory profile logs and archive progress."""
         self.flush_memory_logs()
+        self.set_needs_running(False) #mark as already processed for the wrapper
         self.controller.archive_with_orm()
 
     def load_needed_data(self) -> Dict[str, pd.DataFrame]:
