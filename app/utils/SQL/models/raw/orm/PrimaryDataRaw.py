@@ -1,6 +1,6 @@
 # ORM Model: app/utils/SQL/models/raw/orm/PrimaryDataRaw.py
 
-from sqlalchemy import Column, String, String, String, Boolean, BigInteger
+from sqlalchemy import Column, String, Integer, Boolean, BigInteger
 from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
 class PrimaryDataRaw(orm_BaseModel):
@@ -8,22 +8,37 @@ class PrimaryDataRaw(orm_BaseModel):
     
     
     raw_UUID = Column(String, primary_key=True)
-    citeKey = Column(String)
-    filename = Column(String)
+
+    species = Column(String)
+
+    woodType = Column(String)
+    family = Column(String)
+    genus = Column(String)
+
     sourceNo = Column(String)
+    source_UUID = Column(String)
+
+
+    shotNo = Column(Integer)
+    specimenNo = Column(Integer)
+
+    view = Column(String)
+    lens = Column(String)
+    pixel_x = Column(Integer)
+    pixel_y = Column(Integer)
+
+    citeKey = Column(String)
+
+    #bitDepth = Column(String)
+    #colorSpace = Column(String)
+    #colorDepth = Column(String)
+
+    filename = Column(String)
     path = Column(String)
     sourceFilePath_rel = Column(String)
-    species = Column(String)
-    genus = Column(String)
-    source_UUID = Column(String)
     filename_drop = Column(String)
     max_split_drop = Column(String)
     specimenID_old = Column(String)
-    shotNo = Column(String)
-    specimenNo = Column(String)
-    pixel_x = Column(String)
-    pixel_y = Column(String)
-    family = Column(String)
     GPS_Alt = Column(String)
     GPS_Lat = Column(String)
     GPS_Long = Column(String)
@@ -38,12 +53,7 @@ class PrimaryDataRaw(orm_BaseModel):
     subspecies_drop = Column(String)
     individuals_drop = Column(String)
     n_individuals_drop = Column(String)
-    view = Column(String)
-    lens = Column(String)
     microscopicTechnic = Column(String)
-    bitDepth = Column(String)
-    colorSpace = Column(String)
-    colorDepth = Column(String)
     DPI = Column(String)
     totalNumberShots = Column(String)
     institution = Column(String)
@@ -57,7 +67,6 @@ class PrimaryDataRaw(orm_BaseModel):
     sourceStoredLocally = Column(String)
     institutionCode = Column(String)
     sourceFilePath_abs = Column(String)
-    woodType = Column(String)
     name_drop = Column(String)
     todo_lens = Column(String)
     filename_old = Column(String)

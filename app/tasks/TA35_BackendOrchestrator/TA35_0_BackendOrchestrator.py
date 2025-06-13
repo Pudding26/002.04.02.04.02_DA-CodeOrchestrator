@@ -47,17 +47,17 @@ class TA35_0_BackendOrchestrator(TaskBase):
             TaskController.watch_task_completion(task_names="TA12_0_DataTransferPrimaryWrapper", timeout_sec=300, poll_interval=10.0)
 
             logging.info("🕐 Waiting for TA13_0_TransferSecondaryDataWrapper to complete")
-            TaskController.watch_task_completion(task_names="TA13_0_TransferSecondaryDataWrapper", timeout_sec=300, poll_interval=10.0)
+            TaskController.watch_task_completion(task_names="TA13_0_TransferSecondaryDataWrapper", timeout_sec=150, poll_interval=10.0)
 
 
             self.trigger_task_via_http("TA20_0_CreateWoodTableWrapper")
             logging.info("🕐 Waiting for TA20_0_CreateWoodTableWrapper to complete")
-            TaskController.watch_task_completion(task_names="TA20_0_CreateWoodTableWrapper", timeout_sec=300, poll_interval=10.0)
+            TaskController.watch_task_completion(task_names="TA20_0_CreateWoodTableWrapper", timeout_sec=60, poll_interval=10.0)
 
 
             self.trigger_task_via_http("TA23_0_CreateWoodMaster")
             logging.info("🕐 Waiting for TA23_0_CreateWoodMaster to complete")
-            TaskController.watch_task_completion(task_names="TA23_0_CreateWoodMaster", timeout_sec=300, poll_interval=10.0)
+            TaskController.watch_task_completion(task_names="TA23_0_CreateWoodMaster", timeout_sec=30, poll_interval=10.0)
 
 
 

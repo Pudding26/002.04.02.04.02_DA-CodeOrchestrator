@@ -1,5 +1,5 @@
 col_names:
-   'id' : "source-UUID"
+   'id' : "source_UUID"
    'specimen' : "specimenNo_old"
    'name' : "name_drop"
    'family' : "family"

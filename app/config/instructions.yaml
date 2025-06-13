@@ -177,6 +177,8 @@ tasks:
       taskName: TA23_0_CreateWoodMaster
       HDF5_file_path: "data/productionData/primaryData.hdf5"
       woodTypeMapper_path: "app/config/mapper/TA23_CreateWoodmaster/TA23_0_woodTypeMapper.yaml"
+      woodTableSource: WoodTableA
+
 
   TA25_CreateWoodHDF:
     TA25_0_CreateWoodHDF:
