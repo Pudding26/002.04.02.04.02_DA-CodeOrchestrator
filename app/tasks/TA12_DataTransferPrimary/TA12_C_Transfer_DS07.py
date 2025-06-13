@@ -109,9 +109,6 @@ class TA12_C_Transfer_DS07(TaskBase):
 
     @profile(stream=mem_Streams["step3"])
     def step_3_store_to_sql(self, df: pd.DataFrame):
-        logging.debug3("🧼 Normalizing data types before SQL write")
-        df = df.astype(object).where(pd.notnull(df), None)
-        df = df.map(lambda x: x.item() if hasattr(x, 'item') else x)
 
         total = len(df)
         logging.info(f"💾 Writing {total} rows to table: {self.instructions['dest_table_name']}")

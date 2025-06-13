@@ -10,7 +10,7 @@ col_names:
    'commonNames': "engName_old"
    'filename' : 'filename_old'
    'institutionCode' : 'institutionCode'
-   "_version_" :    "_version_old"
+   "_version_" :    "version_old"
    "typeofwood" : "woodType"
    "source" : 'source_drop'
    "bitdepth" : 'todo_bitdepth_old'

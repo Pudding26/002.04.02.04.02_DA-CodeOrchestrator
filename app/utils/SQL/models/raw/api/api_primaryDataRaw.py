@@ -15,24 +15,24 @@ class PrimaryDataRaw_Out(api_BaseModel):
     
     species: str
 
-    woodType: Optional[Any]
-    family: Optional[Any]
-    genus: Optional[Any]
+    woodType: Optional[str]
+    family: Optional[str]
+    genus: Optional[str]
 
-    sourceNo: Optional[Any]
-    source_UUID: Optional[Any]
+    sourceNo: Optional[str]
+    source_UUID: Optional[str]
 
     shotNo: int
     specimenNo: int
-
+    totalNumberShots: Optional[int]
 
     view: str
-    lens: float
+    lens: Optional[float]
     pixel_x: Optional[int]
     pixel_y: Optional[int]
+    numericalAperature_NA: Optional[float]
 
-
-    citeKey: Optional[Any]
+    citeKey: Optional[str]
 
 
     #bitDepth: Optional[Any]
@@ -40,44 +40,51 @@ class PrimaryDataRaw_Out(api_BaseModel):
     #colorDepth: Optional[Any]
     
 
+    DPI: Optional[float]
+    area_x_mm: Optional[float]
+    area_y_mm: Optional[float]
+    pixelSize_um_per_pixel: Optional[float]
+
 
 
     filename: Optional[Any]
     path: Optional[Any]
+    sourceStoredLocally: Optional[Any]
     sourceFilePath_rel: Optional[Any]
-    filename_drop: Optional[Any]
-    max_split_drop: Optional[Any]
-    specimenID_old: Optional[Any]
-    GPS_Alt: Optional[Any]
-    GPS_Lat: Optional[Any]
-    GPS_Long: Optional[Any]
-    japName: Optional[Any]
-    specimenNo_old: Optional[Any]
-    order_old: Optional[Any]
-    section_drop: Optional[Any]
-    subgenus_drop: Optional[Any]
-    otherNo_drop: Optional[Any]
-    prepNo_drop: Optional[Any]
-    samplingPoint: Optional[Any]
-    subspecies_drop: Optional[Any]
-    individuals_drop: Optional[Any]
-    n_individuals_drop: Optional[Any]
-    microscopicTechnic: Optional[Any]
-    DPI: Optional[Any]
-    totalNumberShots: Optional[Any]
+
     institution: Optional[Any]
     contributor: Optional[Any]
     origin: Optional[Any]
     digitizedDate: Optional[Any]
-    area_x_mm: Optional[Any]
-    area_y_mm: Optional[Any]
-    pixelSize_um_per_pixel: Optional[Any]
-    numericalAperature_NA: Optional[Any]
-    sourceStoredLocally: Optional[Any]
     institutionCode: Optional[Any]
-    sourceFilePath_abs: Optional[Any]
+
+    GPS_Alt: Optional[Any]
+    GPS_Lat: Optional[Any]
+    GPS_Long: Optional[Any]
+
+    filename_drop: Optional[Any]
+    max_split_drop: Optional[Any]
+    section_drop: Optional[Any]
+    subgenus_drop: Optional[Any]
+    otherNo_drop: Optional[Any]
+    prepNo_drop: Optional[Any]
+    subspecies_drop: Optional[Any]
+    individuals_drop: Optional[Any]
+    n_individuals_drop: Optional[Any]
+    
+
+    version_old: Optional[str]
+    specimenID_old: Optional[Any]
+    specimenNo_old: Optional[Any]
+    order_old: Optional[Any]
+    lens_old: Optional[Any]
+
+
+
+    japName: Optional[Any]
+    samplingPoint: Optional[Any]
+    microscopicTechnic: Optional[Any]
     name_drop: Optional[Any]
-    todo_lens: Optional[Any]
     filename_old: Optional[Any]
     source_drop: Optional[Any]
     todo_bitdepth_old: Optional[Any]
@@ -87,6 +94,5 @@ class PrimaryDataRaw_Out(api_BaseModel):
     view_old: Optional[Any]
     anatomy1_DS04: Optional[Any]
     anatomy2_DS04: Optional[Any]
-    version_old: Optional[Any]
 
 

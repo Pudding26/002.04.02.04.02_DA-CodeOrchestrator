@@ -47,7 +47,7 @@ class DataDebugValidator:
     
 
 
-    def count_fake_nans(data, fake_nans={"NaN", "nan", ""}, groupby_col=None):
+    def count_fake_nans(data, fake_nans={"NaN", "nan", "", "None"}, groupby_col=None):
         """
         Count fake NaNs per column. Works on a single DataFrame or a dict of DataFrames.
 

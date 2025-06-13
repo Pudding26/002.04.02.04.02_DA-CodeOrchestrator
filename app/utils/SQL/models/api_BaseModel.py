@@ -3,14 +3,25 @@ from time import time
 import pandas as pd
 import numpy as np
 
-from pydantic import BaseModel
-from pydantic import TypeAdapter
 
-from datetime import datetime
+from pydantic import BaseModel
+
+
+from app.utils.SQL.errors import BulkInsertError
+
+
+from app.utils.SQL.models.methods._bulk_save_objects import _bulk_save_objects
+from app.utils.SQL.models.methods._model_validate_dataframe import _model_validate_dataframe
+
+
+
 from typing import List, Type, TypeVar, Optional, Any, Dict
 
-from sqlalchemy.orm import Session
+
+
 from app.utils.SQL.DBEngine import DBEngine
+
+from app.utils.SQL.to_SQLSanitizer import to_SQLSanitizer
 from app.utils.QM.PydanticQM import PydanticQM
 
 T = TypeVar("T", bound="SharedBaseModel")
@@ -34,85 +45,98 @@ class api_BaseModel(BaseModel):
         """Pretty JSON for APIs/logs/debugging."""
         return self.model_dump_json(indent=2, exclude_none=True, **kwargs)
     
+
     @classmethod
-    def store_dataframe(cls, df: pd.DataFrame, db_key: str, method: str = "append", insert_method: str = "chunked") -> None:
+    def store_dataframe(
+        cls,
+        df: pd.DataFrame,
+        db_key: str,
+        method: str = "append",
+        insert_method: str = "bulk_save_objects",
+    ) -> None:
         """
-        Validate DataFrame rows using Pydantic, then persist via SQLAlchemy ORM.
-        Supported methods: 'append' (default), 'replace' (drops and inserts).
+        • Cleans & validates a DataFrame with the model schema.
+        • Persists it using one of three strategies:
+            - bulk_save_objects   (default, debug-aware)
+            - bulk_insert_mappings
+            - to_sql
+        • If `method == "replace"` the target table is truncated first.
         """
         from app.utils.SQL.DBEngine import DBEngine
         from sqlalchemy.orm import sessionmaker
 
-        engine = DBEngine(db_key).get_engine()
+        engine  = DBEngine(db_key).get_engine()
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        # Optional: Replace all existing rows
-        if method == "replace":
-            logging.warning(f"⚠️ 'replace' will DELETE all existing rows in {cls.orm_class.__tablename__}")
-            try:
+        try:
+            # 1.  sanitise → coerce → drop incomplete
+            df = df.copy()
+            df = to_SQLSanitizer().sanitize(df)
+            df = to_SQLSanitizer.coerce_numeric_fields_from_model(df, cls)
+            df = to_SQLSanitizer.coerce_string_fields_from_model(df, cls)
+            df = to_SQLSanitizer.drop_incomplete_rows_from_model(df, cls)
+
+            # 2.  validate with Pydantic
+            validated = _model_validate_dataframe(cls, df)
+
+            # 3.  optional table truncate
+            if method == "replace":
+                logging.warning(f"⚠️ 'replace' deletes all rows in {cls.orm_class.__tablename__}")
                 session.query(cls.orm_class).delete()
                 session.commit()
-            except Exception as e:
-                session.rollback()
-                logging.error(f"❌ Failed to delete existing data from {cls.orm_class.__tablename__}: {e}", exc_info=True)
-                raise
 
-        # Validate with Pydantic
-        try:
-            validated_records = cls._model_validate_dataframe(df)
-        except Exception as e:
-            logging.error(f"❌ Pydantic validation failed in {cls.__name__}: {e}", exc_info=True)
-            raise
 
-        # Convert to ORM instances and store in chunks
-        try:
-            start_store = time()
-            total_records = len(validated_records)
-            if insert_method == "chunked":
-                chunk_size = 5000
-                total_chunks = (total_records + chunk_size - 1) // chunk_size
-            
-                for chunk_index in range(total_chunks):
-                    start = chunk_index * chunk_size
-                    end = start + chunk_size
-                    chunk = validated_records.iloc[start:end].to_dict(orient="records")
-                    orm_objs = [cls.orm_class(**record) for record in chunk]
-                    session.bulk_save_objects(orm_objs)
-                    session.commit()
-                    logging.debug2(f"📦 Stored chunk {chunk_index + 1}/{total_chunks} ({len(orm_objs)} rows)")
-            if insert_method == "bulk_insert_mappings":
-                records = validated_records.to_dict(orient="records")
-                session.bulk_insert_mappings(cls.orm_class, records)
+            # 4.  choose persistence strategy
+            start = time()
+            if insert_method == "bulk_save_objects":
+                _bulk_save_objects(
+                    orm_cls=cls.orm_class,
+                    records=validated,
+                    session=session,
+                    batch_size=5_000,
+                    switch_threshold=5,
+                    abort_threshold=15,
+                )
                 session.commit()
 
+            elif insert_method == "bulk_insert_mappings":
+                session.bulk_insert_mappings(
+                    cls.orm_class,
+                    validated.to_dict(orient="records"),
+                )
+                session.commit()
 
-            if insert_method == "to_sql":
-                validated_records.to_sql(
+            elif insert_method == "to_sql":
+                validated.to_sql(
                     name=cls.orm_class.__tablename__,
-                    con=engine,  # Or raw SQLAlchemy engine
-                    if_exists=method,  # or 'append'
+                    con=engine,
+                    if_exists=method,       # 'append' or 'replace'
                     index=False,
-                    method='multi',       # KEY for batching
-                    chunksize=5000        # Optional
+                    method="multi",
+                    chunksize=5_000,
                 )
 
+            else:
+                raise ValueError(f"Unknown insert_method: {insert_method}")
 
+            logging.info(
+                f"✅ Stored {len(validated)} rows to "
+                f"{cls.orm_class.__tablename__} in {time()-start:.2f}s "
+                f"using {insert_method}"
+            )
 
-
-            duration = time() - start_store
-            logging.info(f"✅ Stored {total_records} rows to {cls.orm_class.__tablename__} in {duration:.2f}s using ORM: {insert_method}")
-
-        except Exception as e:
+        except BulkInsertError:
+            # already logged in detail by the helper – don't spam again
             session.rollback()
-            logging.error(f"❌ Failed to store ORM records in {cls.__name__}: {e}", exc_info=True)
             raise
+
+        except Exception as exc:
+            session.rollback()
+            logging.error(f"❌ store_dataframe failed: {exc}", exc_info=True)
+        
         finally:
             session.close()
-
-
-
-
 
 
     @classmethod
@@ -148,17 +172,6 @@ class api_BaseModel(BaseModel):
         finally:
             session.close()
 
-
-
-    @classmethod
-    def _model_validate_dataframe(cls, df: pd.DataFrame) -> pd.DataFrame:
-        adapter = TypeAdapter(list[cls])
-        start = time()
-        validated = adapter.validate_python(df.to_dict(orient="records"))
-        end = time()
-        logging.debug2(f"Validated {len(validated)} rows in {end - start:.2f} seconds")
-        return pd.DataFrame([item.model_dump(exclude_none=True) for item in validated])
-    
 
     @classmethod
     def validate_df(cls, df: pd.DataFrame) -> List[dict]:
@@ -205,6 +218,12 @@ class api_BaseModel(BaseModel):
             session.close()
 
 
+    @staticmethod
+    def report_fake_Nulls(df: pd.DataFrame) -> pd.DataFrame:
+        return to_SQLSanitizer().detect_fakes(df)
+
+
+
     @classmethod
     def validate_dataframe(cls, df: pd.DataFrame, groupby_col: Any = None) -> pd.DataFrame:
         return PydanticQM.evaluate(df, groupby_col=groupby_col)
@@ -216,3 +235,12 @@ class api_BaseModel(BaseModel):
     @classmethod
     def plot_report(cls, df_report: pd.DataFrame, top_n: int = 10, grouped: bool = None) -> List[str]:
         return PydanticQM.plot_report(df_report=df_report,top_n=top_n, grouped =grouped)
+
+    @classmethod
+    def make_sql_safe(cls, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert DataFrame to SQL-safe format:
+        - Convert all columns to object type
+        - Replace NaN with None
+        """
+        return df.astype(object).where(pd.notnull(df), None)

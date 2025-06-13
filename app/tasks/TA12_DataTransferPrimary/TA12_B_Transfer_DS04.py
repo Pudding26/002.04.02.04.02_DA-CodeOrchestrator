@@ -85,12 +85,12 @@ class TA12_B_Transfer_DS04(TaskBase):
         df = YamlColumnMapper.add_static_columns(df, self.instructions["path_gen_manual_col_mapper"], ["TA12_B_Transfer_DS04"])
 
         logging.debug5("🧮 Computing specimen and image metadata")
-        df["specimenNo"] = df.groupby("species")["source-UUID"].transform(lambda x: pd.factorize(x)[0] + 1)
+        df["specimenNo"] = df.groupby("species")["source_UUID"].transform(lambda x: pd.factorize(x)[0] + 1)
         df["totalNumberShots"] = df["dataset_shape_drop"].apply(lambda x: x[0] if isinstance(x, tuple) else None)
         df["pixel_x"] = df["dataset_shape_drop"].apply(lambda x: x[1] if isinstance(x, tuple) and len(x) > 1 else None)
         df["pixel_y"] = df["dataset_shape_drop"].apply(lambda x: x[2] if isinstance(x, tuple) and len(x) > 2 else None)
-        df["DPI"] = round(25400 / df["pixelSize [um/pixel]"])
-        df["sourceFilePath_rel"] = df["source-UUID"]
+        df["DPI"] = round(25400 / df["pixelSize_um_per_pixel"], 2)
+        df["sourceFilePath_rel"] = df["source_UUID"]
 
         df.drop(columns="dataset_shape_drop", inplace=True)
         logging.debug3(f"🧾 Final processed columns: {list(df.columns)}")
@@ -98,11 +98,6 @@ class TA12_B_Transfer_DS04(TaskBase):
 
     @profile(stream=mem_Streams["step2"])
     def _store_data_with_progress(self, df: pd.DataFrame):
-        logging.debug3("🧼 Normalizing data types before storage")
-        df = df.astype(object).where(pd.notnull(df), None)
-        df = df.applymap(lambda x: x.item() if hasattr(x, 'item') else x)
-
-
 
         
         total = len(df)
