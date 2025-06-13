@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, List
 
 from app.utils.SQL.DBEngine import DBEngine
+from app.utils.SQL.to_SQLSanitizer import to_SQLSanitizer
 
 
 
@@ -25,6 +26,12 @@ class SQL_Df(DBEngine):
         method: 'replace' or 'append'
         """
         try:
+            
+            # Ensure DataFrame is sanitized before storing
+            df = df.copy()  # Avoid modifying the original DataFrame
+            df = to_SQLSanitizer().sanitize(df)  # Convert to object type and replace fake nulls
+
+
             df.to_sql(table_name, self.engine, if_exists=method, index=False)
             logging.debug1(f"Stored DataFrame to table '{table_name}' using method '{method}'.")
         except Exception as e:

@@ -16,6 +16,8 @@ class TA12_D_Transfer_DS11(TaskBase):
         logging.info("🔧 Setting up TA12_D_Transfer_DS11")
         self.controller.update_message("Initialized DS11 Transfer")
         self.controller.update_progress(0.01)
+        self.sql_writer = SQL_Df(db_key=self.instructions["dest_db_name"])
+
 
         logging.debug3(f"🧾 Instructions received: {self.instructions}")
 
@@ -62,9 +64,12 @@ class TA12_D_Transfer_DS11(TaskBase):
             self.check_control()
             self.controller.update_progress(0.9)
 
+        
+
             self.controller.update_message("Step 7: Store final data to SQL")
-            self._store_data(df)
+            self._store_data_with_progress(df)
             logging.info(f"💾 Stored data to table: {self.instructions['dest_table_name']}")
+
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
@@ -96,13 +101,32 @@ class TA12_D_Transfer_DS11(TaskBase):
         sqlite.close_connection()
         return df
 
-    def _store_data(self, df):
-        logging.debug3("🧼 Normalizing data types before storage")
-        df = df.astype(object).where(pd.notnull(df), None)
-        df = df.map(lambda x: x.item() if hasattr(x, 'item') else x)
+    def _store_data_with_progress(self, df: pd.DataFrame):
+        logging.debug5("🗃️ Starting data write with row progress")
+        total_rows = len(df)
+        batch_size = 1000
+        written = 0
+        next_log_pct = 10
 
-        sql = SQL_Df(db_key=self.instructions["dest_db_name"])
-        sql.store(self.instructions["dest_table_name"], df, method="replace")
+        for i in range(0, total_rows, batch_size):
+            self.check_control()
+            batch = df.iloc[i:i+batch_size]
+            if i == 0:
+                method = "replace"
+            else:
+                method = "append"
+
+            self.sql_writer.store(self.instructions["dest_table_name"], batch, method=method)
+            written += len(batch)
+
+            progress = round(written / total_rows, 2)
+            if progress * 100 >= next_log_pct:
+                self.controller.update_progress(progress)
+                logging.debug3(f"Writing progress: {int(progress * 100)}%")
+                next_log_pct += 10
+
+            for _, row in batch.iterrows():
+                logging.debug1(f"Row stored: {row.get('filename_drop', 'unknown')}")
 
     def _preprocess_species(self, df):
         logging.debug5("🔠 Cleaning taxonomy fields: species, genus, family")
@@ -115,3 +139,4 @@ class TA12_D_Transfer_DS11(TaskBase):
         df["shotNo"] = df.groupby(["species", "specimenNo_old"]).cumcount() + 1
         df["specimenNo"] = df.groupby("species")["specimenNo_old"].transform(lambda x: pd.factorize(x)[0] + 1)
         return df
+

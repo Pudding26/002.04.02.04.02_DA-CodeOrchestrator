@@ -46,8 +46,8 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
                 self.controller.update_progress(min(progress, 0.9))
 
 
-            
 
+            
 
 
             self.controller.update_message("Storing result tables...")
@@ -95,13 +95,13 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
 
         
         table_name = self.instructions["dest_table_name"]
-        self.data = _prepare_for_orm(self.data)
+        #self.data = _prepare_for_orm(self.data)
         self.data["raw_UUID"] = "r_" + generate_deterministic_string_uuid(
             self.data["source_UUID"].astype(str).str.cat(self.data["sourceNo"].astype(str), na_rep=""),
             length=6)
 
 
-        #PrimaryDataRaw_Out.store_dataframe(self.data, db_key="raw", method="replace", insert_method = "chunked")
+        PrimaryDataRaw_Out.store_dataframe(self.data, db_key="raw", method="replace", insert_method = "bulk_save_objects")
 
 
         self.logger.info(f"[Store] Data stored via ORM.")
