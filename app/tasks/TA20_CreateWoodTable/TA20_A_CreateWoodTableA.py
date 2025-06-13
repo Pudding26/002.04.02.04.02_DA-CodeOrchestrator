@@ -71,6 +71,7 @@ class TA20_A_CreateWoodTableA(TaskBase):
         
         data_dict = {}
 
+
         for table in expected_tables:
             if table == "primaryDataRaw":
                 if table in raw_available:

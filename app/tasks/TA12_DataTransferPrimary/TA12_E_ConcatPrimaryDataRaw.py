@@ -31,6 +31,7 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
             table_list = self.instructions["src_table_names"]
             self.logger.info(f"[Run] Starting concat for tables: {table_list}")
             self.controller.update_item_count(len(table_list))
+            self.data_dict = {}
 
             for idx, table in enumerate(table_list):
                 self.check_control()
@@ -38,6 +39,7 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
                 self.controller.update_message(f"Reading table {table}")
                 df = self.src_db.load(table_name=table)
                 self.logger.debug3(f"[Run] Loaded {len(df)} rows from {table}")
+                self.data_dict[table] = df
                 self.data = pd.concat([self.data, df], ignore_index=True)
 
                 progress = (idx + 1) / len(table_list)
@@ -45,6 +47,7 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
 
 
             
+
 
 
             self.controller.update_message("Storing result tables...")
@@ -69,11 +72,13 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
     def store_data(self):
         
         def _prepare_for_orm(df):
+            
+            
+            report = PrimaryDataRaw_Out.validate_dataframe(df)
+            report_2 = PrimaryDataRaw_Out.validate_dataframe(df, groupby_col="sourceNo")
+            
+            
             df = df.rename(columns={
-                "area_x [mm]": "area_x_mm",
-                "area_y [mm]": "area_y_mm",
-                "pixelSize [um/pixel]": "pixelSize_um_per_pixel",
-                "numericalAperature [NA]": "numericalAperature_NA",
                 "source-UUID" : "source_UUID",
                 'anatomy1_DS-4' : 'anatomy1_DS04',
                 'anatomy2_DS-4' : "anatomy2_DS04",
@@ -81,7 +86,7 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
 
             })
 
-            df["version_old"] = df["version_old"].astype(str)
+            df["version_old"] = df["version_old"].astype(string)
             return df
 
 
@@ -96,7 +101,7 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
             length=6)
 
 
-        PrimaryDataRaw_Out.store_dataframe(self.data, db_key="raw", method="replace")
+        #PrimaryDataRaw_Out.store_dataframe(self.data, db_key="raw", method="replace", insert_method = "chunked")
 
 
         self.logger.info(f"[Store] Data stored via ORM.")

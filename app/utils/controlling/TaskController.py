@@ -310,6 +310,7 @@ class TaskController:
                     remaining_tasks.remove(task)
 
             if remaining_tasks:
+                logging.debug2(f"Waiting for {task} for {int(time.time() - start_times[task])}s of the {timeout_sec} timeout secs.")
                 time.sleep(poll_interval)
 
         return len(remaining_tasks) == 0

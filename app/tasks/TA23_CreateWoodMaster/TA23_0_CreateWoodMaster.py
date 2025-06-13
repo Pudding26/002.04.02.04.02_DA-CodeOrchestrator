@@ -187,82 +187,79 @@ class TA23_0_CreateWoodMaster(TaskBase):
     def prepare_for_sql(df: pd.DataFrame) -> pd.DataFrame:
         logging.debug3("🧪 Preparing DataFrame for SQL storage...")
         df = df.copy()
-        
-        def _clean_nulls(df: pd.DataFrame) -> pd.DataFrame:
-            df = df.copy()
-            for col in df.columns:
-                df[col] = df[col].map(lambda x: None if pd.isna(x) else x)
-            return df
-
-                
-        
-        
         orig_shape = df.shape
 
+        # Replace placeholder values with missing (NA)
         df.replace(to_replace=["unknown", "null", "None", "[null]"], value=pd.NA, inplace=True)
-        df["origin"] = df["origin"].replace("todo", "unknown")
+        if "origin" in df.columns:
+            df["origin"] = df["origin"].replace("todo", "unknown")
 
-        # Numeric coercion
+        # Coerce numeric columns to appropriate types
         numeric_cols = [
             "DPI", "totalNumberShots", "area_x_mm", "area_y_mm",
             "numericalAperature_NA", "pixelSize_um_per_pixel",
             "GPS_Alt", "GPS_Lat", "GPS_Long", "lens"
         ]
+
         for col in numeric_cols:
             if col in df.columns:
-                # Try to convert to numeric
                 df[col] = pd.to_numeric(df[col], errors="coerce")
-
-                # Check if column can safely be cast to int (ignoring NaNs)
                 col_series = df[col].dropna()
-                is_integral = np.all(col_series == col_series.astype(int))
-
-                if is_integral:
-                    df[col] = df[col].astype(pd.Int64Dtype())  # Nullable integer type
+                if np.all(col_series == col_series.astype(int)):
+                    df[col] = df[col].astype("Int64")  # Nullable integer
                 else:
                     df[col] = df[col].astype(float)
 
+        # Handle datetime field
         if "digitizedDate" in df.columns:
             df["digitizedDate"] = pd.to_datetime(df["digitizedDate"], errors="coerce")
-            df["digitizedDate"] = df["digitizedDate"].astype("object").where(df["digitizedDate"].notnull(), None) #pandas uses Nat by default for missing time values. sql alchemy cant handle
+            df["digitizedDate"] = df["digitizedDate"].where(df["digitizedDate"].notna(), None)
 
-
+        # Ensure all model fields are present
         for field in PrimaryDataJobs_Out.model_fields:
             if field not in df.columns:
                 df[field] = pd.NA
 
+        # UUID fallback
         if "raw_UUID" in df.columns:
             df["raw_UUID"] = df["raw_UUID"].apply(
                 lambda x: str(uuid4()) if pd.isna(x) or x in ["", "None", None] else x
             )
 
-        df = df.where(pd.notnull(df), None)
+        # Drop rows without sampleID
         before_drop = len(df)
         df = df.dropna(subset=["sampleID"])
         dropped = before_drop - len(df)
         if dropped:
             logging.info(f"🗑️ Dropped {dropped} rows due to missing sampleID.")
 
-
-        # Convert to proper int (Python int, not pandas nullable)
+        # Coerce specific int fields to native Python int (still nullable)
         int_columns = ['lens', 'totalNumberShots', 'DPI']
         for col in int_columns:
-            df[col] = df[col].astype('float').astype('Int64')  # still nullable
-            df[col] = df[col].apply(lambda x: int(x) if pd.notna(x) else None)
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").apply(
+                    lambda x: int(x) if pd.notna(x) else None
+                )
 
+        # Map contributor names based on sourceNo
         contributor_mapper = {
-            "DS01" : "Da Silva",
-            "DS04" : "Junji Sugiyama",
-            "DS07" : "J. Martins",
+            "DS01": "Da Silva",
+            "DS04": "Junji Sugiyama",
+            "DS07": "J. Martins",
         }
-
         if "contributor" in df.columns and "sourceNo" in df.columns:
-            df["contributor"] = df.apply(
-                lambda row: contributor_mapper.get(row["sourceNo"], row["contributor"]),
-                axis=1
-    )
+            df["contributor"] = df["sourceNo"].map(contributor_mapper).combine_first(df["contributor"])
 
-        df = _clean_nulls(df)
+        # Final null cleanup (convert pandas NA to None)
+        def force_none_if_nan(x):
+            try:
+                return None if pd.isna(x) else x
+            except Exception:
+                return x  # leave it untouched if it's un-checkable
+
+        for col in df.columns:
+            df[col] = df[col].apply(force_none_if_nan)
 
         logging.debug3(f"✅ Prepared DataFrame for SQL: {df.shape} (was {orig_shape})")
         return df
+

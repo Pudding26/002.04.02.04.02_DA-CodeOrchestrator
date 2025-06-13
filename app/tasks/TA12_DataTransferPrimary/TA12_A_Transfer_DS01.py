@@ -41,7 +41,7 @@ class TA12_A_Transfer_DS01(TaskBase):
             data = YamlColumnMapper.add_static_columns(
                 data,
                 self.instructions["path_gen_manual_col_mapper"],
-                ["DT_DS_1"]
+                ["TA12_A_Transfer_DS01"]
             )
 
             logging.debug5("🔬 Step 4: Add image dimension metadata")
@@ -76,7 +76,7 @@ class TA12_A_Transfer_DS01(TaskBase):
         df["species"] = df["path"].apply(lambda x: x.split("/")[0])
         df["genus"] = df["species"].apply(lambda x: x.split("_")[0])
         df["species"] = df["species"].apply(lambda x: ''.join([w.capitalize() for w in x.split("_")]))
-        df["source-UUID"] = df["path"]
+        df["source_UUID"] = df["path"]
 
         df["filename_drop"] = df["sourceFilePath_rel"].apply(
             lambda x: "/".join(x.split("/")[1:]) if isinstance(x, str) and "/" in x else x

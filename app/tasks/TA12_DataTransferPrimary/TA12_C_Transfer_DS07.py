@@ -87,7 +87,7 @@ class TA12_C_Transfer_DS07(TaskBase):
         df["species"] = df["col-1"].apply(lambda x: ''.join([w.capitalize() for w in x.split(" ")[1:]]))
         df["genus"] = df["col-1"].apply(lambda x: x.split(" ")[1])
         df["specimenNo_old"] = df["col-2"].apply(lambda x: x.split(".")[0][-2:])
-        df["source-UUID"] = df["col-2"].apply(lambda x: x.split(".")[0])
+        df["source_UUID"] = df["col-2"].apply(lambda x: x.split(".")[0])
         if "path" in df.columns:
             logging.debug2(f"🗂️ Path column found, proceeding with renaming")
             df.rename(columns={"path": "sourceFilePath_rel"}, inplace=True)
@@ -97,7 +97,7 @@ class TA12_C_Transfer_DS07(TaskBase):
         df = YamlColumnMapper.add_static_columns(df, self.instructions["path_gen_manual_col_mapper"], ["TA12_C_Transfer_DS07"])
 
         logging.debug5("🧮 Computing image and specimen metadata")
-        df["specimenNo"] = df.groupby("species")["source-UUID"].transform(lambda x: pd.factorize(x)[0] + 1)
+        df["specimenNo"] = df.groupby("species")["source_UUID"].transform(lambda x: pd.factorize(x)[0] + 1)
         df["shotNo"] = 1
         df["totalNumberShots"] = 1
         df["pixel_x"] = df["dataset_shape_drop"].apply(lambda x: x[0] if isinstance(x, tuple) else None)

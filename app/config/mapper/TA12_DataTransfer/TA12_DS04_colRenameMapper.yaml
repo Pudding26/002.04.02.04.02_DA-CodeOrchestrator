@@ -17,4 +17,4 @@ col_names:
    "sugiyama_2020" : "citeKey"
    "individuals" : "individuals_drop"
    "n_individuals" : "n_individuals_drop"
-   "path" : "source-UUID"
+   "path" : "source_UUID"
