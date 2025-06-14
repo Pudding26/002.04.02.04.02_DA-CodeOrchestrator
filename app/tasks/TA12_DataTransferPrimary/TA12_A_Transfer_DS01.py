@@ -54,6 +54,7 @@ class TA12_A_Transfer_DS01(TaskBase):
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
+            self.set_needs_running(False) #mark as already processed for the wrapper
 
         except Exception as e:
             logging.exception("❌ Task failed:")
@@ -64,7 +65,6 @@ class TA12_A_Transfer_DS01(TaskBase):
 
     def cleanup(self):
         logging.debug5("🧹 Running cleanup and profiling flush")
-        self.set_needs_running(False) #mark as already processed for the wrapper
         self.flush_memory_logs()
         self.controller.archive_with_orm()
 

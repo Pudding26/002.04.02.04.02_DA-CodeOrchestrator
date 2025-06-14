@@ -57,6 +57,8 @@ class TA13_A_DataTransfer_DS09(TaskBase):
             self.controller.update_progress(1.0)
 
             self.controller.finalize_success()
+            self.set_needs_running(False) #mark as already processed for the wrapper
+
             logging.info(f"[{self.dataset_name}] 🎉 Task completed successfully.")
 
         except Exception as e:
@@ -66,7 +68,6 @@ class TA13_A_DataTransfer_DS09(TaskBase):
 
     def cleanup(self):
         logging.debug2(f"[{self.dataset_name}] 🧹 Running cleanup.")
-        self.set_needs_running(False) #mark as already processed for the wrapper
         self.controller.archive_with_orm()
         self.db_session.close()
 

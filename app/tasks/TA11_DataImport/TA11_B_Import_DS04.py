@@ -31,13 +31,14 @@ class TA11_B_Import_DS04(TaskBase):
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
+            self.set_needs_running(False) #mark as already processed for the wrapper
+
             self.cleanup()
         except Exception as e:
             self.controller.finalize_failure(str(e))
             raise
 
     def cleanup(self):
-        self.set_needs_running(False) #mark as already processed for the wrapper
         self.flush_memory_logs()
         self.controller.archive_with_orm()
 

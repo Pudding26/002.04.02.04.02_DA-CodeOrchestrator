@@ -39,6 +39,8 @@ class TA11_C_Import_DS07(TaskBase):
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
+            self.set_needs_running(False) #mark as already processed for the wrapper
+
             self.cleanup()
             logging.debug5("Task completed successfully, cleanup done")
         except Exception as e:
@@ -46,7 +48,6 @@ class TA11_C_Import_DS07(TaskBase):
             raise
 
     def cleanup(self):
-        self.set_needs_running(False) #mark as already processed for the wrapper
         self.flush_memory_logs()
         self.controller.archive_with_orm()
 

@@ -33,6 +33,8 @@ class TA11_E_Import_SecondaryData(TaskBase):
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
+            self.set_needs_running(False) #mark as already processed for the wrapper
+
             logging.info("✅ CSV import completed successfully.")
         except Exception as e:
             logging.exception("❌ Task failed")
