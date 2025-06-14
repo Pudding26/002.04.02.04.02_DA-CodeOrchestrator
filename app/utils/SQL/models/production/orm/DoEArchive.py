@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 class DoEArchive(orm_BaseModel):
     __tablename__ = "DoEArchive"
 
-    DoE_UUID = Column(String, primary_key=True)    
+    DoE_UUID = Column(String(length=255), primary_key=True)    
     
     ## PrimaryDataFactors##
     sourceNo = Column(JSONB)
