@@ -195,4 +195,9 @@ DS11:
       "006.3": "6.3"
       "macro15": None
       "x25": "25"
-    
+
+  - col: 'woodType'
+    col_old: 'woodType_old'
+    values:
+      "Modern Hardwood": "Hardwood"
+      "Modern Softwood": "Softwood"

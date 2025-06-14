@@ -5,6 +5,9 @@ from memory_profiler import profile
 
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
+from app.utils.mapping.YamlColumnMapper import YamlColumnMapper
+
+
 from app.utils.SQL.models.production.api.api_WoodTableA import WoodTableA_Out
 from app.utils.SQL.models.production.api.api_WoodTableB import WoodTableB_Out
 from app.utils.SQL.models.raw.api.api_PrimaryDataRaw import PrimaryDataRaw_Out
@@ -34,19 +37,18 @@ class TA20_B_CreateWoodTableB(TaskBase):
             final_df = self.filter_data(merged_df)
             self.controller.update_progress(0.9)
 
+            final_df = self.add_woodType(final_df)
+
             self.controller.update_message("Storing result")
-            final_df = final_df.where(pd.notnull(final_df), None)
-            if "todo_lens" in final_df.columns:
-                final_df.drop(columns=["todo_lens"], inplace=True)
 
             WoodTableB_Out.store_dataframe(final_df, db_key="production", method="replace")
-            logging.info(f"✅ Stored {len(final_df)} rows to WoodTableA")
+            logging.info(f"✅ Stored {len(final_df)} rows to WoodTableB")
             self.set_needs_running(False) #mark as already processed for the wrapper
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
         except Exception as e:
-            logging.exception("❌ TA20_A_CreateWoodTableA failed.")
+            logging.exception("❌ TA20_B_CreateWoodTableB failed.")
             self.controller.finalize_failure(str(e))
             raise
         finally:
@@ -184,3 +186,35 @@ class TA20_B_CreateWoodTableB(TaskBase):
 
         logging.debug2(f"🧹 Filtered down to {len(cleaned)} rows, dropped {len(drop_cols)} columns.")
         return cleaned
+
+    def add_woodType(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Adds woodType based on family and genus.
+
+        Args:
+            df: DataFrame with 'family' and 'genus' columns
+        Returns:
+            pd.DataFrame: DataFrame with 'woodType' column added
+        """
+        if "family" not in df.columns or "genus" not in df.columns:
+            logging.warning("⚠️ 'family' or 'genus' columns missing — cannot add woodType.")
+            return df
+
+        df = df.copy()  # Avoid modifying original DataFrame
+
+        df_mapped = YamlColumnMapper.map_columns_from_yaml(
+            df = df,
+            new_cols=["woodType"],
+            source_cols=["family"],
+            yaml_paths=["woodType"],
+            yaml_file_path="app/config/mapper/TA20_CreateWoodTable/TA20_0_woodTypeMapper.yaml",
+            overwrite=False
+
+        )
+        df_mapped["woodType"] = df_mapped["woodType"].replace({
+            "Modern Hardwood": "Hardwood",
+            "Modern Softwood": "Softwood",
+        })
+        logging.debug2(f"🌳 Added 'woodType' column with {df['woodType'].nunique()} unique values.")
+        return df_mapped
+    

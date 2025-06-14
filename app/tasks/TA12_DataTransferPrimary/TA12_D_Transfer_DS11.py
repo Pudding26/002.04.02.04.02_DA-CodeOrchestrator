@@ -60,6 +60,7 @@ class TA12_D_Transfer_DS11(TaskBase):
 
             self.controller.update_message("Step 6: Assign specimen and shot numbers")
             df = self._assign_specimen_and_shot(df)
+            df = self._add_sourceFilePath_rel(df)
             logging.debug3("🔢 Specimen and shot number assignment complete")
             self.check_control()
             self.controller.update_progress(0.9)
@@ -105,7 +106,7 @@ class TA12_D_Transfer_DS11(TaskBase):
     def _store_data_with_progress(self, df: pd.DataFrame):
         logging.debug5("🗃️ Starting data write with row progress")
         total_rows = len(df)
-        batch_size = 1000
+        batch_size = 10000
         written = 0
         next_log_pct = 10
 
@@ -139,5 +140,13 @@ class TA12_D_Transfer_DS11(TaskBase):
     def _assign_specimen_and_shot(self, df):
         df["shotNo"] = df.groupby(["species", "specimenNo_old"]).cumcount() + 1
         df["specimenNo"] = df.groupby("species")["specimenNo_old"].transform(lambda x: pd.factorize(x)[0] + 1)
+        df["totalNumberShots"] = df.groupby(["species", "specimenNo"])["shotNo"].transform("max")
         return df
 
+    def _add_sourceFilePath_rel(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add a relative file path column based on the source file name.
+        """
+        df["sourceFilePath_rel"] = df["source_UUID"].copy()
+        return df
+    

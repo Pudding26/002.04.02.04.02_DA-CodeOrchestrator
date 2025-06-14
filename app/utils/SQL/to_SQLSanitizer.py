@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from collections import defaultdict
+from enum import Enum
 from typing import List, Union, get_args, get_origin, Optional, Type
 from pydantic import BaseModel
 import logging
@@ -308,6 +309,71 @@ class to_SQLSanitizer():
             logging.debug2("   • Top columns causing drops:\n" + lines)
 
         return cleaned_df
+
+
+
+    @staticmethod
+    def drop_invalid_enum_rows_from_model(
+        df: pd.DataFrame,
+        model_cls: Type[BaseModel]
+    ) -> pd.DataFrame:
+        """
+        Drops rows where Enum-annotated fields contain values not valid in the Enum.
+        Logs per-column and total invalid value summaries.
+        """
+        df = df.copy()
+        dropped_total = 0
+        total_distinct_invalids = set()
+
+        logging.debug3("\n🧹 Enum Validation Summary:")
+
+        for field_name, field in model_cls.model_fields.items():
+            typ = field.annotation
+            origin = get_origin(typ)
+            args = get_args(typ)
+
+            # Handle Optional[Enum] or Union[Enum, None]
+            enum_cls = None
+            if isinstance(typ, type) and issubclass(typ, Enum):
+                enum_cls = typ
+            elif origin in (Union, Optional):
+                enum_args = [t for t in args if isinstance(t, type) and issubclass(t, Enum)]
+                if enum_args:
+                    enum_cls = enum_args[0]
+
+            if enum_cls and field_name in df.columns:
+                valid_values = set(e.value for e in enum_cls)
+                col_series = df[field_name]
+                invalid_mask = ~col_series.isin(valid_values) & col_series.notna()
+                num_invalid = int(invalid_mask.sum())
+
+                if num_invalid > 0:
+                    dropped_total += num_invalid
+                    invalid_vals = col_series[invalid_mask].dropna().unique()
+                    distinct_count = len(invalid_vals)
+                    total_distinct_invalids.update(invalid_vals)
+                    examples = list(invalid_vals[:3])
+
+                    logging.debug2(
+                        f"  - Column '{field_name}': {num_invalid} invalid values, "
+                        f"{distinct_count} distinct. Examples: {examples}"
+                    )
+
+                    df = df[~invalid_mask]
+                else:
+                    logging.debug3(f"  - Column '{field_name}': ✅ no invalid values")
+
+        logging.debug2(
+            f"\n🔎 Total distinct invalid enum values across all columns: "
+            f"{len(total_distinct_invalids)}\n"
+        )
+
+        if dropped_total == 0:
+            logging.debug2("✅ No rows dropped due to enum mismatches.")
+        else:
+            logging.debug2(f"✅ Dropped {dropped_total} rows with invalid Enum values.")
+
+        return df
 
 
 
