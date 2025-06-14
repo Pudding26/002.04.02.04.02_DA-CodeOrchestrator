@@ -13,7 +13,7 @@ from app.utils.general.HelperFunctions import generate_deterministic_string_uuid
 
 
 from app.utils.SQL.models.raw.orm.PrimaryDataRaw import PrimaryDataRaw
-from app.utils.SQL.models.raw.api.api_primaryDataRaw import PrimaryDataRaw_Out
+from app.utils.SQL.models.raw.api.api_PrimaryDataRaw import PrimaryDataRaw_Out
 
 
 
@@ -66,36 +66,9 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
 
 
 
-
-
-
     def store_data(self):
         
-        def _prepare_for_orm(df):
-            
-            
-            report = PrimaryDataRaw_Out.validate_dataframe(df)
-            report_2 = PrimaryDataRaw_Out.validate_dataframe(df, groupby_col="sourceNo")
-            
-            
-            df = df.rename(columns={
-                "source-UUID" : "source_UUID",
-                'anatomy1_DS-4' : 'anatomy1_DS04',
-                'anatomy2_DS-4' : "anatomy2_DS04",
-                '_version_old': "version_old",
 
-            })
-
-            df["version_old"] = df["version_old"].astype(string)
-            return df
-
-
-            
-
-
-        
-        table_name = self.instructions["dest_table_name"]
-        #self.data = _prepare_for_orm(self.data)
         self.data["raw_UUID"] = "r_" + generate_deterministic_string_uuid(
             self.data["source_UUID"].astype(str).str.cat(self.data["sourceNo"].astype(str), na_rep=""),
             length=6)

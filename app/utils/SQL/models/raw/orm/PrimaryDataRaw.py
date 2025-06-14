@@ -48,7 +48,6 @@ class PrimaryDataRaw(orm_BaseModel):
 
 
     filename = Column(String)
-    path = Column(String)
     sourceFilePath_rel = Column(String)
     sourceStoredLocally = Column(String)
 

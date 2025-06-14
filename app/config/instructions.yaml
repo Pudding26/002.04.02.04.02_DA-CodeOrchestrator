@@ -161,6 +161,8 @@ tasks:
       taskName: TA20_0_CreateWoodTableWrapper
       tasks_T1:
         - TA20_A_CreateWoodTableA
+      tasks_T2:
+        - TA20_B_CreateWoodTableB
     
     
     TA20_A_CreateWoodTableA:
@@ -171,6 +173,12 @@ tasks:
         - "DS09"
         - "DS12"
         - "DS40"
+
+    TA20_B_CreateWoodTableB:
+      taskName: TA20_B_CreateWoodTableB
+
+
+    
 
   TA23_CreateWoodMaster:
     TA23_0_CreateWoodMaster:

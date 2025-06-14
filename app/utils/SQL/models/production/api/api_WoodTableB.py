@@ -1,9 +1,9 @@
 from typing import Optional, ClassVar
 from app.utils.SQL.models.api_BaseModel import api_BaseModel
-from app.utils.SQL.models.production.orm.WoodTableA import WoodTableA
+from app.utils.SQL.models.production.orm.WoodTableB import WoodTableB
 
-class WoodTableA_Out(api_BaseModel):
-    orm_class: ClassVar = WoodTableA
+class WoodTableB_Out(api_BaseModel):
+    orm_class: ClassVar = WoodTableB
     db_key: ClassVar[str] = "production"
 
 

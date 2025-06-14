@@ -2,8 +2,8 @@ from sqlalchemy import Column, String, Integer, Float
 from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
 
-class WoodTableA(orm_BaseModel):
-    __tablename__ = "WoodTableA"
+class WoodTableB(orm_BaseModel):
+    __tablename__ = "WoodTableB"
 
     # ──────────────────────────
     # required / non-optional
