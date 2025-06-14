@@ -3,8 +3,12 @@ import logging
 from typing import Dict
 from memory_profiler import profile
 
+
+
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
+from app.utils.mapping.YamlColumnMapper import YamlColumnMapper
+
 from app.utils.SQL.models.production.api.api_WoodTableA import WoodTableA_Out
 
 class TA20_A_CreateWoodTableA(TaskBase):
@@ -36,6 +40,9 @@ class TA20_A_CreateWoodTableA(TaskBase):
             final_df = final_df.where(pd.notnull(final_df), None)
             if "todo_lens" in final_df.columns:
                 final_df.drop(columns=["todo_lens"], inplace=True)
+
+            final_df = self.add_woodType(final_df)
+
 
             WoodTableA_Out.store_dataframe(final_df, db_key="production", method="replace")
             logging.info(f"✅ Stored {len(final_df)} rows to WoodTableA")
@@ -194,3 +201,32 @@ class TA20_A_CreateWoodTableA(TaskBase):
 
         logging.debug2(f"🧹 Filtered down to {len(cleaned)} rows, dropped {len(drop_cols)} columns.")
         return cleaned
+
+    def add_woodType(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Adds woodType based on family and genus.
+
+        Args:
+            df: DataFrame with 'family' and 'genus' columns
+        Returns:
+            pd.DataFrame: DataFrame with 'woodType' column added
+        """
+        if "family" not in df.columns or "genus" not in df.columns:
+            logging.warning("⚠️ 'family' or 'genus' columns missing — cannot add woodType.")
+            return df
+
+        df = df.copy()  # Avoid modifying original DataFrame
+
+        df_mapped = YamlColumnMapper.map_columns_from_yaml(
+            df = df,
+            new_cols=["woodType"],
+            source_cols=["family"],
+            yaml_paths=["woodType"],
+            yaml_file_path="app/config/mapper/TA20_CreateWoodTable/TA20_0_woodTypeMapper.yaml",
+            overwrite=False
+
+        )
+
+        logging.debug2(f"🌳 Added 'woodType' column with {df['woodType'].nunique()} unique values.")
+        return df_mapped
+    

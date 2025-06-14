@@ -6,6 +6,7 @@ from memory_profiler import profile
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.SQL.models.production.api.api_WoodTableA import WoodTableA_Out
+from app.utils.SQL.models.production.api.api_WoodTableB import WoodTableB_Out
 from app.utils.SQL.models.raw.api.api_PrimaryDataRaw import PrimaryDataRaw_Out
 
 class TA20_B_CreateWoodTableB(TaskBase):
@@ -38,7 +39,7 @@ class TA20_B_CreateWoodTableB(TaskBase):
             if "todo_lens" in final_df.columns:
                 final_df.drop(columns=["todo_lens"], inplace=True)
 
-            WoodTableA_Out.store_dataframe(final_df, db_key="production", method="replace")
+            WoodTableB_Out.store_dataframe(final_df, db_key="production", method="replace")
             logging.info(f"✅ Stored {len(final_df)} rows to WoodTableA")
             self.set_needs_running(False) #mark as already processed for the wrapper
 

@@ -3,6 +3,7 @@ import yaml
 import logging
 import pandas as pd
 from pathlib import Path
+from typing import List, Union
 
 class YamlColumnMapper:
     """Handles column renaming and static column injection from YAML files."""
@@ -141,3 +142,73 @@ class YamlColumnMapper:
 
         logger.debug2(f"✅ Value mapping applied successfully for key: {data_source_key}")
         return df
+    
+    @staticmethod
+    def map_columns_from_yaml(
+        df: pd.DataFrame,
+        new_cols: List[str],
+        source_cols: List[str],
+        yaml_paths: List[Union[str, List[str]]],
+        yaml_file_path: str,
+        overwrite: bool = False
+    ) -> pd.DataFrame:
+        """
+        Maps values from YAML to DataFrame columns, with optional overwrite behavior.
+        logging.debug2s a summary of updates.
+
+        Args:
+            df: The input DataFrame.
+            new_cols: List of target columns where mapped values will be stored.
+            source_cols: List of source columns in df whose values will be used as mapping keys.
+            yaml_paths: List of paths (dot-separated strings or lists) to key-value mappings in the YAML.
+            yaml_file_path: Path to the YAML file.
+            overwrite: If True, overwrite existing values. If False, only fill where value is missing.
+
+        Returns:
+            A new DataFrame with mapped values.
+        """
+        if not (len(new_cols) == len(source_cols) == len(yaml_paths)):
+            raise ValueError("new_cols, source_cols, and yaml_paths must be of the same length")
+
+        with open(yaml_file_path, 'r') as f:
+            yaml_data = yaml.safe_load(f)
+
+        df_mapped = df.copy()
+
+        logging.debug2("\n🧾 YAML Mapping Summary:")
+        for target_col, source_col, path in zip(new_cols, source_cols, yaml_paths):
+            if source_col not in df_mapped.columns:
+                raise ValueError(f"Source column '{source_col}' not found in DataFrame")
+
+            # Resolve mapping from YAML
+            keys = path if isinstance(path, list) else path.split(".")
+            mapping = yaml_data
+            try:
+                for key in keys:
+                    mapping = mapping[key]
+            except KeyError:
+                raise ValueError(f"Invalid path '{path}' in YAML file")
+
+            # Perform the mapping
+            mapped_series = df_mapped[source_col].map(mapping)
+
+            if target_col not in df_mapped.columns:
+                df_mapped[target_col] = pd.NA
+
+            before_series = df_mapped[target_col].copy()
+
+            if overwrite:
+                df_mapped[target_col] = mapped_series
+            else:
+                mask = df_mapped[target_col].isna() & mapped_series.notna()
+                df_mapped.loc[mask, target_col] = mapped_series[mask]
+
+            after_series = df_mapped[target_col]
+            changes = (before_series != after_series) & after_series.notna()
+            num_updated = changes.sum()
+            distinct_vals = df_mapped[target_col].nunique(dropna=True)
+
+            logging.debug2(f"  ➤ '{target_col}': {num_updated} values {'overwritten' if overwrite else 'filled'}, {distinct_vals} distinct")
+
+        logging.debug3("✅ Mapping complete.\n")
+        return df_mapped
