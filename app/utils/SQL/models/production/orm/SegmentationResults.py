@@ -7,18 +7,18 @@ class SegmentationResultsAPI(orm_BaseModel):
 
     ROWID = Column(Integer, primary_key=True, autoincrement=True)
 
-    sampleID = Column(String, ForeignKey("woodMaster.sampleID"), nullable=False)
-    shotID = Column(String)
+    sampleID = Column(String(length=255), ForeignKey("woodMaster.sampleID"), nullable=False)
+    shotID = Column(String(length=255))
     position = Column(Integer)
 
-    bin_type = Column(String)
+    bin_type = Column(String(length=255))
     percentile_bin = Column(Float)
 
-    feature_name = Column(String)
-    stat_type = Column(String)
+    feature_name = Column(String(length=255))
+    stat_type = Column(String(length=255))
     feature_value = Column(Float)
 
-    unit = Column(String)
+    unit = Column(String(length=255))
     object_count = Column(Integer)
 
     # ✅ Add reverse relationship

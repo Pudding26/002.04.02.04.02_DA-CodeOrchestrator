@@ -11,7 +11,7 @@ class ModellingResults(orm_BaseModel):
     __tablename__ = "modellingResults"
 
 
-    DoE_UUID = Column(String, primary_key=True)  # Foreign key to DoEArchive
+    DoE_UUID = Column(String(length=255), primary_key=True)  # Foreign key to DoEArchive
 
     ## DoeFactors ##
     ### PrimaryDataFactors##

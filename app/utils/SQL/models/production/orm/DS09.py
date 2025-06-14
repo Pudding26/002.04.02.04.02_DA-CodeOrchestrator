@@ -5,10 +5,10 @@ class DS09(orm_BaseModel):
     __tablename__ = "DS09"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    species = Column(String)
-    IFAW_code = Column(String)
-    origin = Column(String)
-    engName = Column(String)
-    deName = Column(String)
-    frName = Column(String)
-    genus = Column(String)
+    species = Column(String(length=255))
+    IFAW_code = Column(String(length=255))
+    origin = Column(String(length=255))
+    engName = Column(String(length=255))
+    deName = Column(String(length=255))
+    frName = Column(String(length=255))
+    genus = Column(String(length=255))
