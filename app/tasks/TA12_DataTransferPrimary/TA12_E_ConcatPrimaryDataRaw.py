@@ -56,6 +56,8 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
+            self.set_needs_running(False) #mark as already processed for the wrapper
+
             self.logger.info("[Run] Task completed successfully.")
         except Exception as e:
             self.logger.error(f"[Run] Concat failed: {e}", exc_info=True)
@@ -81,7 +83,6 @@ class TA12_E_ConcatPrimaryDataRaw(TaskBase):
 
     def cleanup(self):
         self.logger.info("[Cleanup] Flushing memory logs and archiving task progress.")
-        self.set_needs_running(False) #mark as already processed for the wrapper
 
         self.flush_memory_logs()
         self.controller.archive_with_orm()

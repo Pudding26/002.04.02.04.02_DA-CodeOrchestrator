@@ -42,6 +42,8 @@ class TA20_A_CreateWoodTableA(TaskBase):
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
+            self.set_needs_running(False) #mark as already processed for the wrapper
+
         except Exception as e:
             logging.exception("❌ TA20_A_CreateWoodTableA failed.")
             self.controller.finalize_failure(str(e))
@@ -52,7 +54,6 @@ class TA20_A_CreateWoodTableA(TaskBase):
     def cleanup(self) -> None:
         """Flush memory profile logs and archive progress."""
         self.flush_memory_logs()
-        self.set_needs_running(False) #mark as already processed for the wrapper
         self.controller.archive_with_orm()
 
     def load_needed_data(self) -> Dict[str, pd.DataFrame]:
