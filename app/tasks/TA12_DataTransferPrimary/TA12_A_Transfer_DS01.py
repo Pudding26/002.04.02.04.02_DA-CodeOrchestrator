@@ -76,7 +76,7 @@ class TA12_A_Transfer_DS01(TaskBase):
         df["species"] = df["path"].apply(lambda x: x.split("/")[0])
         df["genus"] = df["species"].apply(lambda x: x.split("_")[0])
         df["species"] = df["species"].apply(lambda x: ''.join([w.capitalize() for w in x.split("_")]))
-        df["source_UUID"] = df["path"]
+        df.rename(columns={"path": "source_UUID"}, inplace=True)
 
         df["filename_drop"] = df["sourceFilePath_rel"].apply(
             lambda x: "/".join(x.split("/")[1:]) if isinstance(x, str) and "/" in x else x
@@ -104,6 +104,7 @@ class TA12_A_Transfer_DS01(TaskBase):
             if key in [4, 5, 6]:
                 df.rename(columns={"col-0": "specimenID_old"}, inplace=True)
                 df["shotNo"] = df.groupby(["species", "specimenID_old"]).cumcount() + 1
+                df["totalNumberShots"] = df.groupby(["species", "specimenID_old"])["shotNo"].transform("max")
                 df["specimenNo"] = df.groupby("species")["specimenID_old"].transform(lambda x: pd.factorize(x)[0] + 1)
                 frames.append(df)
 

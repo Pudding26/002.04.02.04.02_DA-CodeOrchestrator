@@ -4,6 +4,11 @@ import pandas as pd
 import numpy as np
 
 
+from contextvars import ContextVar
+from sqlalchemy import select
+from uuid import uuid4
+from tqdm import tqdm
+
 from pydantic import BaseModel
 
 
@@ -13,6 +18,9 @@ from app.utils.SQL.errors import BulkInsertError
 from app.utils.SQL.models.methods._bulk_save_objects import _bulk_save_objects
 from app.utils.SQL.models.methods._model_validate_dataframe import _model_validate_dataframe
 
+from app.utils.SQL.SQL_FetchBuilder import SQL_FetchBuilder
+from app.utils.SQL.to_SQLSanitizer import to_SQLSanitizer
+from app.utils.QM.PydanticQM import PydanticQM
 
 
 from typing import List, Type, TypeVar, Optional, Any, Dict
@@ -21,8 +29,8 @@ from typing import List, Type, TypeVar, Optional, Any, Dict
 
 from app.utils.SQL.DBEngine import DBEngine
 
-from app.utils.SQL.to_SQLSanitizer import to_SQLSanitizer
-from app.utils.QM.PydanticQM import PydanticQM
+
+_cid: ContextVar[str] = ContextVar("_cid")
 
 T = TypeVar("T", bound="SharedBaseModel")
 
@@ -139,38 +147,86 @@ class api_BaseModel(BaseModel):
             session.close()
 
 
+
+
+
+
     @classmethod
-    def fetch_all(cls: Type[T], db_key: str = None, orm_class: Optional[Type] = None) -> pd.DataFrame:
+    def fetch(
+        cls,
+        method: str = "all",
+        filter_dict: Optional[dict] = None,
+        *,
+        db_key: Optional[str] = None,
+        orm_class: Optional[type] = None,
+        columns: Optional[list[str]] = None,
+        stream: bool = True,
+    ) -> pd.DataFrame:
         """
-        Fetch all entries from the database and return as a DataFrame.
-        If the query succeeds but returns no rows, return a DataFrame with correct schema.
-        If the query fails, return a truly empty DataFrame.
+        Fetch data with optional column-projection & streaming.
+        Emits rich, correlated logs.
         """
+        cid = uuid4().hex[:8]  # 1️⃣ correlation ID
+        _cid.set(cid)
+        ctx = {"cid": cid}
+
         orm_class = orm_class or getattr(cls, "orm_class", None)
         db_key = db_key or getattr(cls, "db_key", "raw")
-
         if orm_class is None:
-            raise ValueError(f"{cls.__name__} must define 'orm_class' or pass it explicitly.")
-        
+            raise ValueError("orm_class missing")
+
+        logging.info("📥 fetch start", extra=ctx)
+        start = time()
+
         session = DBEngine(db_key).get_session()
-        logging.debug2(f"🔍 Fetching all entries from {orm_class.__name__} in {db_key} database")
-
         try:
-            results = session.query(orm_class).all()
+            # ---------- build selectable once -------------------------------
+            builder = SQL_FetchBuilder(orm_class, filter_dict)
+            stmt = builder.build_select(method, columns)  # modern Select object
+            stmt = stmt.execution_options(stream_results=True)
 
-            if not results:
-                logging.debug1(f"📭 No entries found in table {orm_class.__tablename__}")
-                field_names = list(cls.model_fields)
-                return pd.DataFrame(columns=field_names)
+            logging.debug3("📝 SQL built", extra=ctx)
+            logging.debug4(
+                stmt.compile(compile_kwargs={"literal_binds": True}),
+                extra=ctx,
+            )
 
-            validated = [cls.model_validate(row).model_dump() for row in results]
-            return pd.DataFrame(validated)
+            # ---------- execute ---------------------------------------------
+            if stream:
+                result = session.execute(stmt)
+                rowcount = getattr(builder, "rowcount", None)
+                data = [
+                    cls.model_validate(r._mapping).model_dump()
 
-        except Exception as e:
-            logging.error(f"❌ Failed to fetch {orm_class.__name__} entries: {e}", exc_info=True)
+                    for r in tqdm(result.yield_per(5000), desc="stream", total=rowcount)
+                ]
+            else:
+                data = [
+                    cls.model_validate(r._mapping).model_dump()
+
+                    for r in session.execute(stmt).all()
+                ]
+
+            df = pd.DataFrame(data, columns=columns or list(cls.model_fields))
+            logging.info(
+                f"✅ fetched {len(df)} rows in {time()-start:.2f}s",
+                extra=ctx,
+            )
+            logging.debug2(f"🔑 digest={df.select_dtypes('number').sum().sum()}", extra=ctx)
+            return df
+
+        except Exception as exc:
+            logging.error(f"❌ fetch failed: {exc}", extra=ctx, exc_info=True)
             return pd.DataFrame()
+
         finally:
             session.close()
+
+
+
+
+
+
 
 
     @classmethod
@@ -195,7 +251,7 @@ class api_BaseModel(BaseModel):
 
 
     @classmethod
-    def db_shape(cls, db_key: str = None, orm_class: Optional[Type] = None) -> tuple[int, int]:
+    def _db_shape(cls, db_key: str = None, orm_class: Optional[Type] = None) -> tuple[int, int]:
         """
         Return the shape (rows, columns) of the SQL table mapped to this model.
         """
@@ -244,3 +300,55 @@ class api_BaseModel(BaseModel):
         - Replace NaN with None
         """
         return df.astype(object).where(pd.notnull(df), None)
+
+
+
+
+####### DEPRECATED METHODS ########
+
+    @classmethod
+    def db_shape(cls, db_key: str = None, orm_class: Optional[Type] = None) -> tuple[int, int]:
+        """
+        Return the shape (rows, columns) of the SQL table mapped to this model.
+        If the query fails, return (0, 0).
+        """
+        logging.warning(f"🔍 DEPRECATED use _db_shape instead. => redirected to _db_shape")
+        return cls._db_shape(db_key=db_key, orm_class=orm_class)
+
+
+
+    @classmethod
+    def fetch_all(cls: Type[T], db_key: str = None, orm_class: Optional[Type] = None) -> pd.DataFrame:
+        """
+        Fetch all entries from the database and return as a DataFrame.
+        If the query succeeds but returns no rows, return a DataFrame with correct schema.
+        If the query fails, return a truly empty DataFrame.
+        """
+        logging.warning(f"🔍 DEPRECATED use fetch instead. => redirected to fetch with method = all")
+        return cls.fetch(db_key=db_key, orm_class=orm_class, method="all")
+
+        orm_class = orm_class or getattr(cls, "orm_class", None)
+        db_key = db_key or getattr(cls, "db_key", "raw")
+
+        if orm_class is None:
+            raise ValueError(f"{cls.__name__} must define 'orm_class' or pass it explicitly.")
+        
+        session = DBEngine(db_key).get_session()
+        logging.debug2(f"🔍 Fetching all entries from {orm_class.__name__} in {db_key} database")
+
+        try:
+            results = session.query(orm_class).all()
+
+            if not results:
+                logging.debug1(f"📭 No entries found in table {orm_class.__tablename__}")
+                field_names = list(cls.model_fields)
+                return pd.DataFrame(columns=field_names)
+
+            validated = [cls.model_validate(row).model_dump() for row in results]
+            return pd.DataFrame(validated)
+
+        except Exception as e:
+            logging.error(f"❌ Failed to fetch {orm_class.__name__} entries: {e}", exc_info=True)
+            return pd.DataFrame()
+        finally:
+            session.close()

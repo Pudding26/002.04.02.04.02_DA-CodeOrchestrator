@@ -55,7 +55,7 @@ TA12_B_Transfer_DS04:
   institutionCode: "XDD"
   #sourceFilePath_rel: "todo"
   #sourceFilePath_abs: "todo"
-  #woodType: "todo"
+  woodType: "Hardwood"
 
 
 TA12_C_Transfer_DS07:

@@ -135,6 +135,7 @@ def _record_batch_errors(
         error_counter[err_type] += 1
 
 
+
 def _log_validation_summary(
     start: float,
     end: float,

@@ -37,7 +37,6 @@ class WoodMaster(orm_BaseModel):
     deName = Column(String)
     frName = Column(String)
     japName = Column(String)
-    samplingPoint = Column(String)
     origin = Column(String)
 
     citeKey = Column(String)
@@ -51,6 +50,8 @@ class WoodMaster(orm_BaseModel):
     GPS_Alt = Column(Float)
     GPS_Lat = Column(Float)
     GPS_Long = Column(Float)
+    samplingPoint = Column(String)
+
 
     hdf5_dataset_path = Column(String)
     path = Column(String)  # ✅ newly added

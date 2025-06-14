@@ -22,7 +22,7 @@ class PrimaryDataRaw_Out(api_BaseModel):
     sourceNo: Optional[str]
     source_UUID: Optional[str]
 
-    shotNo: int
+    shotNo: Optional[int]
     specimenNo: int
     totalNumberShots: Optional[int]
 
@@ -48,7 +48,6 @@ class PrimaryDataRaw_Out(api_BaseModel):
 
 
     filename: Optional[Any]
-    path: Optional[Any]
     sourceStoredLocally: Optional[Any]
     sourceFilePath_rel: Optional[Any]
 
@@ -58,9 +57,17 @@ class PrimaryDataRaw_Out(api_BaseModel):
     digitizedDate: Optional[Any]
     institutionCode: Optional[Any]
 
+    japName: Optional[Any]
+    samplingPoint: Optional[Any]
+    microscopicTechnic: Optional[Any]
+    anatomy1_DS04: Optional[Any]
+    anatomy2_DS04: Optional[Any]
+
     GPS_Alt: Optional[Any]
     GPS_Lat: Optional[Any]
     GPS_Long: Optional[Any]
+
+
 
     filename_drop: Optional[Any]
     max_split_drop: Optional[Any]
@@ -71,6 +78,8 @@ class PrimaryDataRaw_Out(api_BaseModel):
     subspecies_drop: Optional[Any]
     individuals_drop: Optional[Any]
     n_individuals_drop: Optional[Any]
+    name_drop: Optional[Any]
+    source_drop: Optional[Any]
     
 
     version_old: Optional[str]
@@ -78,21 +87,15 @@ class PrimaryDataRaw_Out(api_BaseModel):
     specimenNo_old: Optional[Any]
     order_old: Optional[Any]
     lens_old: Optional[Any]
-
-
-
-    japName: Optional[Any]
-    samplingPoint: Optional[Any]
-    microscopicTechnic: Optional[Any]
-    name_drop: Optional[Any]
-    filename_old: Optional[Any]
-    source_drop: Optional[Any]
-    todo_bitdepth_old: Optional[Any]
     engName_old: Optional[Any]
     contributor_old: Optional[Any]
     institution_old: Optional[Any]
+    filename_old: Optional[Any]
     view_old: Optional[Any]
-    anatomy1_DS04: Optional[Any]
-    anatomy2_DS04: Optional[Any]
+    todo_bitdepth_old: Optional[Any]
+
+
+
+
 
 
