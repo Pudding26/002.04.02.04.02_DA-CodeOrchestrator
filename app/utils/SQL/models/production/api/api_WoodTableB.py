@@ -9,7 +9,7 @@ class WoodTableB_Out(api_BaseModel):
 
     raw_UUID: str
 
-    woodType: str
+    woodType: api_BaseModel.Enums.woodTypeEnum #str -> 
     species: str
     family: str
     genus: str

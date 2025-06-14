@@ -78,6 +78,7 @@ class PrimaryDataRaw(orm_BaseModel):
     specimenID_old = Column(String)
     order_old = Column(String)
     lens_old = Column(String)
+    woodType_old = Column(String)
 
     japName = Column(String)
     samplingPoint = Column(String)

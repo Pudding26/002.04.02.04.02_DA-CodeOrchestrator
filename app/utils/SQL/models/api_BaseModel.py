@@ -10,7 +10,7 @@ from uuid import uuid4
 from tqdm import tqdm
 
 from pydantic import BaseModel
-
+from app.utils.SQL import enums
 
 from app.utils.SQL.errors import BulkInsertError
 
@@ -23,7 +23,7 @@ from app.utils.SQL.to_SQLSanitizer import to_SQLSanitizer
 from app.utils.QM.PydanticQM import PydanticQM
 
 
-from typing import List, Type, TypeVar, Optional, Any, Dict
+from typing import List, Type, TypeVar, Optional, Any, Dict, ClassVar, Union
 
 
 
@@ -38,6 +38,7 @@ class api_BaseModel(BaseModel):
     """
     Shared base for all Pydantic models in the application.
     """
+    Enums: ClassVar = enums # Make the enums available to all models
     class Config:
         from_attributes = True
         str_strip_whitespace = True
@@ -84,6 +85,7 @@ class api_BaseModel(BaseModel):
             df = to_SQLSanitizer.coerce_numeric_fields_from_model(df, cls)
             df = to_SQLSanitizer.coerce_string_fields_from_model(df, cls)
             df = to_SQLSanitizer.drop_incomplete_rows_from_model(df, cls)
+            df = to_SQLSanitizer.drop_invalid_enum_rows_from_model(df, cls)
 
             # 2.  validate with Pydantic
             validated = _model_validate_dataframe(cls, df)

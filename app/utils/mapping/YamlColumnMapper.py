@@ -143,6 +143,7 @@ class YamlColumnMapper:
         logger.debug2(f"✅ Value mapping applied successfully for key: {data_source_key}")
         return df
     
+
     @staticmethod
     def map_columns_from_yaml(
         df: pd.DataFrame,
@@ -154,7 +155,7 @@ class YamlColumnMapper:
     ) -> pd.DataFrame:
         """
         Maps values from YAML to DataFrame columns, with optional overwrite behavior.
-        logging.debug2s a summary of updates.
+        Logs a summary of updates, including sample values.
 
         Args:
             df: The input DataFrame.
@@ -206,9 +207,23 @@ class YamlColumnMapper:
             after_series = df_mapped[target_col]
             changes = (before_series != after_series) & after_series.notna()
             num_updated = changes.sum()
-            distinct_vals = df_mapped[target_col].nunique(dropna=True)
 
-            logging.debug2(f"  ➤ '{target_col}': {num_updated} values {'overwritten' if overwrite else 'filled'}, {distinct_vals} distinct")
+            # Get only the *newly written* values
+            new_values = after_series[changes].dropna().unique()
+            distinct_vals = len(new_values)
+            sample_values = new_values[:3]
+            sample_str = ", ".join(map(str, sample_values)) if sample_values.size > 0 else "None"
+
+
+            # Show up to 3 example mapped values (non-null)
+            sample_values = df_mapped.loc[changes, target_col].dropna().unique()[:3]
+            sample_str = ", ".join(str(v) for v in sample_values)
+
+            logging.debug2(
+                f"  ➤ '{target_col}': {num_updated} values {'overwritten' if overwrite else 'filled'}, "
+                f"{distinct_vals} distinct. Examples: [{sample_str}]"
+            )
 
         logging.debug3("✅ Mapping complete.\n")
         return df_mapped
+

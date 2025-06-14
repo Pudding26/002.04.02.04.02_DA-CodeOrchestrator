@@ -93,6 +93,7 @@ class PrimaryDataRaw_Out(api_BaseModel):
     filename_old: Optional[Any]
     view_old: Optional[Any]
     todo_bitdepth_old: Optional[Any]
+    woodType_old: Optional[Any]
 
 
 
