@@ -17,6 +17,7 @@ from app.utils.SQL.errors import BulkInsertError
 
 from app.utils.SQL.models.methods._bulk_save_objects import _bulk_save_objects
 from app.utils.SQL.models.methods._model_validate_dataframe import _model_validate_dataframe
+from app.utils.SQL.models.methods._filter_table_by_dict import _filter_table_by_dict
 
 from app.utils.SQL.SQL_FetchBuilder import SQL_FetchBuilder
 from app.utils.SQL.to_SQLSanitizer import to_SQLSanitizer
@@ -152,6 +153,42 @@ class api_BaseModel(BaseModel):
             session.close()
 
 
+    @classmethod
+    def filter_table_by_dict(
+        cls,
+        filter_dict: Dict[str, List[Any]],
+        method: str = "drop",
+        db_key: Optional[str] = None,
+        orm_class: Optional[Type] = None
+    ) -> int:
+        """
+        Delete rows in the table based on matching filter criteria.
+        
+        Example:
+            MyModel._filter_table_by_dict({"status": ["inactive"]}, method="drop")
+        
+        Returns:
+            int: Number of rows deleted.
+        """
+        from app.utils.SQL.DBEngine import DBEngine
+
+        orm_class = orm_class or getattr(cls, "orm_class", None)
+        db_key = db_key or getattr(cls, "db_key", "raw")
+
+        if orm_class is None:
+            raise ValueError("Missing orm_class")
+
+        session = DBEngine(db_key).get_session()
+
+        try:
+            return _filter_table_by_dict(
+                orm_class=orm_class,
+                session=session,
+                filters=filter_dict,
+                method=method
+            )
+        finally:
+            session.close()
 
 
 

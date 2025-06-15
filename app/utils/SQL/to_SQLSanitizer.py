@@ -160,7 +160,7 @@ class to_SQLSanitizer():
             na_after = sum(val is None for val in coerced)
             if na_after:
                 nullified_columns[field_name] = na_after
-                logging.debug2(f"⚠️ Column '{field_name}': {na_after} <NA> replaced with None")
+                logging.debug1(f"⚠️ Column '{field_name}': {na_after} <NA> replaced with None")
 
             df[field_name] = coerced
 
@@ -398,9 +398,9 @@ class to_SQLSanitizer():
                 coerced_cols[col_name] = int(invalid_count)
 
                 if invalid_count > 0:
-                    logging.debug2(f"⚠️ Column '{col_name}': {invalid_count} invalid datetime values coerced to NaT")
+                    logging.debug1(f"⚠️ Column '{col_name}': {invalid_count} invalid datetime values coerced to NaT")
                 else:
-                    logging.debug2(f"✅ Column '{col_name}': datetime coercion successful")
+                    logging.debug1(f"✅ Column '{col_name}': datetime coercion successful")
 
             except Exception as e:
                 failed_cols[col_name] = str(e)

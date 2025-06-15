@@ -33,7 +33,7 @@ WOOD_MASTER_AGG_CONFIG = {
         "numericalAperature_NA", "area_x_mm", "area_y_mm", "IFAW_code",
         "GPS_Alt", "GPS_Lat", "GPS_Long"
     ],
-    "group_list_cols": ["sourceFilePath_rel", "source_UUID", "raw_UUID"]
+    "group_list_cols": ["sourceFilePath_rel", "source_UUID", "raw_UUID", "sourceStoredLocally"]
 }
 
 later_cols = ["filterNo", "colorDepth", "colorSpace", "pixel_x", "pixel_y", "bitDepth"]
@@ -156,7 +156,7 @@ class TA23_0_CreateWoodMaster(TaskBase):
 
 
     @staticmethod
-    def refresh_woodMaster(hdf5_path: str) -> pd.DataFrame:
+    def refresh_woodMaster(hdf5_path: str = "data/productionData/primaryData.hdf5") -> pd.DataFrame:
         logging.info(f"🔄 Refreshing woodMaster from: {hdf5_path}")
 
         if not os.path.exists(hdf5_path):
@@ -182,6 +182,8 @@ class TA23_0_CreateWoodMaster(TaskBase):
             shape_new = WoodMaster_Out.db_shape()
 
             logging.debug3(f"✅ Refreshed and stored woodMaster from HDF5. Old shape: {shape_old}, New shape: {shape_new}")
+            
+            TA23_0_CreateWoodMaster._refresh_woodMasterJobs(hdf5_path, woodMaster=df)
             return df
 
         except Exception as e:
@@ -272,3 +274,15 @@ class TA23_0_CreateWoodMaster(TaskBase):
 
         return debug_df, len_df
 
+    @staticmethod
+    def _refresh_woodMasterJobs(hdf5_path: str, woodMaster) -> pd.DataFrame:
+        """
+        Refresh the woodMaster jobs from the HDF5 file.
+        """
+        logging.info(f"🔄 Refreshing woodMaster jobs from: {hdf5_path}")
+
+        sampleIDs = woodMaster["sampleID"].unique()
+        PrimaryDataJobs_Out.filter_table_by_dict(
+            filter_dict={"sampleID": sampleIDs},
+            method="drop"
+        )

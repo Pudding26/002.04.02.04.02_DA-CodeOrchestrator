@@ -5,12 +5,22 @@ import logging
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import List, Optional, Dict, Union
+import pandas as pd
+
+
+from threading import Lock
+stats_lock = Lock()
+from collections import defaultdict
+import time
 
 from app.tasks.TaskBase import TaskBase
 from app.utils.controlling.TaskController import TaskController
 from app.utils.HDF5.SWMR_HDF5Handler import SWMR_HDF5Handler
 
+from app.tasks.TA25_CreateWoodHDF._create_stack_and_opt_crop import _create_stack_and_opt_crop
+
 from app.utils.crawler.Crawler import Crawler
+
 
 from app.utils.SQL.models.temp.api.api_PrimaryDataJobs import PrimaryDataJobs_Out
 
@@ -33,7 +43,7 @@ class WoodJobInput(BaseModel):
     src_ds_rel_path: Union[str, List[str]]
     dest_rel_path: str
     image_data: Optional[np.ndarray] = None
-    stored_locally: bool = True
+    stored_locally: List[int]
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -66,6 +76,9 @@ class TA25_0_CreateWoodHDF(TaskBase):
             self.controller.finalize_failure(str(e))
             logging.error(f"❌ Task failed: {e}", exc_info=True)
             raise
+        finally:
+            self.cleanup()
+            logging.debug2("🧹 Cleanup completed")
 
     def cleanup(self):
         logging.debug2("🧹 Running cleanup")
@@ -79,7 +92,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
         logging.debug2(f"📊 {len(df)} records loaded from DB")
         if self.instructions.get("debug", False) == True:
             logging.debug2("🔍 Debug mode enabled, reducing job count for testing")
-            df = df[::self.instructions.get("debug_sample_rate", 10)]
+            df = df[::self.instructions.get("debug_sample_rate", 25)]
             logging.debug2(f"📊 Reduced job count to {len(df)} for debug mode")
         hdf5_path_map = {
             "DS01": "data/rawData/primary/DS01.hdf5",
@@ -99,7 +112,8 @@ class TA25_0_CreateWoodHDF(TaskBase):
                 input=WoodJobInput(
                     src_file_path=hdf5_path_map[row["sourceNo"]],
                     src_ds_rel_path=rel_paths,
-                    dest_rel_path=row["hdf5_dataset_path"]
+                    dest_rel_path=row["hdf5_dataset_path"],
+                    stored_locally = row["sourceStoredLocally"]
                 ),
                attrs = WoodJobAttrs(
                     Level1={
@@ -156,22 +170,38 @@ class TA25_0_CreateWoodHDF(TaskBase):
                         "GPS_Lat": row.get("GPS_Lat", None),
                         "GPS_Long": row.get("GPS_Long", None),
                         "digitizedDate": row.get("digitizedDate", None),
-                        "raw_UUID": row["raw_UUID"] 
+                        "raw_UUID": ", ".join(row["raw_UUID"]) if isinstance(row["raw_UUID"], list) else str(row["raw_UUID"])
                     }
                 )
 
             )
-            job.input.stored_locally = row.get("stored_locally") 
             self.jobs.append(job)
         logging.debug3(f"🧱 Built {len(self.jobs)} job objects")
 
 
-    def _run_pipeline(self, jobs: List[WoodJob], num_loader_workers=10, max_queue_size=25, error_threshold=3):
+    def _run_pipeline(self, jobs: List[WoodJob], num_loader_workers=4, max_queue_size=25, error_threshold=3):
         logging.debug2("🔄 Initializing pipeline queues and threads")
+        from threading import Lock
+        stats_lock = Lock()
 
         input_queue = Queue()
         output_queue = Queue(maxsize=max_queue_size)
         error_counter = {"count": 0, "lock": threading.Lock()}
+
+
+
+        pipeline_stats = {
+            "total_jobs": len(jobs),
+            "total_images": 0,
+            "total_crops": 0,
+            "per_source": defaultdict(lambda: {
+                "jobs": 0,
+                "images": 0,
+                "crops": 0,
+                "elapsed": 0.0  # cumulative time
+            })
+        }
+
 
         def loader(worker_id):
             logging.debug2(f"[Loader-{worker_id}] Started")
@@ -189,13 +219,22 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
                 try:
                     self.check_control()
+
+
+                    job_start_time = time.time()
+                    source = job.attrs.Level5["sourceNo"]
+
+                    with stats_lock:
+                        stats = pipeline_stats["per_source"][source]
+                        stats["jobs"] += 1
+
                     handler = SWMR_HDF5Handler(file_path=job.input.src_file_path)
                     
                     
                     rel_path = job.input.src_ds_rel_path
 
 
-                    if job.input.stored_locally:
+                    if job.input.stored_locally[0] == 1: #DIRTY! But allows to later be easier updated so DS11 can be archived locally if latency is terrible
                         handler = SWMR_HDF5Handler(file_path=job.input.src_file_path)
                         if isinstance(rel_path, list):
                             images = [handler.load_image(p) for p in rel_path]
@@ -203,31 +242,19 @@ class TA25_0_CreateWoodHDF(TaskBase):
                             images = [handler.load_image(rel_path)]
                     else:
                         if isinstance(rel_path, list):
+                            images = []
+                            for p in rel_path:
+                                url = job.input.src_file_path.replace("{id}", p)
+                                images.append(Crawler.fetch_image_from_url(url))
 
-                            images = [Crawler.fetch_image_from_url(p) for p in rel_path]
-                        else:
-                            images = [Crawler.fetch_image_from_url(rel_path)]
 
-                    if len(images) == 1:
-                        img = images[0]
-                        if img.ndim == 3 and img.shape[-1] == 3:
-                            image_data, filter_type = np.expand_dims(img, axis=0), "RGB"
-                        elif img.ndim == 3:
-                            image_data, filter_type = img, "GS"
-                        elif img.ndim == 2:
-                            image_data, filter_type = np.expand_dims(img, axis=0), "GS"
-                        elif img.ndim == 4 and img.shape[-1] == 3:
-                            image_data, filter_type = img, "RGB"
-                        else:
-                            raise ValueError(f"Unsupported image shape: {img.shape}")
-                    else:
-                        shapes = [i.shape for i in images]
-                        if all(len(s) == 2 for s in shapes):
-                            image_data, filter_type = np.stack(images), "GS"
-                        elif all(len(s) == 3 and s[-1] == 3 for s in shapes):
-                            image_data, filter_type = np.stack(images), "RGB"
-                        else:
-                            raise ValueError(f"Inconsistent multi-file shapes: {shapes}")
+
+                    image_data, was_cropped, filter_type = _create_stack_and_opt_crop(images)
+                    
+
+
+        
+
 
 
                     job.input.image_data = image_data
@@ -237,17 +264,28 @@ class TA25_0_CreateWoodHDF(TaskBase):
                         "colorSpace": filter_type,
                         "filterNo": filter_type,
                         "pixel_x": image_data.shape[1],
-                        "pixel_y": image_data.shape[2]
+                        "pixel_y": image_data.shape[2],
+                        "was_cropped": was_cropped,
                         
                     })
 
                     job.input.dest_rel_path += f"/{job.attrs.Level7['sampleID']}_{filter_type}"
+                    
+                    with stats_lock:
+                        pipeline_stats["total_images"] += image_data.shape[0]
+                        pipeline_stats["per_source"][source]["images"] += image_data.shape[0]
+                        stats["elapsed"] += time.time() - job_start_time
+
+                        if was_cropped:
+                            pipeline_stats["total_crops"] += 1
+                            pipeline_stats["per_source"][source]["crops"] += 1
+
                     try:
                         output_queue.put(job, timeout=2)
                     except Full:
                         logging.warning(f"[Loader-{worker_id}] ⏳ Output queue full — job #{job.jobNo} blocked >2s")
                     logging.debug1(f"[Loader-{worker_id}] Job #{job.jobNo} prepared — shape {image_data.shape}, type {filter_type}")
-                    if job.jobNo % 50 == 0:
+                    if job.jobNo % 10 == 0:
                         logging.debug3(f"[Loader-{worker_id}] Job #{job.jobNo} prepared — shape {image_data.shape}, type {filter_type}")
                             
                 
@@ -276,7 +314,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                                     **job.attrs.Level7, **job.attrs.dataSet_attrs}
                     handler.store_image(dataset_path=job.input.dest_rel_path, image_data=job.input.image_data, attributes=merged_attrs)
                     logging.debug1(f"[Storer] Stored job #{job.jobNo} → {job.input.dest_rel_path}")
-                    if job.jobNo % 50 == 0:
+                    if job.jobNo % 10 == 0:
                         logging.debug3(f"[Storer] Job #{job.jobNo} stored → {job.input.dest_rel_path}")
                 except Exception as e:
                     logging.error(f"[Storer] Error: {e}", exc_info=True)
@@ -314,5 +352,31 @@ class TA25_0_CreateWoodHDF(TaskBase):
         output_queue.join()
         s.join()
         logging.debug2("[Storer] Joined")
+      
+        summary_df = self._create_pipeline_summary(pipeline_stats)
+
+        logging.debug5("📊 Pipeline Summary:")
+        logging.debug5(f"🔢 Total Jobs: {pipeline_stats['total_jobs']}")
+        logging.debug5(f"🖼️  Total Images: {pipeline_stats['total_images']}")
+        logging.debug5(f"✂️  Total Crops: {pipeline_stats['total_crops']}")
+        logging.debug5("\n" + summary_df.to_string(index=False))
+
+
+
+
 
         logging.info("🎉 Image processing pipeline completed")
+
+
+
+    def _create_pipeline_summary(self, pipeline_stats: Dict):
+        summary_df = pd.DataFrame.from_dict(pipeline_stats["per_source"], orient="index")
+        summary_df.index.name = "sourceNo"
+        summary_df.reset_index(inplace=True)
+        summary_df["elapsed"] = summary_df["elapsed"].map(lambda x: round(x, 2))
+        summary_df["image_per_s"] = (summary_df["images"] / summary_df["elapsed"]).round(2)
+        summary_df["stacks_per_s"] = (summary_df["jobs"] / summary_df["elapsed"]).round(2)
+
+        #TA25_0_CreateWoodHDF_stats_OUT.store(
+
+        return summary_df

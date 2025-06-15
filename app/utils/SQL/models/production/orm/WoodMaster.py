@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime
+from sqlalchemy import Column, String, Integer, Float, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
@@ -57,3 +57,4 @@ class WoodMaster(orm_BaseModel):
     path = Column(String(length=255))  # ✅ newly added
     specimenID = Column(String(length=255))
     sourceID = Column(String(length=255))
+    was_cropped = Column(Boolean)

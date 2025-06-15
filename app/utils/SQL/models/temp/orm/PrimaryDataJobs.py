@@ -62,3 +62,4 @@ class PrimaryDataJobs(orm_BaseModel):
     #stackID = Column(String) -> not possible on this level
     specimenID = Column(String)
     sourceID = Column(String)
+    sourceStoredLocally = Column(JSONB)
