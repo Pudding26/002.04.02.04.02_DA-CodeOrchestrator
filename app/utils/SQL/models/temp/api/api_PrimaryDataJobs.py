@@ -48,15 +48,16 @@ class PrimaryDataJobs_Out(api_BaseModel):
     institution: Optional[str]
     institutionCode: Optional[str]
     contributor: Optional[str]
-    digitizedDate: Optional[datetime] = None
+    digitizedDate: Optional[str] = None
     sourceNo: str
-    raw_UUID: str
+    raw_UUID: Any  # JSONB type in SQLAlchemy, changed to Any for flexibility
+    source_UUID: Any  # JSONB type in SQLAlchemy, using Any for flexibility
 
     GPS_Alt: Optional[float] = None
     GPS_Lat: Optional[float] = None
     GPS_Long: Optional[float] = None
 
-    sourceFilePath_rel: Any
+    sourceFilePath_rel: Any # JSONB type in SQLAlchemy, using Any for flexibility
     hdf5_dataset_path: Optional[str]
     #stackID: Optional[str] -> not possible on this level
     specimenID: str

@@ -10,6 +10,8 @@ from app.tasks.TaskBase import TaskBase
 from app.utils.controlling.TaskController import TaskController
 from app.utils.HDF5.SWMR_HDF5Handler import SWMR_HDF5Handler
 
+from app.utils.crawler.Crawler import Crawler
+
 from app.utils.SQL.models.temp.api.api_PrimaryDataJobs import PrimaryDataJobs_Out
 
 from app.tasks.TA23_CreateWoodMaster.TA23_0_CreateWoodMaster import TA23_0_CreateWoodMaster
@@ -31,7 +33,7 @@ class WoodJobInput(BaseModel):
     src_ds_rel_path: Union[str, List[str]]
     dest_rel_path: str
     image_data: Optional[np.ndarray] = None
-
+    stored_locally: bool = True
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -82,7 +84,8 @@ class TA25_0_CreateWoodHDF(TaskBase):
         hdf5_path_map = {
             "DS01": "data/rawData/primary/DS01.hdf5",
             "DS04": "data/rawData/primary/DS04.hdf5",
-            "DS07": "data/rawData/primary/DS07.hdf5"
+            "DS07": "data/rawData/primary/DS07.hdf5",
+            "DS11": "https://iiif-images.lib.ncsu.edu/iiif/2/insidewood-{id}/full/full/0/default.jpg"
         }
 
         for i, row in enumerate(df.to_dict(orient="records")):
@@ -158,6 +161,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                 )
 
             )
+            job.input.stored_locally = row.get("stored_locally") 
             self.jobs.append(job)
         logging.debug3(f"🧱 Built {len(self.jobs)} job objects")
 
@@ -191,10 +195,18 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     rel_path = job.input.src_ds_rel_path
 
 
-                    if isinstance(rel_path, list):
-                        images = [handler.load_image(p) for p in rel_path]
+                    if job.input.stored_locally:
+                        handler = SWMR_HDF5Handler(file_path=job.input.src_file_path)
+                        if isinstance(rel_path, list):
+                            images = [handler.load_image(p) for p in rel_path]
+                        else:
+                            images = [handler.load_image(rel_path)]
                     else:
-                        images = [handler.load_image(rel_path)]
+                        if isinstance(rel_path, list):
+
+                            images = [Crawler.fetch_image_from_url(p) for p in rel_path]
+                        else:
+                            images = [Crawler.fetch_image_from_url(rel_path)]
 
                     if len(images) == 1:
                         img = images[0]
@@ -245,6 +257,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                         error_counter["count"] += 1
                 finally:
                     input_queue.task_done()
+
 
         def storer():
             handler = SWMR_HDF5Handler(self.instructions["HDF5_file_path"])
