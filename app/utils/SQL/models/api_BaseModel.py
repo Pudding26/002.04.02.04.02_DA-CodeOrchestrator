@@ -82,10 +82,13 @@ class api_BaseModel(BaseModel):
             # 1.  sanitise → coerce → drop incomplete
             df = df.copy()
             df = to_SQLSanitizer().sanitize(df)
+            df = to_SQLSanitizer.sanitize_columns_from_model(df, cls)
             df = to_SQLSanitizer.coerce_numeric_fields_from_model(df, cls)
             df = to_SQLSanitizer.coerce_string_fields_from_model(df, cls)
+            df = to_SQLSanitizer.coerce_datetime_fields_from_model(df, cls)
             df = to_SQLSanitizer.drop_incomplete_rows_from_model(df, cls)
             df = to_SQLSanitizer.drop_invalid_enum_rows_from_model(df, cls)
+            df = to_SQLSanitizer().sanitize(df)
 
             # 2.  validate with Pydantic
             validated = _model_validate_dataframe(cls, df)

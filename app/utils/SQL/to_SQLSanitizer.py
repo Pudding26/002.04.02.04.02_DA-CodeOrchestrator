@@ -95,6 +95,7 @@ class to_SQLSanitizer():
         A concise debug report is emitted via ``logging.debug2`` / ``logging.debug3``.
         """
         df = df.copy()
+        logging.debug3("🔤 Coercing numeric fields from model...")
 
         coerced_columns: dict[str, int] = {}
         nullified_columns: dict[str, int] = {}
@@ -109,6 +110,8 @@ class to_SQLSanitizer():
                 return typ is float or (origin in (Optional, Union) and float in args)
             return False
 
+        failed_columns: dict[str, str] = {}
+
         # ------------------------------------------------------------------ main loop
         for field_name, field in model_cls.model_fields.items():
             if field_name not in df.columns:
@@ -117,45 +120,71 @@ class to_SQLSanitizer():
 
             typ = field.annotation
             if _is_numeric(typ, int):
-                target_dtype = "Int64"          # pandas *nullable* int
+                target_dtype = "Int64"  # pandas *nullable* int
             elif _is_numeric(typ, float):
-                target_dtype = "Float64"        # pandas *nullable* float
+                target_dtype = "Float64"  # pandas *nullable* float
             else:
-                continue                        # → not numeric
+                continue  # → not numeric
 
             original = df[field_name]
-            coerced  = pd.to_numeric(original, errors="coerce").astype(target_dtype)
+
+            try:
+                coerced_numeric = pd.to_numeric(original, errors="coerce")
+
+                if target_dtype == "Int64":
+                    non_na = coerced_numeric.dropna()
+                    if not (non_na % 1 == 0).all():
+                        failed_columns[field_name] = "non-integer float values"
+                        logging.warning(f"❌ Column '{field_name}': contains non-integer floats, cannot coerce to Int64")
+                        continue
+
+                coerced = coerced_numeric.astype(target_dtype)
+
+            except Exception as e:
+                failed_columns[field_name] = str(e)
+                logging.error(f"❌ Column '{field_name}' failed coercion to {target_dtype}: {e}")
+                continue
 
             changed_mask = (original != coerced) & ~(original.isna() & coerced.isna())
             coerced_columns[field_name] = int(changed_mask.sum())
             if changed_mask.any():
                 examples = original[changed_mask].dropna().astype(str).unique()[:3]
-                logging.debug2(f"🔄 Column '{field_name}': coerced {changed_mask.sum()} "
-                            f"values to {target_dtype}. Examples: {list(examples)}")
+                logging.debug1(f"🔄 Column '{field_name}': coerced {changed_mask.sum()} "
+                               f"values to {target_dtype}. Examples: {list(examples)}")
             else:
-                logging.debug2(f"✅ Column '{field_name}': no coercion needed")
+                logging.debug1(f"✅ Column '{field_name}': no coercion needed")
 
-            # ------------------------- make <NA> into real None --------------------
-            na_before = coerced.isna().sum()
-            coerced   = coerced.astype(object)                       # abandon nullable dtype
-            coerced   = coerced.where(pd.notnull(coerced), None)
-            na_after  = sum(val is None for val in coerced)
-
+            # Replace <NA> with None
+            coerced = coerced.astype(object)
+            coerced = coerced.where(pd.notnull(coerced), None)
+            na_after = sum(val is None for val in coerced)
             if na_after:
                 nullified_columns[field_name] = na_after
                 logging.debug2(f"⚠️ Column '{field_name}': {na_after} <NA> replaced with None")
 
             df[field_name] = coerced
 
-        # ------------------------------------------------------------------ summary
-        logging.debug3("\n📋 Coercion Summary:")
-        for col, cnt in coerced_columns.items():
-            logging.debug3(f"   - {col}: {cnt} values coerced")
+        # ------------------------------------------------------------------ failure summary
+        if failed_columns:
+            logging.debug2(
+                "\n⛔ Numeric Coercion Failures:\n" +
+                "\n".join(f"   - {col}: {reason}" for col, reason in failed_columns.items())
+            )
 
+
+        total_coerced = sum(coerced_columns.values())
+        total_nullified = sum(nullified_columns.values())
+
+
+        # ------------------------------------------------------------------ summary
+        logging.debug3(f"\n📋Numeric Coercion Complete: {total_coerced} coerced, {total_nullified} nullified")
+        if coerced_columns:
+            summary = ', '.join(f"{k}={v}" for k, v in coerced_columns.items())
+            logging.debug2(f"🔢 Numeric Coercion: {summary}")
         if nullified_columns:
-            logging.debug3("\n⚠️ Nullification Summary:")
-            for col, cnt in nullified_columns.items():
-                logging.debug3(f"   - {col}: {cnt} <NA> → None")
+            summary = ', '.join(f"{k}={v}" for k, v in nullified_columns.items())
+            logging.debug2(f"⚠️ Numeric Nulls: {summary}")
+
 
         return df
 
@@ -194,30 +223,33 @@ class to_SQLSanitizer():
 
             if changed_mask.any():
                 examples = original[changed_mask].dropna().astype(str).unique()[:3]
-                logging.debug2(f"🔤 Column '{field_name}': coerced {changed_mask.sum()} "
+                logging.debug1(f"🔤 Column '{field_name}': coerced {changed_mask.sum()} "
                             f"values to `str`. Examples: {list(examples)}")
             else:
-                logging.debug2(f"✅ Column '{field_name}': no string coercion needed")
+                logging.debug1(f"✅ Column '{field_name}': no string coercion needed")
 
             # Make sure all missing values are None
             na_before = pd.Series(coerced).isna().sum()
             coerced   = pd.Series(coerced).where(pd.notnull(coerced), None)
             na_after  = sum(val is None for val in coerced)
 
+            total_coerced = sum(coerced_columns.values())
+            total_nullified = sum(nullified_columns.values())
+
             if na_after:
                 nullified_columns[field_name] = na_after
-                logging.debug2(f"⚠️ Column '{field_name}': {na_after} <NA> replaced with None")
+                logging.debug1(f"⚠️ Column '{field_name}': {na_after} <NA> replaced with None")
 
             df[field_name] = coerced
 
-        logging.debug3("\n📋 String Coercion Summary:")
-        for col, cnt in coerced_columns.items():
-            logging.debug3(f"   - {col}: {cnt} values coerced")
-
+        logging.debug3(f"\n📋 String Coercion Complete: {total_coerced} coerced, {total_nullified} nullified")
+        if coerced_columns:
+            summary = ', '.join(f"{k}={v}" for k, v in coerced_columns.items())
+            logging.debug2(f"🔤 String Coercion: {summary}")
         if nullified_columns:
-            logging.debug3("\n⚠️ Nullification Summary:")
-            for col, cnt in nullified_columns.items():
-                logging.debug3(f"   - {col}: {cnt} <NA> → None")
+            summary = ', '.join(f"{k}={v}" for k, v in nullified_columns.items())
+            logging.debug2(f"⚠️ String Nulls: {summary}")
+
 
         return df
 
@@ -259,6 +291,7 @@ class to_SQLSanitizer():
             return False
 
         # ---------------------------------------------------------------- identify required cols
+        logging.debug3("🔍 Identifying required columns from model...")
         required_cols: list[str] = []
         for name, field in model_cls.model_fields.items():           # pydantic v2
             if _is_optional(field.annotation):
@@ -310,6 +343,86 @@ class to_SQLSanitizer():
 
         return cleaned_df
 
+    @staticmethod
+    def coerce_datetime_fields_from_model(
+        df: pd.DataFrame,
+        model_cls: Type[BaseModel],
+    ) -> pd.DataFrame:
+        """
+        Coerces datetime fields in the DataFrame according to the model definition.
+        Uses pandas.to_datetime with errors='coerce'.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            The input DataFrame.
+        model_cls : Type[pydantic.BaseModel]
+            The model class defining expected datetime fields.
+
+        Returns
+        -------
+        pd.DataFrame
+            A new DataFrame with datetime fields coerced.
+        """
+
+        from datetime import datetime
+        df = df.copy()
+        coerced_cols: dict[str, int] = {}
+        failed_cols: dict[str, str] = {}
+        missing_cols: list[str] = []
+
+        def _is_datetime(ann) -> bool:
+            origin = get_origin(ann)
+            args = get_args(ann)
+            return ann is datetime or (origin in (Union, Optional) and datetime in args)
+
+        logging.debug3("📅 Coercing datetime fields from model...")
+
+        for field_name, field in model_cls.model_fields.items():
+            if not _is_datetime(field.annotation):
+                continue
+
+            col_name = field.alias if field.alias else field_name
+
+            if col_name not in df.columns:
+                missing_cols.append(col_name)
+                logging.warning(f"❌ Column '{col_name}' not found in DataFrame — skipping datetime coercion.")
+                continue
+
+            try:
+                original = df[col_name]
+                coerced = pd.to_datetime(original, errors="coerce")
+                invalid_count = (original.notna() & coerced.isna()).sum()
+
+                df[col_name] = coerced
+                coerced_cols[col_name] = int(invalid_count)
+
+                if invalid_count > 0:
+                    logging.debug2(f"⚠️ Column '{col_name}': {invalid_count} invalid datetime values coerced to NaT")
+                else:
+                    logging.debug2(f"✅ Column '{col_name}': datetime coercion successful")
+
+            except Exception as e:
+                failed_cols[col_name] = str(e)
+                logging.error(f"❌ Failed to coerce column '{col_name}' to datetime: {e}")
+
+        # -------------------------------------- Summary
+        if coerced_cols:
+            summary = ', '.join(f"{col}={cnt}" for col, cnt in coerced_cols.items())
+            logging.debug2(f"\n📅 Datetime Coercion Summary: {summary}")
+
+        if missing_cols:
+            logging.debug2(
+                f"\n⚠️ Missing datetime column(s) from model not found in DataFrame: {missing_cols}"
+            )
+
+        if failed_cols:
+            summary = '\n'.join(f"   - {col}: {msg}" for col, msg in failed_cols.items())
+            logging.debug2(f"\n⛔ Datetime Coercion Failures:\n{summary}")
+
+        return df
+
+
 
 
     @staticmethod
@@ -324,8 +437,7 @@ class to_SQLSanitizer():
         df = df.copy()
         dropped_total = 0
         total_distinct_invalids = set()
-
-        logging.debug3("\n🧹 Enum Validation Summary:")
+        logging.debug3("🧹 Validating Enum fields from model...")
 
         for field_name, field in model_cls.model_fields.items():
             typ = field.annotation
@@ -363,6 +475,7 @@ class to_SQLSanitizer():
                 else:
                     logging.debug3(f"  - Column '{field_name}': ✅ no invalid values")
 
+        logging.debug3("\n🧹 Enum Validation Summary:")
         logging.debug2(
             f"\n🔎 Total distinct invalid enum values across all columns: "
             f"{len(total_distinct_invalids)}\n"
@@ -376,6 +489,39 @@ class to_SQLSanitizer():
         return df
 
 
+    @staticmethod
+    def sanitize_columns_from_model(df: pd.DataFrame, model_cls: Type[BaseModel]) -> pd.DataFrame:
+        """
+        Drops all columns not defined in the model, and warns about missing ones.
+        Returns a cleaned DataFrame and logs a summary.
+        """
+        logging.debug3("🧽 Sanitizing columns based on model...")
+        df = df.copy()
+
+        # Extract expected columns (with alias fallback)
+        expected_cols = set(
+            field.alias if field.alias else name
+            for name, field in model_cls.model_fields.items()
+        )
+        df_cols = set(df.columns)
+
+        # Identify columns to drop and columns that are missing
+        extra_cols = df_cols - expected_cols
+        missing_cols = expected_cols - df_cols
+
+        # Drop extras
+        df.drop(columns=list(extra_cols), inplace=True)
+
+        # Logging summary
+        logging.debug3(
+            f"\n🧽 Column Sanitization Summary:\n"
+            f"   • Dropped total of {len(extra_cols)} column(s)\n"
+            f"     → {sorted(extra_cols) if extra_cols else 'None'}\n"
+            f"   • Missing total of {len(missing_cols)} expected column(s)\n"
+            f"     → {sorted(missing_cols) if missing_cols else 'None'}"
+        )
+
+        return df
 
 
 

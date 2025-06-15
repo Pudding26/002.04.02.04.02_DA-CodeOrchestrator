@@ -18,7 +18,7 @@ class PrimaryDataJobs(orm_BaseModel):
 
     view = Column(String)
 
-    lens = Column(Integer)
+    lens = Column(Float)
     totalNumberShots = Column(Integer)
     
     
@@ -57,6 +57,6 @@ class PrimaryDataJobs(orm_BaseModel):
     
     sourceFilePath_rel = Column(JSONB)
     hdf5_dataset_path = Column(String)
-    stackID = Column(String)
+    #stackID = Column(String) -> not possible on this level
     specimenID = Column(String)
     sourceID = Column(String)
