@@ -15,6 +15,7 @@ from uuid import uuid4
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.SQL.models.production.api.api_WoodTableA import WoodTableA_Out
+from app.utils.SQL.models.production.api.api_WoodTableB import WoodTableB_Out
 from app.utils.SQL.models.production.api.api_WoodMaster import WoodMaster_Out
 from app.utils.SQL.models.temp.api.api_PrimaryDataJobs import PrimaryDataJobs_Out
 from app.utils.HDF5.HDF5_Inspector import HDF5Inspector
@@ -47,7 +48,8 @@ class TA23_0_CreateWoodMaster(TaskBase):
         try:
             self.controller.update_message("Loading woodTable...")
             logging.info("🔄 Loading data from WoodTableA_Out...")
-            raw_df = WoodTableA_Out.fetch_all()
+            #raw_df = WoodTableA_Out.fetch_all()
+            raw_df = WoodTableB_Out.fetch_all()
             logging.debug2(f"Loaded {len(raw_df)} rows from woodTable.")
 
             self.controller.update_message("Cleaning woodTable...")
@@ -62,7 +64,7 @@ class TA23_0_CreateWoodMaster(TaskBase):
             TA23_0_CreateWoodMaster.refresh_woodMaster(self.instructions["HDF5_file_path"])
 
             self.controller.update_message("Loading old woodMaster...")
-            woodMaster_old = WoodMaster_Out.fetch_all()
+            woodMaster_old = WoodMaster_Out.fetch(method="all")
             logging.debug2(f"Old woodMaster loaded: {len(woodMaster_old)} rows.")
 
             self.controller.update_message("Identifying new sampleIDs...")
@@ -70,7 +72,6 @@ class TA23_0_CreateWoodMaster(TaskBase):
             logging.info(f"Identified {len(job_df)} new samples.")
 
             self.controller.update_message("Storing new jobs...")
-            #job_df["sourceFilePath_rel"] = job_df["sourceFilePath_rel"].apply(json.dumps) #Not needed anymore, as SQL alchemycan handle lists. was needed for SQLite
             job_df = self.prepare_for_sql(job_df)
 
             logging.debug3(f"Prepared job DataFrame for SQL. Shape: {job_df.shape}")
@@ -101,14 +102,9 @@ class TA23_0_CreateWoodMaster(TaskBase):
         def derive_ids(df):
             df["sourceID"] = df["species"] + "_" + df["sourceNo"]
             df["specimenID"] = df["sourceID"] + "_No" + df["specimenNo"].astype(int).astype(str).str.zfill(3)
-            df["sampleID"] = df["specimenID"] + "_" + df["view"]
+            df["sampleID"] = df["specimenID"] + "_" + df["view"] + "_x" + df["lens"].astype(str)
             return df
 
-        def add_wood_type(df):
-            with open(self.instructions["woodTypeMapper_path"], 'r') as f:
-                wood_map = yaml.safe_load(f)
-            df["woodType"] = df["family"].map(wood_map).fillna("unknown")
-            return df
 
         def add_hdf5_path(df):
             df["hdf5_dataset_path"] = df.apply(lambda row: "/".join([
@@ -119,7 +115,6 @@ class TA23_0_CreateWoodMaster(TaskBase):
             return df
 
         df = derive_ids(df)
-        df = add_wood_type(df)
         df = add_hdf5_path(df)
         logging.debug3("✅ woodTable cleaned.")
         return df
@@ -139,9 +134,26 @@ class TA23_0_CreateWoodMaster(TaskBase):
         other_cols = [col for col in result.columns if col not in reordered_cols]
         result = result[reordered_cols + other_cols]
 
-        logging.debug2(f"Reordered woodMaster_new DataFrame: {result.shape[0]} rows, {result.shape[1]} columns")
+        df_to_investigate = result[result['sourceFilePath_rel'].apply(lambda x: len(x) > 1)]
+        df_to_investigate_Ids = df_to_investigate["sampleID"].unique()
+        df_to_investigate_raw = df[df['sampleID'].isin(df_to_investigate_Ids)]
+
+
+
+        if not df_to_investigate_raw.empty:
+            logging.debug3(f"Investigating {len(df_to_investigate)} entries with multiple sourceFilePath_rel.")
+            debug_df, len_df = self._create_woodMaster_new_debug(df = df_to_investigate_raw, 
+                                                                 result = df_to_investigate)
+
+
+
         logging.debug3("✅ END: Created the woodMaster_new.")
         return result
+
+
+
+
+
 
     @staticmethod
     def refresh_woodMaster(hdf5_path: str) -> pd.DataFrame:
@@ -189,42 +201,11 @@ class TA23_0_CreateWoodMaster(TaskBase):
         df = df.copy()
         orig_shape = df.shape
 
-        # Replace placeholder values with missing (NA)
-        df.replace(to_replace=["unknown", "null", "None", "[null]"], value=pd.NA, inplace=True)
-        if "origin" in df.columns:
-            df["origin"] = df["origin"].replace("todo", "unknown")
-
-        # Coerce numeric columns to appropriate types
-        numeric_cols = [
-            "DPI", "totalNumberShots", "area_x_mm", "area_y_mm",
-            "numericalAperature_NA", "pixelSize_um_per_pixel",
-            "GPS_Alt", "GPS_Lat", "GPS_Long", "lens"
-        ]
-
-        for col in numeric_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
-                col_series = df[col].dropna()
-                if np.all(col_series == col_series.astype(int)):
-                    df[col] = df[col].astype("Int64")  # Nullable integer
-                else:
-                    df[col] = df[col].astype(float)
-
         # Handle datetime field
         if "digitizedDate" in df.columns:
             df["digitizedDate"] = pd.to_datetime(df["digitizedDate"], errors="coerce")
             df["digitizedDate"] = df["digitizedDate"].where(df["digitizedDate"].notna(), None)
 
-        # Ensure all model fields are present
-        for field in PrimaryDataJobs_Out.model_fields:
-            if field not in df.columns:
-                df[field] = pd.NA
-
-        # UUID fallback
-        if "raw_UUID" in df.columns:
-            df["raw_UUID"] = df["raw_UUID"].apply(
-                lambda x: str(uuid4()) if pd.isna(x) or x in ["", "None", None] else x
-            )
 
         # Drop rows without sampleID
         before_drop = len(df)
@@ -233,33 +214,61 @@ class TA23_0_CreateWoodMaster(TaskBase):
         if dropped:
             logging.info(f"🗑️ Dropped {dropped} rows due to missing sampleID.")
 
-        # Coerce specific int fields to native Python int (still nullable)
-        int_columns = ['lens', 'totalNumberShots', 'DPI']
-        for col in int_columns:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce").apply(
-                    lambda x: int(x) if pd.notna(x) else None
-                )
-
-        # Map contributor names based on sourceNo
-        contributor_mapper = {
-            "DS01": "Da Silva",
-            "DS04": "Junji Sugiyama",
-            "DS07": "J. Martins",
-        }
-        if "contributor" in df.columns and "sourceNo" in df.columns:
-            df["contributor"] = df["sourceNo"].map(contributor_mapper).combine_first(df["contributor"])
-
-        # Final null cleanup (convert pandas NA to None)
-        def force_none_if_nan(x):
-            try:
-                return None if pd.isna(x) else x
-            except Exception:
-                return x  # leave it untouched if it's un-checkable
-
-        for col in df.columns:
-            df[col] = df[col].apply(force_none_if_nan)
-
+    
         logging.debug3(f"✅ Prepared DataFrame for SQL: {df.shape} (was {orig_shape})")
         return df
+
+
+
+    def _create_woodMaster_new_debug(self, df: pd.DataFrame, result: pd.DataFrame):
+        # ------------------------------------------------------------------
+        # 0)  Prep
+        # ------------------------------------------------------------------
+        KEY = "sampleID"
+
+        # ------------------------------------------------------------------
+        # 1)  Fast per-sample COUNTS  (→ len_df)
+        # ------------------------------------------------------------------
+        len_df = (
+            df.groupby(KEY, dropna=False)
+            .nunique(dropna=True)           # very fast – C-level
+            .reset_index()
+        )
+        len_df = len_df.replace(0, 1)
+
+
+        # ------------------------------------------------------------------
+        # 2)  Per-sample LISTS of uniques for inspection  (→ debug_lists)
+        #     ─────────────────────────────────────────────────────────────
+        #     ⚠️  We deliberately DROP the key column before the agg!
+        # ------------------------------------------------------------------
+
+
+
+        # ------------------------------------------------------------------
+        # 3)  Bin the counters  (vectorised, no Python loops over rows)
+        # ------------------------------------------------------------------
+        bin_config = {
+            "ok":     ["sourceFilePath_rel", "raw_UUID", "shotNo", "source_UUID", "digitizedDate"],
+            "medium": ["DPI"],
+            "bad":    ["lens"],
+        }
+
+        all_binned = sum(bin_config.values(), [])          # flat list
+
+        binned_df = pd.DataFrame({KEY: len_df[KEY]})       # start with the key
+        for bin_name, cols in bin_config.items():
+            binned_df[bin_name] = len_df[cols].sum(axis=1)
+
+        rest_cols = len_df.columns.difference([KEY] + all_binned)
+        binned_df["rest"]   = len_df[rest_cols].sum(axis=1)
+        binned_df["health"] = binned_df["bad"] + binned_df["rest"]
+
+        # ------------------------------------------------------------------
+        # 4)  Final table for debugging / inspection
+        # ------------------------------------------------------------------
+        df_verbose = df.groupby("sampleID", dropna=False).agg(set).reset_index()
+        debug_df = binned_df.merge(df_verbose, on=KEY, how="left")
+
+        return debug_df, len_df
 

@@ -13,15 +13,15 @@ class PrimaryDataJobs_Out(api_BaseModel):
 
     sampleID: str
 
-    woodType: Optional[str]
-    species: Optional[str]
-    family: Optional[str]
-    genus: Optional[str]
+    woodType: str
+    species: str
+    family: str
+    genus: str
 
-    view: Optional[str]
+    view: str
 
-    lens: Optional[int]
-    totalNumberShots: Optional[int]
+    lens: float
+    totalNumberShots: int
 
     #filterNo: Optional[int]
     DPI: Optional[float]
@@ -49,7 +49,7 @@ class PrimaryDataJobs_Out(api_BaseModel):
     institutionCode: Optional[str]
     contributor: Optional[str]
     digitizedDate: Optional[datetime] = None
-    sourceNo: Optional[str]
+    sourceNo: str
     raw_UUID: str
 
     GPS_Alt: Optional[float] = None
@@ -58,8 +58,8 @@ class PrimaryDataJobs_Out(api_BaseModel):
 
     sourceFilePath_rel: Any
     hdf5_dataset_path: Optional[str]
-    stackID: Optional[str]
-    specimenID: Optional[str]
-    sourceID: Optional[str]
+    #stackID: Optional[str] -> not possible on this level
+    specimenID: str
+    sourceID: str
 
 
