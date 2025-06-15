@@ -47,9 +47,11 @@ class PrimaryDataJobs(orm_BaseModel):
     institution = Column(String)
     institutionCode = Column(String)
     contributor = Column(String)
-    digitizedDate = Column(DateTime)
+    digitizedDate = Column(String)
     sourceNo = Column(String)
-    raw_UUID = Column(String, unique=True, nullable=False)
+    raw_UUID = Column(JSONB)
+    source_UUID = Column(JSONB)
+
 
     GPS_Alt = Column(Float)
     GPS_Lat = Column(Float)

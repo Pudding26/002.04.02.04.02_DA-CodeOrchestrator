@@ -30,10 +30,10 @@ WOOD_MASTER_AGG_CONFIG = {
         "microscopicTechnic", "institution", "contributor", "digitizedDate",
         "view", "lens", "totalNumberShots", "pixelSize_um_per_pixel",
         "DPI", "hdf5_dataset_path", "samplingPoint", "origin", "institutionCode", "citeKey",
-        "numericalAperature_NA", "area_x_mm", "area_y_mm", "IFAW_code", "raw_UUID",
+        "numericalAperature_NA", "area_x_mm", "area_y_mm", "IFAW_code",
         "GPS_Alt", "GPS_Lat", "GPS_Long"
     ],
-    "group_list_cols": ["sourceFilePath_rel"]
+    "group_list_cols": ["sourceFilePath_rel", "source_UUID", "raw_UUID"]
 }
 
 later_cols = ["filterNo", "colorDepth", "colorSpace", "pixel_x", "pixel_y", "bitDepth"]
