@@ -62,5 +62,6 @@ class PrimaryDataJobs_Out(api_BaseModel):
     #stackID: Optional[str] -> not possible on this level
     specimenID: str
     sourceID: str
+    sourceStoredLocally: Any
 
 

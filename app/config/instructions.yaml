@@ -194,7 +194,7 @@ tasks:
       taskName: TA25_0_CreateWoodHDF
       src_db_key: "production"
       HDF5_file_path: "data/productionData/primaryData.hdf5"
-      debug_sample_rate: 100
+      debug_sample_rate: 1200
   
   TA27_DesignOfExperiments:
     TA27_0_DoEWrapper:

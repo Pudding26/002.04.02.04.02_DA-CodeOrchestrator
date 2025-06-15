@@ -61,3 +61,4 @@ class WoodMaster_Out(api_BaseModel):
     stackID: str
     specimenID: str
     sourceID: str
+    was_cropped: bool
