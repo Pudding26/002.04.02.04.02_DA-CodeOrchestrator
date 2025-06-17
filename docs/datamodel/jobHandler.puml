@@ -1,0 +1,64 @@
+@startuml
+<style>
+activityDiagram {
+    FontColor #000000
+    FontName arial
+
+    partition {
+        FontSize 20
+        FontStyle bold
+        LineColor red
+        FontColor black
+        RoundCorner 10
+        BackgroundColor DarkSalmon
+  }
+    group {
+        FontSize 16
+        FontStyle bold
+        LineColor red
+        FontColor black
+        RoundCorner 10
+        BackgroundColor LightSalmon
+    }
+    package {
+        FontSize 14
+        FontStyle bold
+        LineColor #000080
+        FontColor black
+        RoundCorner 10
+        BackgroundColor #89CFF0
+    }
+}
+<style>
+
+
+
+scale 2
+header JobHandler
+title JobHandler
+
+
+
+fork
+    :WoodTAble_A;
+fork again
+    :WoodTable_B;
+fork again
+    :WoodTable_C;
+end fork
+:WoodmasterPotential;
+
+:GeneralJobBuilder;
+
+
+fork
+    :ImportJob;
+    :Translate DoE into 
+fork again
+    :SegmentationJob;
+fork again
+    :ModellingJob;
+end fork
+
+
+

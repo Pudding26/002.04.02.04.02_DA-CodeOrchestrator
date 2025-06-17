@@ -10,7 +10,7 @@ from uuid import uuid4
 from tqdm import tqdm
 
 from pydantic import BaseModel
-from app.utils.SQL import enums
+from app.utils.SQL.models import enums
 
 from app.utils.SQL.errors import BulkInsertError
 
@@ -83,19 +83,30 @@ class api_BaseModel(BaseModel):
         session = Session()
 
         try:
+            def _log_step(df, step_name, steps_log):
+                shape = df.shape
+                steps_log.append(f"{step_name}: shape = {shape}")
+                return df
             # 1.  sanitise → coerce → drop incomplete
+            
+            steps_log = []
             df = df.copy()
-            df = to_SQLSanitizer().sanitize(df)
-            df = to_SQLSanitizer.sanitize_columns_from_model(df, cls)
-            df = to_SQLSanitizer.coerce_numeric_fields_from_model(df, cls)
-            df = to_SQLSanitizer.coerce_string_fields_from_model(df, cls)
-            df = to_SQLSanitizer.coerce_datetime_fields_from_model(df, cls)
-            df = to_SQLSanitizer.drop_incomplete_rows_from_model(df, cls)
-            df = to_SQLSanitizer.drop_invalid_enum_rows_from_model(df, cls)
-            df = to_SQLSanitizer().sanitize(df)
+            df = _log_step(to_SQLSanitizer().sanitize(df), "sanitize", steps_log)
+            df = _log_step(to_SQLSanitizer.sanitize_columns_from_model(df, cls), "sanitize_columns_from_model", steps_log)
+            df = _log_step(to_SQLSanitizer.coerce_numeric_fields_from_model(df, cls), "coerce_numeric_fields_from_model", steps_log)
+            df = _log_step(to_SQLSanitizer.coerce_string_fields_from_model(df, cls), "coerce_string_fields_from_model", steps_log)
+            df = _log_step(to_SQLSanitizer.coerce_datetime_fields_from_model(df, cls), "coerce_datetime_fields_from_model", steps_log)
+            df = _log_step(to_SQLSanitizer.drop_incomplete_rows_from_model(df, cls), "drop_incomplete_rows_from_model", steps_log)
+            df = _log_step(to_SQLSanitizer.drop_invalid_enum_rows_from_model(df, cls), "drop_invalid_enum_rows_from_model", steps_log)
+            df = _log_step(to_SQLSanitizer().sanitize(df), "final sanitize", steps_log)
+
+            summary = "\n".join(steps_log)
+            logging.debug3(f"\n=== DataFrame Shape Report ===\n{summary}")
+
 
             # 2.  validate with Pydantic
             validated = _model_validate_dataframe(cls, df)
+
 
             # 3.  optional table truncate
             if method == "replace":
@@ -235,8 +246,8 @@ class api_BaseModel(BaseModel):
             builder = SQL_FetchBuilder(orm_class, filter_model)
             stmt = builder.build_select(method, columns).execution_options(stream_results=True)
 
-            logging.debug2("📝 SQL built", extra=ctx)
-            logging.debug2(
+            logging.debug1("📝 SQL built", extra=ctx)
+            logging.debug1(
                 stmt.compile(compile_kwargs={"literal_binds": True}),
                 extra=ctx,
             )
