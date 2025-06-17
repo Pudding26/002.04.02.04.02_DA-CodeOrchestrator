@@ -20,6 +20,20 @@ logging.addLevelName(DEBUG3_LEVEL, "DEBUG-3")
 logging.addLevelName(DEBUG4_LEVEL, "DEBUG-4")
 logging.addLevelName(DEBUG5_LEVEL, "DEBUG-5")
 
+
+from contextlib import contextmanager
+
+@contextmanager
+def suppress_logging(level=logging.WARNING):
+    logger = logging.getLogger()  # You could also target a module/class logger
+    previous_level = logger.level
+    logger.setLevel(level)
+    try:
+        yield
+    finally:
+        logger.setLevel(previous_level)
+
+
 # Extend Logger class to support custom debug levels
 def debug1(self, message, *args, **kwargs):
     if self.isEnabledFor(DEBUG1_LEVEL):

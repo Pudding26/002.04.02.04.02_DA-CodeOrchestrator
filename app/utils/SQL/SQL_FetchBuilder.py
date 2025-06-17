@@ -1,61 +1,42 @@
-from sqlalchemy import not_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import select, and_, or_, not_, between
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from typing import Type, Optional
 
 
+from app.utils.dataModels.FilterModel.FilterModel import FilterModel
+from app.utils.dataModels.FilterModel.sql_builder import to_sqlalchemy
+
 class SQL_FetchBuilder:
     """
     Builds SQLAlchemy Select objects for fetching model data.
-    Supports method='all' or 'filter' with contains/notcontains filters.
+    Supports complex filtering logic: AND/OR per-column, global AND/OR flags,
+    and BETWEEN-range support via `is_range`.
     """
 
-    def __init__(self, orm_class: Type, filter_dict: dict = None):
+    def __init__(
+        self,
+        orm_class: Type,
+        filter_model: Optional[FilterModel] = None
+    ):
         self.orm_class = orm_class
-        self.filter_dict = filter_dict or {}
+        self.filter_model = filter_model
+
 
     def build_select(self, method: str, columns: Optional[list[str]] = None):
-        if method == "all":
-            return self._build_all_select(columns)
-        elif method == "filter":
-            return self._build_filter_select(columns)
+        
+        if self.filter_model:
+            return to_sqlalchemy(orm_cls=self.orm_class, flt=self.filter_model, columns=columns)
+        
         else:
-            raise ValueError(f"Unsupported fetch method: {method}")
+            return self._build_all_select(columns)
+
+
 
     def _build_all_select(self, columns: Optional[list[str]] = None):
         selected = self._resolve_columns(columns)
         return select(*selected)
 
-    def _build_filter_select(self, columns: Optional[list[str]] = None):
-        if not self.filter_dict:
-            raise ValueError("Filter method requires a non-empty filter_dict")
-
-        selected = self._resolve_columns(columns)
-        stmt = select(*selected)
-
-        # Apply contains filters
-        for column, values in self.filter_dict.get("contains", {}).items():
-            if values:
-                col = getattr(self.orm_class, column, None)
-                if not isinstance(col, InstrumentedAttribute):
-                    raise ValueError(f"{column} is not a valid ORM column")
-                stmt = stmt.where(col.in_(values))
-
-        # Apply notcontains filters
-        for column, values in self.filter_dict.get("notcontains", {}).items():
-            if values:
-                col = getattr(self.orm_class, column, None)
-                if not isinstance(col, InstrumentedAttribute):
-                    raise ValueError(f"{column} is not a valid ORM column")
-                stmt = stmt.where(not_(col.in_(values)))
-
-        return stmt
-
     def _resolve_columns(self, columns: Optional[list[str]]):
-        """
-        Resolves a list of column names into ORM column objects.
-        If columns is None, selects all columns from the table.
-        """
         if columns:
             try:
                 return [getattr(self.orm_class, col) for col in columns]

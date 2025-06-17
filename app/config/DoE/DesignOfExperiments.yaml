@@ -2,31 +2,35 @@
 primary_data:
   woodType:
     - [Softwood, Hardwood]
-    - Softwood
+    #- Softwood
     #- Hardwood
   sourceNo:
-    - [DS01, DS04, DS07]
-    - DS04
+    - [DS01, DS04, DS07, DS11]
+    #- [DS04, DS11]
     #- DS07
 
+
   family:
-    - [Pinaceae, Fagaceae,]
+    #- [Pinaceae, Fagaceae,]
     #- ['Annonaceae', 'Ephedraceae', 'Fabaceae', 'Lauraceae']
-    #- None
+    - None
 
   genus:
-    - [Pinus, Picea, Abies, Larix, Tsuga, Cedrus]
+    #- [Pinus, Picea, Abies, Larix, Tsuga, Cedrus]
     #- ['Quercus', 'Fagus', 'Castanea', 'Nothofagus']
-    #- None
+    - None
   
   species:
     - [PinusSylvestris, PiceaAbies, AbiesAlba]
     - [LarixDecidua, TsugaHeterophylla, CedrusAtlantica]
+    - [QuercusRobur, FagusSylvatica, CastaneaSativa, NothofagusObliqua]
+    - [AlnusFirma]
+    #- None
 
   view:
     - TS # Cross Section
-    #- RLS # Radial Longitudinal Section
-    #- TLS # Tangential Longitudinal Section
+    - RLS # Radial Longitudinal Section
+    - TLS # Tangential Longitudinal Section
 
   lens:
     - [10, 25]
@@ -37,12 +41,15 @@ primary_data:
     - 500
 
   noShotsRange:
-    - [1, 8]
+    - [[2, 10], [12, 17]]
+    #- [[34, 60]]
+    #- None
 
   filterNo:
     - FF01
     #- FF02
     #- FF03
+    - None
 
 secondaryDataBins:
   - SD01
