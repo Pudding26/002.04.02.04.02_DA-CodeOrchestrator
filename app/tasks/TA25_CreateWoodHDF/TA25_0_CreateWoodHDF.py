@@ -179,7 +179,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
         logging.debug3(f"🧱 Built {len(self.jobs)} job objects")
 
 
-    def _run_pipeline(self, jobs: List[WoodJob], num_loader_workers=4, max_queue_size=25, error_threshold=3):
+    def _run_pipeline(self, jobs: List[WoodJob], num_loader_workers=6, max_queue_size=25, error_threshold=3):
         logging.debug2("🔄 Initializing pipeline queues and threads")
         from threading import Lock
         stats_lock = Lock()

@@ -19,6 +19,9 @@ from app.utils.SQL.models.methods._bulk_save_objects import _bulk_save_objects
 from app.utils.SQL.models.methods._model_validate_dataframe import _model_validate_dataframe
 from app.utils.SQL.models.methods._filter_table_by_dict import _filter_table_by_dict
 
+from app.utils.dataModels.FilterModel.FilterModel import FilterModel
+
+
 from app.utils.SQL.SQL_FetchBuilder import SQL_FetchBuilder
 from app.utils.SQL.to_SQLSanitizer import to_SQLSanitizer
 from app.utils.QM.PydanticQM import PydanticQM
@@ -196,19 +199,25 @@ class api_BaseModel(BaseModel):
     @classmethod
     def fetch(
         cls,
-        method: str = "all",
-        filter_dict: Optional[dict] = None,
-        *,
+        method: str = None,
+        filter_model: Optional[FilterModel] = None,
+        filter_dict: Optional[Dict[str, List[Any]]] = None,
         db_key: Optional[str] = None,
         orm_class: Optional[type] = None,
         columns: Optional[list[str]] = None,
         stream: bool = True,
     ) -> pd.DataFrame:
         """
-        Fetch data with optional column-projection & streaming.
-        Emits rich, correlated logs.
+        Fetch data from the database with optional filtering and column projection.
+        Supports FilterModel-based structured filtering or legacy filter_dict.
         """
-        cid = uuid4().hex[:8]  # 1️⃣ correlation ID
+    
+        if method is not None:
+            logging.warning(f"🔍 DEPRECATED; ALL is default and dsticntion comes form provided Filter or not")
+        if filter_dict is not None:
+            logging.warning(f"🔍 DEPRECATED; use FilterModel instead of filter_dict")
+        
+        cid = uuid4().hex[:8]
         _cid.set(cid)
         ctx = {"cid": cid}
 
@@ -222,47 +231,41 @@ class api_BaseModel(BaseModel):
 
         session = DBEngine(db_key).get_session()
         try:
-            # ---------- build selectable once -------------------------------
-            builder = SQL_FetchBuilder(orm_class, filter_dict)
-            stmt = builder.build_select(method, columns)  # modern Select object
-            stmt = stmt.execution_options(stream_results=True)
+            # 🔧 Unified fetch builder: uses filter_model if provided
+            builder = SQL_FetchBuilder(orm_class, filter_model)
+            stmt = builder.build_select(method, columns).execution_options(stream_results=True)
 
-            logging.debug3("📝 SQL built", extra=ctx)
-            logging.debug4(
+            logging.debug2("📝 SQL built", extra=ctx)
+            logging.debug2(
                 stmt.compile(compile_kwargs={"literal_binds": True}),
                 extra=ctx,
             )
 
-            # ---------- execute ---------------------------------------------
+            # 📤 Execute and collect
             if stream:
                 result = session.execute(stmt)
                 rowcount = getattr(builder, "rowcount", None)
                 data = [
                     cls.model_validate(r._mapping).model_dump()
-
                     for r in tqdm(result.yield_per(5000), desc="stream", total=rowcount)
                 ]
             else:
                 data = [
                     cls.model_validate(r._mapping).model_dump()
-
                     for r in session.execute(stmt).all()
                 ]
 
             df = pd.DataFrame(data, columns=columns or list(cls.model_fields))
-            logging.info(
-                f"✅ fetched {len(df)} rows in {time()-start:.2f}s",
-                extra=ctx,
-            )
+            logging.info(f"✅ fetched {len(df)} rows in {time()-start:.2f}s", extra=ctx)
             logging.debug2(f"🔑 digest={df.select_dtypes('number').sum().sum()}", extra=ctx)
             return df
 
         except Exception as exc:
             logging.error(f"❌ fetch failed: {exc}", extra=ctx, exc_info=True)
             return pd.DataFrame()
-
         finally:
             session.close()
+
 
 
 

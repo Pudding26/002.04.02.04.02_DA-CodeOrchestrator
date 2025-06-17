@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import uuid
 import io
 import os
+from contextlib import contextmanager
 import logging
 import httpx
 from pathlib import Path
@@ -75,6 +76,22 @@ class TaskBase(ABC):
             self.ProfileLogger.log_stream_to_db(stream)
 
 
+    @contextmanager
+    def suppress_logging(self, level=logging.WARNING):
+        """
+        Temporarily suppress logging below the given level (default: WARNING).
+
+        Usage:
+            with self.suppress_logging():
+                self.fetch(...)
+        """
+        logger = logging.getLogger()
+        previous_level = logger.level
+        logger.setLevel(level)
+        try:
+            yield
+        finally:
+            logger.setLevel(previous_level)
 
 
 
