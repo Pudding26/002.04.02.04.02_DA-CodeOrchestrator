@@ -53,7 +53,6 @@ class WoodMaster(orm_BaseModel):
     samplingPoint = Column(String(length=255))
 
 
-    hdf5_dataset_path = Column(String(length=255))
     path = Column(String(length=255))  # ✅ newly added
     specimenID = Column(String(length=255))
     sourceID = Column(String(length=255))

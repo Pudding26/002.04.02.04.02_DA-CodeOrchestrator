@@ -1,5 +1,3 @@
-# app/db/base.py
-
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -29,8 +27,10 @@ def create_all_tables():
     from app.utils.SQL.models.production.orm.WoodTableA import WoodTableA
     from app.utils.SQL.models.production.orm.WoodTableB import WoodTableB
     from app.utils.SQL.models.production.orm.WoodMaster import WoodMaster
+    from app.utils.SQL.models.production.orm.WoodMasterPotential import WoodMasterPotential
     from app.utils.SQL.models.production.orm.DoEArchive import DoEArchive
     from app.utils.SQL.models.production.orm.ModellingResults import ModellingResults
+
 
     # temp
     from app.utils.SQL.models.temp.orm.PrimaryDataJobs import PrimaryDataJobs
@@ -39,7 +39,7 @@ def create_all_tables():
     grouped_models = {
         "progress": [ProfileArchive, ProgressArchive],
         "raw": [PrimaryDataRaw],
-        "production": [WoodMaster, WoodTableA, WoodTableB, DoEArchive, DS09, DS12, DS40, ModellingResults],
+        "production": [WoodMaster, WoodMasterPotential, WoodTableA, WoodTableB, DoEArchive, DS09, DS12, DS40, ModellingResults],
         "temp" : [PrimaryDataJobs, DoEJobs],
     }
 

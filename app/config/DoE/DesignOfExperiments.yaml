@@ -43,7 +43,7 @@ primary_data:
   noShotsRange:
     - [[2, 10], [12, 17]]
     #- [[34, 60]]
-    #- None
+    - None
 
   filterNo:
     - FF01

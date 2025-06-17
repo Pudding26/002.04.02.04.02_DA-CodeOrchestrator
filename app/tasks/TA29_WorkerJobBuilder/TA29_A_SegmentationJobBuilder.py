@@ -106,6 +106,9 @@ class TA29_A_SegmentationJobBuilder(TaskBase):
         if "maxShots" in include_cols:
             include_cols.remove("maxShots")
 
+        if "filterNo" in include_cols:
+            include_cols.remove("filterNo")
+
         if "totalNumberShots" not in include_cols:
             include_cols.append("totalNumberShots")
 
@@ -136,8 +139,8 @@ class TA29_A_SegmentationJobBuilder(TaskBase):
             if i % 10 == 0 or i == total_jobs - 1:
                 logging.debug2(f"[TA30_A] Processing job {i}/{total_jobs}")
 
-            with self.suppress_logging():
-                new_subset = WoodTableB_Out.fetch(
+            with self.suppress_logging(): # TODO: Split WoodTAble in WoodMAster and Woodmaster Theroetical
+                new_subset = WoodMaster_Out.fetch(
                     filter_model=filter_model,
                     stream=False
                 )
@@ -145,8 +148,8 @@ class TA29_A_SegmentationJobBuilder(TaskBase):
             len_new_subset = len(new_subset)
             len_old_subset_before = len(segmentationJobs_df)
 
-            if not new_subset.empty:
-                segmentationJobs_df = pd.concat([segmentationJobs_df, new_subset], ignore_index=True)
+            if len_new_subset > 0:
+                segmentationJobs_df = pd.concat([segmentationJobs_df, new_subset]).drop_duplicates(subset='stackID', keep='first')
 
             len_old_subset_after = len(segmentationJobs_df)
             len_delta = len_old_subset_after - len_old_subset_before
@@ -159,44 +162,7 @@ class TA29_A_SegmentationJobBuilder(TaskBase):
 
 
 
-            
 
-
-
-        filter_sets = self._extract_filter_sets()
-        
-        logging.debug3("[TA30_A] Starting job filtering.")
-
-        logging.debug2("[TA30_A] Loading WoodTableA via Pydantic model.")
-        woodTable_df = WoodTableA_Out.fetch(method="all")
-        if woodTable_df.empty:
-            raise RuntimeError("woodTable_df table is empty or missing.")
-        logging.debug2(f"[TA30_A] Loaded wood table with {len(woodTable_df)} rows.")
-
-        all_conditions = []
-        for job in self.general_job_df.to_dict(orient="records"):
-            conditions = []
-            for key, values in job.items():
-                if isinstance(values, list) and key in woodTable_df.columns:
-                    conditions.append(woodTable_df[key].isin(values))
-            if conditions:
-                combined = conditions[0]
-                for cond in conditions[1:]:
-                    combined |= cond  # OR filtering
-                all_conditions.append(combined)
-
-        if not all_conditions:
-            raise RuntimeError("No filter conditions constructed from DoE jobs.")
-        
-        final_filter = all_conditions[0]
-        for cond in all_conditions[1:]:
-            final_filter |= cond
-
-        jobs_df = woodTable_df[final_filter].copy()
-        if jobs_df.empty:
-            raise RuntimeError("No stackIDs matched the provided filter conditions.")
-
-        logging.debug2(f"[TA30_A] Filtered down to {len(jobs_df)} rows after OR filtering.")
 
         jobs_df["dest_filterNo"] = jobs_df["filterNo"]  # If available
         jobs_df["dest_stackID"] = jobs_df.apply(
