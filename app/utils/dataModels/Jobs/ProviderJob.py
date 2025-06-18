@@ -1,28 +1,60 @@
 from __future__ import annotations
-
-from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional, Union, Dict, Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 from datetime import datetime
-from enum import Enum
+from pydantic import BaseModel, ConfigDict, Field
+
+#ORM
+from app.utils.SQL.models.temp.orm.JobLink import JobLink
+
 
 
 from app.utils.dataModels.Jobs.BaseJob import BaseJob
+from app.utils.dataModels.Jobs.DoEJob import DoEJob
 
-class ProviderJobInput(BaseJob):
+from app.utils.dataModels.Jobs.JobEnums import JobStatus, JobKind, RelationState
+
+from app.utils.SQL.models.temp.api.api_ProviderJobs import ProviderJobs_Out
+
+from uuid import UUID
+
+from sqlalchemy import event, delete, insert, update, select, func
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Mapper
+
+
+
+
+class ProviderJob(BaseJob):
+    
+    
     job_type: str = "provider"
-    job_no: int
+    api_model = ProviderJobs_Out
+
     input: ProviderJobInput
     attrs: ProviderAttrs
+    status: JobStatus = JobStatus.TODO
+    og_job_uuids: List[str]
+
+    model_config = ConfigDict(extra="forbid")
+
+
+
+
+
+
 
 class ProviderJobInput(BaseModel):
     src_file_path: str
     src_ds_rel_path: Union[str, List[str]]
-    dest_rel_path: str
+    dest_rel_path: Optional[str] = "set by provider.storer()"
     stored_locally: List[int]
-    image_data: Optional[Any] = None  # You could replace this with something serialisable or exclude
+    image_data: Optional[Any] = None
+    job_No: Optional[int] = None
+
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
 
 class ProviderAttrs(BaseModel):
     Level1: Dict[str, Union[str, int]]
@@ -35,4 +67,3 @@ class ProviderAttrs(BaseModel):
     dataSet_attrs: Dict[str, Optional[Union[str, float, int]]]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-

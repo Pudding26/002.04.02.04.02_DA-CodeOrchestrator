@@ -27,7 +27,7 @@ from app.utils.SQL.to_SQLSanitizer import to_SQLSanitizer
 from app.utils.QM.PydanticQM import PydanticQM
 
 
-from typing import List, Type, TypeVar, Optional, Any, Dict, ClassVar, Union
+from typing import List, Type, TypeVar, Optional, Any, Dict, ClassVar, Union, get_origin
 
 
 
@@ -278,10 +278,23 @@ class api_BaseModel(BaseModel):
             session.close()
 
 
-
-
-
-
+    @classmethod
+    def fetch_distinct_values(
+        cls,
+        column: str,
+        db_key: Optional[str] = None,
+        orm_class: Optional[type] = None
+    ) -> list:
+        """
+        Efficiently fetch distinct values of a single column from the DB.
+        """
+        from app.utils.SQL.models.methods._fetch_distinct_values import _fetch_distinct_values
+        return _fetch_distinct_values(
+            cls=cls,
+            column=column,
+            db_key=db_key,
+            orm_class=orm_class
+        )
 
 
 
@@ -335,6 +348,40 @@ class api_BaseModel(BaseModel):
         return to_SQLSanitizer().detect_fakes(df)
 
 
+    @classmethod
+    def update_row(cls, row_data: dict, match_cols: list[str] = ["job_uuid"], db_key: Optional[str] = None) -> None:
+        """
+        Generic update method: match on `match_cols`, update all values in `row_data`.
+        Assumes row exists.
+        """
+        from sqlalchemy.orm import Session
+        from app.utils.SQL.DBEngine import DBEngine
+
+        db_key = db_key or getattr(cls, "db_key", "raw")
+        orm_class = getattr(cls, "orm_class", None)
+        if orm_class is None:
+            raise ValueError(f"{cls.__name__} must define orm_class.")
+
+        session: Session = DBEngine(db_key).get_session()
+        try:
+            filters = {col: row_data[col] for col in match_cols}
+            row = session.query(orm_class).filter_by(**filters).first()
+
+            if not row:
+                raise ValueError(f"No matching row found using {filters}")
+
+            for k, v in row_data.items():
+                if hasattr(row, k):
+                    setattr(row, k, v)
+
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+
 
     @classmethod
     def validate_dataframe(cls, df: pd.DataFrame, groupby_col: Any = None) -> pd.DataFrame:
@@ -357,8 +404,28 @@ class api_BaseModel(BaseModel):
         """
         return df.astype(object).where(pd.notnull(df), None)
 
+    @classmethod
+    def pydantic_model_to_dtype_dict(cls: type[BaseModel]) -> dict[str, type]:
+        dtype_map = {}
+        for name, field in cls.model_fields.items():
+            outer_type = field.annotation
+            origin = get_origin(outer_type) or outer_type
 
+            # Handle common typing cases
+            if origin in (list, dict):
+                dtype_map[name] = object
+            elif origin is float:
+                dtype_map[name] = float
+            elif origin is int:
+                dtype_map[name] = int
+            elif origin is bool:
+                dtype_map[name] = bool
+            elif origin is str:
+                dtype_map[name] = str
+            else:
+                dtype_map[name] = object  # fallback
 
+        return dtype_map
 
 ####### DEPRECATED METHODS ########
 

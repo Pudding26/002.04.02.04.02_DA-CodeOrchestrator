@@ -6,14 +6,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from sqlalchemy import DateTime
 
-class DoEJobs(orm_BaseModel):
-    __tablename__ = "DoEJobs"
+class ProviderJobs(orm_BaseModel):
+    __tablename__ = "ProviderJobs"
 
     job_uuid = Column(String, primary_key=True)
-    segmenter_status = Column(String)
-    modeler_status = Column(String)
-    transfer_status = Column(String)
-    provider_status = Column(String)
+    og_job_uuids = Column(JSONB)
+    status = Column(String)
+  
     payload = Column(JSONB)
     created = Column(DateTime)
     updated = Column(DateTime)

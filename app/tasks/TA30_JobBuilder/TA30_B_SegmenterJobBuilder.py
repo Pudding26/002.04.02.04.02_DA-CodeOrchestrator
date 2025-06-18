@@ -21,7 +21,7 @@ from app.utils.dataModels.FilterModel.FilterModel import Border
 #from app.utils.SQL.models.temp.api.SegmentationJobs_out import SegmentationJobs_out
 
 
-class TA29_A_SegmentationJobBuilder(TaskBase):
+class TA30_B_SegmenterJobBuilder(TaskBase):
     def setup(self):
         self.controller.update_message("Initializing Segmentation Job Builder")
         self.controller.update_progress(0.01)
