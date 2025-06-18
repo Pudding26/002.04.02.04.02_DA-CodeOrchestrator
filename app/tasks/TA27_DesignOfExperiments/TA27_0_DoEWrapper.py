@@ -36,20 +36,14 @@ class TA27_0_DoEWrapper(TaskBase):
 
             self.controller.update_message("🧪 Filtering new DoEJobs agains ModellingResults SQL")
             logger.debug3("🔍 Filtering new DoEJobs against ModellingResults...")
-            self.create_job_df()
-            #df_safe = df.map(lambda x: json.dumps(x) if isinstance(x, list) else x)
- 
-            self.controller.update_message("📦 Archiving old DoE")
-            logging.debug3("📦 Archiving old DoE table if exists...")
-            self.archive_old_doe()
-            logger.debug3("📦 Old DoE archived successfully")
+            self.create_jobs()
 
 
 
             
             self.controller.update_message("🧪 Saving new DoEJobs to SQL")
             logger.debug3("💾 Storing new DoEJobs in SQL...")
-            DoEJobs_Out.store_dataframe(self.doe_df, method="replace", db_key="temp")
+            DoEJobs_Out.store_dataframe(self.job_df_clean, method="replace", db_key="temp")
             
             logger.info("✅ New DoE table stored")
 
@@ -74,32 +68,27 @@ class TA27_0_DoEWrapper(TaskBase):
 
 
 
-    def create_job_df(self):
-        def _deserialize(df):
-            return df.applymap(lambda x: json.loads(x) if isinstance(x, str) and x.strip().startswith("[") else x)
-
-        logging.debug2("📥 Loading DoE and ML tables.")
-        self.ml_table_raw = ModellingResults_Out.fetch_all()
-
-        if self.ml_table_raw.empty:
-            self.doe_df = self.doe_df_raw
-        else:
-            self.doe_df = self.doe_df_raw[~self.doe_df_raw["DoE_UUID"].isin(self.ml_table_raw["DoE_UUID"])]
-
-        logging.debug5(f"✅ Loaded {len(self.doe_df)} DoE jobs.")
+    def create_jobs(self):
 
 
-
-    def archive_old_doe(self):
-        df_old = DoEJobs_Out.fetch_all()
-        logging.debug2(f"📂 Found {len(df_old)} old DoE rows to archive")
-        df_archive_raw = DoEArchive_Out.fetch_all()
-
-        logging.debug2(f"📂 Found {len(df_archive_raw)} DoE rows in Archive")
-        new_rows = df_old[~df_old['DoE_UUID'].isin(df_archive_raw['DoE_UUID'])]
+        old_doe_uuids = DoEJobs_Out.fetch_distinct_values("job_uuid")
+        logging.debug2(f"✅ Found {len(old_doe_uuids)} old DoE UUIDs.")
         
-        DoEArchive_Out.store_dataframe(new_rows, method="append", db_key="production")
-        logger.debug3(f"📂 Archived {len(new_rows)} rows to backup table")
+
+        self.doe_df = self.doe_df_raw[~self.doe_df_raw["DoE_UUID"].isin(old_doe_uuids)]
+
+        logging.debug5(f"✅ Reduced to {len(self.doe_df)} DoE jobs.")
+        if self.doe_df.empty:
+            logger.warning("⚠️ No new DoE jobs to process. Exiting.")
+            return
+        
+
+        self.jobs_list = TA27_A_DoEJobGenerator.generate(df = self.doe_df, template_path = self.instructions["job_template_path"])
+        
+        
+        self.job_df_clean = pd.DataFrame([job.to_sql_row() for job in self.jobs_list])
+
+
 
     def cleanup(self):
         logger.debug3("🧹 Running cleanup phase...")

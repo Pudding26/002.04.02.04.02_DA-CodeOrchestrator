@@ -62,7 +62,6 @@ class WoodMasterPotential(orm_BaseModel):
     GPS_Long = Column(Float)
     
     sourceFilePath_rel = Column(JSONB)
-    hdf5_dataset_path = Column(String)
     #stackID = Column(String) -> not possible on this level
     specimenID = Column(String)
     sourceID = Column(String)

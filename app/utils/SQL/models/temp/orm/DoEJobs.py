@@ -4,38 +4,17 @@ from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import JSONB
 
+from sqlalchemy import DateTime
+
 class DoEJobs(orm_BaseModel):
     __tablename__ = "DoEJobs"
 
-    DoE_UUID = Column(String, primary_key=True)    
+    job_uuid = Column(String, primary_key=True)
+    segmenter_status = Column(String)
+    modeler_status = Column(String)
+    transfer_status = Column(String)
+    provider_status = Column(String)
+    payload = Column(JSONB)
+    created = Column(DateTime)
+    updated = Column(DateTime)
     
-    
-    ## PrimaryDataFactors##
-    sourceNo = Column(JSONB)
-    woodType = Column(JSONB)
-    family = Column(JSONB)
-    genus = Column(JSONB)
-    species = Column(JSONB)
-    
-    filterNo = Column(JSONB)
-
-    view = Column(JSONB)
-    lens = Column(JSONB)
-    
-    maxShots = Column(JSONB)
-    
-    noShotsRange = Column(JSONB)
-    
-    ## SecondaryDataFactors##
-    secondaryDataBins = Column(JSONB)
-
-    ## 2. PreprocessingFactors##
-    preProcessingNo = Column(JSONB)
-
-
-    ## 3. SegmentationFactors##
-
-    
-    ## 4. ModelFactors##
-    featureBins = Column(JSONB)
-    metricModelNo = Column(JSONB)

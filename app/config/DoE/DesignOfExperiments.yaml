@@ -23,6 +23,7 @@ primary_data:
   species:
     - [PinusSylvestris, PiceaAbies, AbiesAlba]
     - [LarixDecidua, TsugaHeterophylla, CedrusAtlantica]
+    - [LarixDecidua, TsugaHeterophylla, PiceaAbies]
     - [QuercusRobur, FagusSylvatica, CastaneaSativa, NothofagusObliqua]
     - [AlnusFirma]
     #- None

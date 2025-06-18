@@ -33,14 +33,15 @@ def create_all_tables():
 
 
     # temp
-    from app.utils.SQL.models.temp.orm.PrimaryDataJobs import PrimaryDataJobs
+    from app.utils.SQL.models.temp.orm.ProviderJobs import ProviderJobs
     from app.utils.SQL.models.temp.orm.DoEJobs import DoEJobs
+    from app.utils.SQL.models.temp.orm.JobLink import JobLink
 
     grouped_models = {
         "progress": [ProfileArchive, ProgressArchive],
         "raw": [PrimaryDataRaw],
         "production": [WoodMaster, WoodMasterPotential, WoodTableA, WoodTableB, DoEArchive, DS09, DS12, DS40, ModellingResults],
-        "temp" : [PrimaryDataJobs, DoEJobs],
+        "temp" : [ProviderJobs, DoEJobs, JobLink],
     }
 
 

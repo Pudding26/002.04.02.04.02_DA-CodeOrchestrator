@@ -66,3 +66,4 @@ class WoodMasterPotential_Out(api_BaseModel):
     sourceFilePath_rel: Any # JSONB type in SQLAlchemy, using Any for flexibility
     specimenID: str
     sourceID: str
+    sourceStoredLocally : Any  # JSONB type in SQLAlchemy, using Any for flexibility
