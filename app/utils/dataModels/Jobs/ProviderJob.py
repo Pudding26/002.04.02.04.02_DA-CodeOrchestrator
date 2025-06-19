@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 #ORM
-from app.utils.SQL.models.temp.orm.JobLink import JobLink
+from app.utils.SQL.models.jobs.orm_JobLink import orm_JobLink
 
 
 
@@ -14,7 +14,7 @@ from app.utils.dataModels.Jobs.DoEJob import DoEJob
 
 from app.utils.dataModels.Jobs.JobEnums import JobStatus, JobKind, RelationState
 
-from app.utils.SQL.models.temp.api.api_ProviderJobs import ProviderJobs_Out
+from app.utils.SQL.models.jobs.orm_WorkerJobs import orm_WorkerJobs
 
 from uuid import UUID
 
@@ -28,20 +28,14 @@ from sqlalchemy.orm import Mapper
 class ProviderJob(BaseJob):
     
     
-    job_type: str = "provider"
-    api_model = ProviderJobs_Out
+    job_type: JobKind = JobKind.PROVIDER
+    orm_model = orm_WorkerJobs
 
     input: ProviderJobInput
     attrs: ProviderAttrs
-    status: JobStatus = JobStatus.TODO
-    og_job_uuids: List[str]
+    
 
     model_config = ConfigDict(extra="forbid")
-
-
-
-
-
 
 
 class ProviderJobInput(BaseModel):

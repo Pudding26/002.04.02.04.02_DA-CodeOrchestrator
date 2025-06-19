@@ -14,13 +14,13 @@ from app.utils.SQL.models.temp.orm.JobLink import JobLink
 from app.utils.dataModels.Jobs.BaseJob import BaseJob
 from app.utils.dataModels.Jobs.JobEnums import JobStatus
 
-from app.utils.SQL.models.temp.api.api_DoEJobs import DoEJobs_Out
+from app.utils.SQL.models.jobs.orm_DoEJobs import orm_DoEJobs
 
 
 class DoEJob(BaseJob):
     job_type : Literal["general"] = "general"
 
-    api_model = DoEJobs_Out
+    orm_model = orm_DoEJobs
 
 
     segmenter_status: JobStatus = JobStatus.TODO
@@ -70,14 +70,6 @@ class DoEJob(BaseJob):
         """
         rows = [job.to_filter_row() for job in jobs]
         return pd.DataFrame(rows).set_index("job_uuid")
-
-
-
-
-
-
-
-
 
 
 class DOE_config(BaseModel):

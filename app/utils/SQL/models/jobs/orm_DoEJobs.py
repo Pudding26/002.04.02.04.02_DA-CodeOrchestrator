@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from sqlalchemy import DateTime
 
-class DoEJobs(orm_BaseModel):
+class orm_DoEJobs(orm_BaseModel):
     __tablename__ = "DoEJobs"
 
     job_uuid = Column(String, primary_key=True)

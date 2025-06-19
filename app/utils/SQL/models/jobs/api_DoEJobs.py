@@ -1,12 +1,12 @@
 from typing import List, ClassVar, Any
 from app.utils.SQL.models.api_BaseModel import api_BaseModel
-from app.utils.SQL.models.temp.orm.DoEJobs import DoEJobs
+from app.utils.SQL.models.jobs.orm_DoEJobs import orm_DoEJobs
 
 from datetime import datetime
 
 class DoEJobs_Out(api_BaseModel):
-    orm_class: ClassVar = DoEJobs
-    db_key: ClassVar[str] = "temp"
+    orm_class: ClassVar = orm_DoEJobs
+    db_key: ClassVar[str] = "jobs"
 
 
     job_uuid: str

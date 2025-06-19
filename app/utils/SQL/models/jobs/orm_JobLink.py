@@ -17,7 +17,7 @@ from app.utils.dataModels.Jobs.JobEnums import JobKind, RelationState
 from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
 
-class JobLink(orm_BaseModel):
+class orm_JobLink(orm_BaseModel):
     """
     Association-object pattern.
     We don’t declare a FK on child_uuid because it could live in any job table.

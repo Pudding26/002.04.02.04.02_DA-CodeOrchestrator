@@ -12,7 +12,7 @@ from datetime import datetime
 
 class JobLink_Out(api_BaseModel):
     orm_class: ClassVar = JobLink
-    db_key: ClassVar[str] = "temp"
+    db_key: ClassVar[str] = "jobs"
 
 
     parent_uuid: str = Field(..., description="UUID of the parent DoEJob")
