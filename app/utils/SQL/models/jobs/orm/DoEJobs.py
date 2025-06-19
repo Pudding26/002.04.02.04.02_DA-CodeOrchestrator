@@ -1,6 +1,6 @@
 from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
 
-
+from sqlalchemy.orm import relationship
 from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -18,3 +18,4 @@ class DoEJobs(orm_BaseModel):
     created = Column(DateTime)
     updated = Column(DateTime)
     
+    #doe_child_links = relationship("JobLink", back_populates="parent_doe", foreign_keys="JobLink.parent_uuid")

@@ -1,5 +1,5 @@
 from app.utils.SQL.models.orm_BaseModel import orm_BaseModel
-
+from sqlalchemy.orm import relationship
 
 from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -17,3 +17,8 @@ class ProviderJobs(orm_BaseModel):
     created = Column(DateTime)
     updated = Column(DateTime)
     
+    parent_links = relationship(
+    "JobLink",
+    back_populates="child_provider",
+    primaryjoin="ProviderJobs.job_uuid == foreign(JobLink.child_uuid)"
+    )

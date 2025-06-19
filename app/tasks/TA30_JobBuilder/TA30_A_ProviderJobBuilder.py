@@ -53,7 +53,7 @@ class TA30_A_ProviderJobBuilder:
             lambda val: "provider_" + hashlib.sha1(str(val).encode()).hexdigest()[:10]
         )
 
-        existing = ProviderJobs_Out.fetch(column="job_uuid")         # returns set[str] #must be acutal df, filter agains col must be paresd in update func as well
+        existing = ProviderJobs_Out.fetch_distinct_values(column="job_uuid")  # returns set[str] #must be actual df, filter against col must be parsed in update func as well
         to_create = []
         to_update = []
         all_jobs = []
@@ -135,6 +135,7 @@ class TA30_A_ProviderJobBuilder:
 
             else:
                 to_create.append(job)
+                logging.debug2(f"[ProviderBuilder] Adding job {job_uuid} ({row_no + 1}/{len(job_df)})")
 
 
             from app.tasks.TA30_JobBuilder.TA30_0_JobBuilderWrapper import TA30_0_JobBuilderWrapper
