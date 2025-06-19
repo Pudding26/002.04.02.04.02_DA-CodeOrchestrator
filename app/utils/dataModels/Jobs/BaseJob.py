@@ -31,6 +31,8 @@ class BaseJob(BaseModel):
         if not hasattr(self, task_field):
             raise ValueError(f"Unknown task: {task}")
 
+    def to_orm(self, orm_cls):
+        return orm_cls(**self.to_sql_row())
 
     def to_sql_row(self) -> dict:
         def _clean_nans(obj):

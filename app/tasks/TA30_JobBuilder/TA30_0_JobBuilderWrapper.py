@@ -139,6 +139,8 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
 
 
+
+
     def cleanup(self):
         logging.info("[TA30_A] Running cleanup routine.")
         self.controller.archive_with_orm()
@@ -234,14 +236,14 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
 
     @staticmethod
-    def store_and_update(to_create, to_update, orm_instance):
+    def store_and_update(to_create: list, to_update: list[str], orm_instance):
         """
-        Stores new jobs and updates the og_job_uuids field of existing ones.
+        Stores new job entries and updates 'og_job_uuids' for existing jobs.
 
         Args:
-            to_create: list[ORM] — fresh jobs to insert
-            to_update: list[ORM] — existing jobs that need parent list update
-            orm_instance: ORM class (e.g., ProviderJobs)
+            to_create (list[BaseJob]): New Pydantic job objects (not ORM).
+            to_update (list[str]): List of job_uuid strings to update.
+            orm_instance (Base): SQLAlchemy ORM class (e.g., ProviderJobs).
         """
 
         if not to_create and not to_update:
@@ -251,57 +253,46 @@ class TA30_0_JobBuilderWrapper(TaskBase):
         from app.utils.SQL.DBEngine import DBEngine
         session = DBEngine("temp").get_session()
 
+        created_count = updated_count = unchanged_count = 0
 
-        created_count = 0
-        updated_count = 0
-        unchanged_count = 0
-        update_log_lines = []
-
-        # INSERT new jobs
+        # ✅ Handle creation (convert Pydantic -> ORM)
         if to_create:
-            session.add_all(to_create)
-            created_count = len(to_create)
+            orm_rows = [orm_instance(**job.to_sql_row()) for job in to_create]
+            session.add_all(orm_rows)
+            created_count = len(orm_rows)
 
-        # UPDATE existing jobs
+        # ✅ Handle updates (merge og_job_uuids)
         if to_update:
-            incoming_by_uuid = {job.job_uuid: job for job in to_update}
-
             db_jobs = session.query(orm_instance).filter(
-                orm_instance.job_uuid.in_(incoming_by_uuid.keys())
+                orm_instance.job_uuid.in_(to_update)
             ).all()
 
+            # job_uuid → existing ORM row
             for db_job in db_jobs:
-                incoming_job = incoming_by_uuid[db_job.job_uuid]
+                # Example: update og_job_uuids by adding "new_parent_id"
                 old_parents = set(db_job.og_job_uuids or [])
-                new_parents = set(incoming_job.og_job_uuids or [])
-
+                new_parents = set(db_job.job_uuid)  # replace this with actual logic
                 combined = old_parents | new_parents
 
                 if combined != old_parents:
                     db_job.og_job_uuids = list(combined)
                     updated_count += 1
-                    update_log_lines.append(
-                        f"→ Job {db_job.job_uuid} updated:\n"
-                        f"   old: {sorted(old_parents)}\n"
-                        f"   new: {sorted(combined)}\n"
-                    )
                 else:
                     unchanged_count += 1
 
         session.commit()
 
-        # Consolidated logging message
         logging.info(
-            f"Job store/update summary of: \n"
-            f"{orm_instance.__name__} \n" 
+            f"Job store/update summary for {orm_instance.__name__}:\n"
             f"  ✅ Created: {created_count}\n"
             f"  🔁 Updated: {updated_count}\n"
             f"  ⏭️ Unchanged: {unchanged_count}\n"
         )
-        logging.debug2(
-            f"{''.join(update_log_lines) if update_log_lines else ''}"
-            f"  ✅ Session committed.\n"
-        )
+
+        #logging.debug2(
+        #    f"{''.join(update_log_lines) if update_log_lines else ''}"
+        #    f"  ✅ Session committed.\n"
+        #)
 
 
 

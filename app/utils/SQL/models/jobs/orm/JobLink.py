@@ -29,4 +29,17 @@ class JobLink(orm_BaseModel):
     child_kind  = Column(PgEnum(JobKind), primary_key=True)
     rel_state   = Column(PgEnum(RelationState), default=RelationState.IN_PROGRESS)
 
-    parent = relationship("DoEJobs", back_populates="child_links")
+    child_provider = relationship(
+        "ProviderJobs",
+        back_populates="parent_links",
+        primaryjoin="foreign(JobLink.child_uuid) == ProviderJobs.job_uuid"
+    )
+    
+    
+    
+    #parent_doe = relationship("DoEJobs", back_populates="doe_child_links")
+
+
+    
+
+    
