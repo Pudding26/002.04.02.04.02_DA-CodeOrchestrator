@@ -1,25 +1,22 @@
-from pydantic import BaseModel, Field
-import datetime as dt
+from datetime import datetime, timedelta, timezone
 
-class RetryInfo(BaseModel):
-    attempts    : int          = 0            # how many times the job was popped
-    last_error  : str | None   = None         # latest failure note
-    penalty     : int          = 0            # the “cost” your scheduler uses
-    next_retry  : dt.datetime  = Field(
-        default_factory=lambda: dt.datetime.utcnow()
-    )
-
-    def register_failure(self, error: str,
-                         penalty_step: int = 1,
-                         backoff: float = 1.5) -> None:
+class RetryInfo:
+    @staticmethod
+    def compute_next_retry(
+        attempts: int,
+        baseline: datetime,
+        penalty_step: int = 1,
+        backoff: float = 1.5
+    ) -> datetime:
         """
-        • Increase attempts + penalty
-        • Push next_retry into the future  (simple exponential back-off)
-        """
-        self.attempts   += 1
-        self.penalty    += penalty_step
-        self.last_error  = error
+        Calculate the next retry time using exponential backoff.
+        
+        Formula:
+        delay = penalty_step × (backoff ^ attempts)
+        next_retry = baseline + delay
 
-        # exponential : now + penalty * backoff ^ attempts   (tweak if needed)
-        delay_seconds = int(self.penalty * (backoff ** self.attempts))
-        self.next_retry = dt.datetime.utcnow() + dt.timedelta(seconds=delay_seconds)
+        All datetimes are assumed to be timezone-aware (UTC).
+        """
+        penalty = penalty_step * attempts
+        delay_seconds = int(penalty * (backoff ** attempts))
+        return baseline + timedelta(seconds=delay_seconds)

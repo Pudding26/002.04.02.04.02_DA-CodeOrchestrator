@@ -3,7 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional, Union, Dict, ClassVar
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import json
 import math
@@ -12,20 +12,40 @@ from app.utils.dataModels.Jobs.util.RetryInfo import RetryInfo
 
 class BaseJob(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    api_model: ClassVar[Optional[type]] = None  # REpresents the underlying orm_api this gets set in subclasses
+    orm_model: ClassVar[Optional[type]] = None  # REpresents the underlying orm_api this gets set in subclasses
 
 
     job_uuid : str = Field(default_factory=uuid4)
     job_type : str
 
-    created  : datetime = Field(default_factory=datetime.utcnow)
-    updated  : datetime = Field(default_factory=datetime.utcnow)
-    retry    : RetryInfo = Field(default_factory=RetryInfo)
+    status  : str
+    attempts: int = 0
+    next_retry: datetime = Field(default_factory=datetime.now(timezone.utc))
 
-    def register_failure(self, error: str):
-        self.retry.register_failure(error)
-        self.updated = datetime.utcnow()
+    created  : datetime = Field(default_factory=datetime.now(timezone.utc))
+    updated  : datetime = Field(default_factory=datetime.now(timezone.utc))
 
+    parent_job_uuids: List[str] = Field(default_factory=list)
+
+    def register_failure(self, error: str, penalty_step: float = 1.0, backoff: float = 1.0):
+        self.attempts += 1
+        self.next_retry = RetryInfo.compute_next_retry(
+            attempts=self.attempts,
+            baseline=self.next_retry,
+            penalty_step=penalty_step,
+            backoff=backoff,
+        )
+        self.updated = datetime.now(timezone.utc)
+
+    def update_db(self):
+        if self.orm_model is None:
+            raise ValueError(f"{self.__class__.__name__} must define `orm_model` to support update_db()")
+
+        self.updated = datetime.now(timezone.utc)
+        row = self.to_sql_row()
+        row["updated"] = self.updated
+        self.orm_model.update_row(row)
+        
     def is_ready(self, task: str) -> bool:
         task_field = f"{task}_status"
         if not hasattr(self, task_field):
@@ -62,17 +82,23 @@ class BaseJob(BaseModel):
             else:
                 base_fields[field_name] = value
 
-        # 🔄 Replaces compact model_dump_json() with pretty JSON string
-        payload_pretty = json.dumps(
-            self.model_dump(mode="json", exclude_none=False),
-            indent=2,
-            ensure_ascii=False
-        )
+        payload = {
+            "input": clean_dict.get("input", {}),
+            "attrs": clean_dict.get("attrs", {})
+        }
 
         return {
-            **base_fields,
-            "payload": clean_dict,
+            "job_uuid": self.job_uuid,
+            "job_type": self.job_type,
+            "status": self.status,
+            "attempts": self.attempts,
+            "next_retry": self.next_retry,
+            "created": self.created,
+            "updated": self.updated,
+            "parent_job_uuids": self.parent_job_uuids,
+            "payload": payload
         }
+
 
 
     @classmethod
@@ -80,13 +106,3 @@ class BaseJob(BaseModel):
         return cls.model_validate(row["payload"])
 
 
-    def update_db(self):
-        """
-        Update the job in the database using the linked api_model.
-        """
-        if self.api_model is None:
-            raise ValueError(f"{self.__class__.__name__} must define `api_model` to support update_db()")
-
-        row = self.to_sql_row()
-        row["updated"] = str(datetime.utcnow())
-        self.api_model.update_row(row)
