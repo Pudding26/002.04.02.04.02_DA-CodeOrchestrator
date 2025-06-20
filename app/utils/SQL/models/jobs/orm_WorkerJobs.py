@@ -44,10 +44,11 @@ class orm_WorkerJobs(orm_BaseModel):
 
 
     @classmethod
-    def update_row(cls, session, row: dict):
+    def update_row(cls, row: dict):
         job_uuid = row.pop("job_uuid", None)
         if not job_uuid:
             raise ValueError("Missing job_uuid in row")
+        session = DBEngine("jobs").get_session()
 
         obj = session.get(cls, job_uuid)
         if not obj:
@@ -56,7 +57,11 @@ class orm_WorkerJobs(orm_BaseModel):
         for key, value in row.items():
             setattr(obj, key, value)
 
+        session.commit()    # <-- Commit the changes!
+        session.close()     # <-- Clean up the session
+
         return obj
+
 
 
 
