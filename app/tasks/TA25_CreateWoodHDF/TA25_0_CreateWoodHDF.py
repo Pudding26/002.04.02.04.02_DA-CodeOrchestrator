@@ -115,7 +115,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
         total_parsed = 0
 
 
-        df = df.iloc[::50]
+        df = df.iloc[:5]
 
 
     
@@ -351,9 +351,6 @@ class TA25_0_CreateWoodHDF(TaskBase):
         logging.debug5(f"🖼️  Total Images: {pipeline_stats['total_images']}")
         logging.debug5(f"✂️  Total Crops: {pipeline_stats['total_crops']}")
         logging.debug5("\n" + summary_df.to_string(index=False))
-
-
-
 
 
         logging.info("🎉 Image processing pipeline completed")
