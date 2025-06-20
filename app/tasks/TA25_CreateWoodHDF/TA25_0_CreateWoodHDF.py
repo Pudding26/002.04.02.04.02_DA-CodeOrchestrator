@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import List, Optional, Dict, Union
 import pandas as pd
+from datetime import timezone
 
 
 from threading import Lock
@@ -28,7 +29,7 @@ from app.tasks.TA23_CreateWoodMaster.TA23_0_CreateWoodMasterPotential import TA2
 
 from app.utils.dataModels.Jobs.ProviderJob import ProviderJob
 from app.utils.dataModels.Jobs.JobEnums import JobStatus
-from app.utils.SQL.models.temp.api.api_ProviderJobs import ProviderJobs_Out
+from app.utils.SQL.models.jobs.api_WorkerJobs import WorkerJobs_Out
 
 
 
@@ -96,10 +97,13 @@ class TA25_0_CreateWoodHDF(TaskBase):
         logging.debug2("📥 Loading ProviderJobs from database")
 
 
-        filter_model = FilterModel.from_human_filter({"contains": {"status": "todo"}})
+        filter_model = FilterModel.from_human_filter({"contains": 
+                                                      {"status": "todo", 
+                                                       "job_type": "provider"}
+                                                      })
         
         
-        df = ProviderJobs_Out.fetch(filter_model=filter_model)
+        df = WorkerJobs_Out.fetch(filter_model=filter_model)
 
 
         total_raw_jobs = len(df)
@@ -110,17 +114,28 @@ class TA25_0_CreateWoodHDF(TaskBase):
         retry_delayed = 0
         total_parsed = 0
 
+
+        df = df.iloc[::50]
+
+
+    
+
+
         for row in df.to_dict(orient="records"):
             try:
                 job = ProviderJob.model_validate(row["payload"])
                 total_parsed += 1
-                if job.retry.next_retry <= datetime.utcnow():
+                if job.next_retry <= datetime.now(timezone.utc):
                     self.jobs.append(job)
                     retry_ready += 1
                 else:
                     retry_delayed += 1
             except Exception as e:
                 logging.error(f"❌ Failed to parse ProviderJob: {e}", exc_info=True)
+
+        for job_no, job in enumerate(self.jobs):
+            job.input.job_No = job_no
+
 
         logging.info("📦 Job Loading Summary")
         logging.info(f"  • Total jobs fetched from DB:        {total_raw_jobs}")
@@ -129,8 +144,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
         logging.info(f"  • Skipped (next_retry in future):   {retry_delayed}")
         logging.debug3(f"🧱 Built {len(self.jobs)} ProviderJob objects")
 
-        for job_no, job in enumerate(self.jobs):
-            job.input.job_No = job_no
+
 
 
 
@@ -275,7 +289,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                 
                     # ✅ Mark job done in DB
                     job.status = JobStatus.DONE
-                    job.updated = datetime.utcnow()
+                    job.updated = datetime.now(timezone.utc)
                     
                     job.input.image_data = None
                     job.update_db()
@@ -287,7 +301,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     job.register_failure(str(e))
                     if job.retry.attempts >= 5:
                         job.status = JobStatus.FAILED
-                    job.updated = datetime.utcnow()
+                    job.updated = datetime.now(timezone.utc)
                     
                     
                     job.input.image_data = None

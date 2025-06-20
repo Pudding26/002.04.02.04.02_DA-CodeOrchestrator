@@ -20,3 +20,4 @@ class JobKind(str, Enum):
     SEGMENTER  = "segmenter"
     MODELER    = "modeler"
     TRANSFER   = "transfer"
+    DOE       = "DoE"

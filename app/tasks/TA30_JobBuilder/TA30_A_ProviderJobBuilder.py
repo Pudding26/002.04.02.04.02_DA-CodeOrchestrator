@@ -1,4 +1,3 @@
-# app/tasks/TA30_JobBuilder/TA30_A_ProviderJobBuilder.py
 from __future__ import annotations
 import logging, json
 import pandas as pd
@@ -12,19 +11,20 @@ from sqlalchemy.orm import Session
 from app.utils.general.HelperFunctions import add_hashed_uuid_column
 
 
+from app.utils.dataModels.Jobs.JobEnums import JobKind, JobStatus
+
 from app.utils.dataModels.Jobs.ProviderJob import (
     ProviderJob, ProviderJobInput, ProviderAttrs
 )
 
 
-from app.utils.SQL.models.temp.orm.ProviderJobs import ProviderJobs as ProviderJobs_orm
 
-from app.utils.SQL.models.temp.api.api_ProviderJobs import ProviderJobs_Out
+from app.utils.SQL.models.jobs.api_WorkerJobs import WorkerJobs_Out
 
 
 class TA30_A_ProviderJobBuilder:
     """
-    Build ProviderJobs from a long-form DataFrame produced by the
+    Build WorkerJobs from a long-form DataFrame produced by the
     wrapper's `expand_jobs_via_filters` and push them into SQL.
     """
 
@@ -46,14 +46,18 @@ class TA30_A_ProviderJobBuilder:
         # ------------------------------------------------------------------
         new_rows: List[dict] = []
 
-        job_df['digitizedDate'] = job_df['digitizedDate'].dt.strftime('%Y-%m-%dT%H:%M:%S').fillna('unknown').astype(str)
+        job_df['digitizedDate'] = (
+            pd.to_datetime(job_df['digitizedDate'], errors='coerce')
+            .dt.strftime('%Y-%m-%dT%H:%M:%S')
+            .fillna('unknown')
+        )
         
       
         job_df["job_uuid"] = job_df["sampleID"].apply(
             lambda val: "provider_" + hashlib.sha1(str(val).encode()).hexdigest()[:10]
         )
 
-        existing = ProviderJobs_Out.fetch_distinct_values(column="job_uuid")  # returns set[str] #must be actual df, filter against col must be parsed in update func as well
+        existing = WorkerJobs_Out.fetch_distinct_values(column="job_uuid")  # returns set[str] #must be actual df, filter against col must be parsed in update func as well
         to_create = []
         to_update = []
         all_jobs = []
@@ -70,9 +74,10 @@ class TA30_A_ProviderJobBuilder:
                 
                 
                 job_uuid= job_uuid,
-                og_job_uuids = row["og_job_uuids"],
+                parent_job_uuids=row["parent_job_uuids"],
 
-                job_type="provider",
+                status = JobStatus.TODO.value,
+                job_type = JobKind.PROVIDER.value,
                 input=ProviderJobInput(
                     src_file_path=cls.HDF5_PATH_MAP[row["sourceNo"]],
                     src_ds_rel_path=rel_paths,
@@ -126,7 +131,7 @@ class TA30_A_ProviderJobBuilder:
                         "raw_UUID": ", ".join(row["raw_UUID"]) if isinstance(row["raw_UUID"], list) else str(row["raw_UUID"]),
                     },
                 ),
-            )
+                )
 
 
             all_jobs.append(job)
@@ -138,9 +143,9 @@ class TA30_A_ProviderJobBuilder:
                 logging.debug2(f"[ProviderBuilder] Adding job {job_uuid} ({row_no + 1}/{len(job_df)})")
 
 
-            from app.tasks.TA30_JobBuilder.TA30_0_JobBuilderWrapper import TA30_0_JobBuilderWrapper
+        from app.tasks.TA30_JobBuilder.TA30_0_JobBuilderWrapper import TA30_0_JobBuilderWrapper
             
-            TA30_0_JobBuilderWrapper.store_and_update(to_create = to_create, to_update = to_update, orm_instance = ProviderJobs_orm)
+        TA30_0_JobBuilderWrapper.store_and_update(to_create = to_create, to_update = to_update)
                 
  
 

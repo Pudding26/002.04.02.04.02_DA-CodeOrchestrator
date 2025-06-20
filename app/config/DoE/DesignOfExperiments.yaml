@@ -21,24 +21,24 @@ primary_data:
     - None
   
   species:
-    - [PinusSylvestris, PiceaAbies, AbiesAlba]
-    - [LarixDecidua, TsugaHeterophylla, CedrusAtlantica]
-    - [LarixDecidua, TsugaHeterophylla, PiceaAbies]
-    - [QuercusRobur, FagusSylvatica, CastaneaSativa, NothofagusObliqua]
-    - [AlnusFirma]
-    #- None
+    #- [PinusSylvestris, PiceaAbies, AbiesAlba]
+    #- [LarixDecidua, TsugaHeterophylla, CedrusAtlantica]
+    #- [LarixDecidua, TsugaHeterophylla, PiceaAbies]
+    #- [QuercusRobur, FagusSylvatica, CastaneaSativa, NothofagusObliqua]
+    #- [AlnusFirma]
+    - None
 
   view:
     - TS # Cross Section
-    - RLS # Radial Longitudinal Section
-    - TLS # Tangential Longitudinal Section
+    #- RLS # Radial Longitudinal Section
+    #- TLS # Tangential Longitudinal Section
 
   lens:
-    - [10, 25]
+    #- [10, 25]
     - None
 
   maxShots:
-    - 1000
+    #- 1000
     - 500
 
   noShotsRange:
@@ -47,7 +47,7 @@ primary_data:
     - None
 
   filterNo:
-    - FF01
+    #- FF01
     #- FF02
     #- FF03
     - None

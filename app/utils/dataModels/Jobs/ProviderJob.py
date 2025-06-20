@@ -30,7 +30,7 @@ class ProviderJob(BaseJob):
     
     job_type: JobKind = JobKind.PROVIDER
     orm_model = orm_WorkerJobs
-
+    status: JobStatus = JobStatus.TODO.value
     input: ProviderJobInput
     attrs: ProviderAttrs
     

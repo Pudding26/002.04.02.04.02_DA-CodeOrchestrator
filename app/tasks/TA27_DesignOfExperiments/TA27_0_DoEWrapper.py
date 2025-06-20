@@ -9,7 +9,7 @@ from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.YAML.YAMLUtils import YAMLUtils
 
 from app.utils.SQL.models.production.api.api_DoEArchive import DoEArchive_Out
-from app.utils.SQL.models.temp.api.api_DoEJobs import DoEJobs_Out
+from app.utils.SQL.models.jobs.api_DoEJobs import DoEJobs_Out 
 from app.utils.SQL.models.production.api.api_ModellingResults import ModellingResults_Out
 
 
@@ -21,6 +21,7 @@ class TA27_0_DoEWrapper(TaskBase):
         logger.debug3("🔧 Setting up SQL interface...")
         self.sql = SQL_Df(self.instructions["dest_db_path_1"])
         self.controller.update_message("DoE Task Initialized.")
+        self.job_df_clean = pd.DataFrame()
 
     def run(self):
         try:
@@ -42,10 +43,19 @@ class TA27_0_DoEWrapper(TaskBase):
 
             
             self.controller.update_message("🧪 Saving new DoEJobs to SQL")
-            logger.debug3("💾 Storing new DoEJobs in SQL...")
-            DoEJobs_Out.store_dataframe(self.job_df_clean, method="replace", db_key="temp")
             
-            logger.info("✅ New DoE table stored")
+            
+            if self.job_df_clean.empty is False:
+                logger.debug3(f"💾 Storing {len(self.job_df_clean)} new DoEJobs in SQL...")
+                DoEJobs_Out.store_dataframe(self.job_df_clean, method="append")
+                logger.info("✅ New DoE table stored")
+            else:
+                logging.debug3("⚠️ No new DoE jobs to store in SQL. Skipping.")
+
+            
+
+
+
 
 
             #self.controller.update_message("🛠 Generating job definitions")
@@ -80,6 +90,7 @@ class TA27_0_DoEWrapper(TaskBase):
         logging.debug5(f"✅ Reduced to {len(self.doe_df)} DoE jobs.")
         if self.doe_df.empty:
             logger.warning("⚠️ No new DoE jobs to process. Exiting.")
+            
             return
         
 

@@ -4,23 +4,32 @@ import pandas as pd
 from typing import List
 import yaml
 import random
+import uuid
 import time
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+
+import warnings
 
 from sqlalchemy.orm import object_session
+from sqlalchemy import text, update, func, bindparam, String
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.orm import Session
+
+from app.utils.SQL.DBEngine import DBEngine
 
 from app.tasks.TaskBase import TaskBase
 from app.utils.SQL.SQL_Df import SQL_Df
 from app.utils.SQL.SQL_Dict import SQL_Dict
-from app.utils.SQL.models.temp.api.api_DoEJobs import DoEJobs_Out
 from app.utils.SQL.models.production.api.api_WoodTableA import WoodTableA_Out
 from app.utils.SQL.models.production.api.api_WoodTableB import WoodTableB_Out
 
 
 from app.utils.SQL.models.production.api.api_WoodMaster import WoodMaster_Out
 from app.utils.SQL.models.production.api.api_WoodMasterPotential import WoodMasterPotential_Out
+from app.utils.SQL.models.jobs.api_DoEJobs import DoEJobs_Out
 
+from app.utils.SQL.models.jobs.orm_WorkerJobs import orm_WorkerJobs
 
 
 from app.utils.SQL.models.production.api.api_ModellingResults import ModellingResults_Out
@@ -32,8 +41,8 @@ from app.utils.dataModels.Jobs.DoEJob import DoEJob
 
 
 from app.tasks.TA30_JobBuilder.TA30_A_ProviderJobBuilder import TA30_A_ProviderJobBuilder
-from app.tasks.TA30_JobBuilder.TA30_B_SegmenterJobBuilder import TA30_B_SegmenterJobBuilder
-from app.tasks.TA30_JobBuilder.TA30_C_ModelerJobBuilder import TA30_C_ModelerJobBuilder
+#from app.tasks.TA30_JobBuilder.TA30_B_SegmenterJobBuilder import TA30_B_SegmenterJobBuilder
+#from app.tasks.TA30_JobBuilder.TA30_C_ModelerJobBuilder import TA30_C_ModelerJobBuilder
 
 
 #from app.utils.SQL.models.temp.api.SegmentationJobs_out import SegmentationJobs_out
@@ -54,8 +63,10 @@ class TA30_0_JobBuilderWrapper(TaskBase):
     def run(self):
         try:
             logging.info("[TA30] Starting infinite job builder loop")
-            while True:
-                loop_start = datetime.utcnow()
+            loop = True
+            while loop == True:
+                loop_start = datetime.now(timezone.utc)
+                loop = False
                 logging.info(f"[TA30] Job loop started at {loop_start.isoformat()}")
 
                 self.controller.update_message("Scanning for new DoE Jobs")
@@ -88,23 +99,37 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
 
                             filter_table = WoodMasterPotential_Out
-                        case "segmenter":
-                            groupby_col = "stackID"
-
-                            BuilderClass = TA30_B_SegmenterJobBuilder
-                            filter_table = WoodMaster_Out
-                        case "modeler":
-                            BuilderClass = TA30_C_ModelerJobBuilder
+                        case _:
+                            continue  # Skip unsupported builders for now
+                        #case "segmenter":
+                        #    groupby_col = "stackID"
+#
+                        #    BuilderClass = TA30_B_SegmenterJobBuilder
+                        #    filter_table = WoodMaster_Out
+                        #case "modeler":
+                        #    BuilderClass = TA30_C_ModelerJobBuilder
 
                     self.controller.update_message(f"Checking {b} jobs (status: todo)")
                     filter_model = FilterModel.from_human_filter({"contains": {status_col: "todo"}})
                     raw_df = DoEJobs_Out.fetch(filter_model=filter_model)
 
+                    raw_df = raw_df.drop(columns=[col for col in ["input", "attrs"] if col in raw_df.columns])
+
+
                     if raw_df.empty:
                         logging.debug(f"[TA30] No '{b}' jobs found.")
                         continue
 
-                    jobs = raw_df["payload"].apply(DoEJob.model_validate).tolist()
+                    jobs = []
+                    id_field = "job_uuid"
+                    for _, row in raw_df.iterrows():
+                        payload = row["payload"]
+                        if id_field not in payload:
+                            payload = payload.copy()  # avoid mutating original
+                            payload[id_field] = row[id_field]
+                        job = DoEJob.model_validate(payload)
+                        jobs.append(job)
+
                     logging.info(f"[TA30] {len(jobs)} '{b}' jobs found in DB.")
 
                     job_df = self.expand_jobs_via_filters(
@@ -125,7 +150,8 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
                 self.controller.update_message("Sleeping")
                 logging.info("[TA30] Sleeping for 3 minutes to allow other tasks to process.")
-                time.sleep(180)
+                #time.sleep(180)
+                time.sleep(10)
 
         except KeyboardInterrupt:
             logging.info("[TA30] Interrupted by user — shutting down gracefully.")
@@ -136,6 +162,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
             raise
         finally:
             self.cleanup()
+
 
 
 
@@ -183,15 +210,18 @@ class TA30_0_JobBuilderWrapper(TaskBase):
         dtypes = src_data_api.pydantic_model_to_dtype_dict()
         new_subset = None
 
+
         result_df = pd.DataFrame(columns=dtypes.keys()).astype(dtypes)
         total_jobs = len(job_filters)
-
+        #job_filters = job_filters[200:300]
+        end = False
         for i, filter_model in enumerate(job_filters):
             
+            if end == True:
+                logging.info("[Expand] Stopping job expansion due to end signal.")
+                break
             
-            if i < 350:
-                 continue  # Skip first 385 jobs for testing purposes
-            if i % 10 == 0 or i == total_jobs - 1:
+            if i % 100 == 0 or i == total_jobs - 1:
                 logging.debug2(f"[Expand] Processing job {i+1}/{total_jobs}")
             
             del new_subset
@@ -200,19 +230,20 @@ class TA30_0_JobBuilderWrapper(TaskBase):
             with self.suppress_logging():
                 new_subset = src_data_api.fetch(filter_model=filter_model, stream=False)
             
-            new_subset["og_job_uuids"] = filter_model.job_id
+            new_subset["parent_job_uuids"] = filter_model.job_id
             new_subset = new_subset.copy()
             len_new = len(new_subset)
             len_before = len(result_df)
 
             if not new_subset.empty:
-                with self.suppress_logging():
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=FutureWarning)
                     result_df = pd.concat([result_df, new_subset], ignore_index=True)
 
             len_after = len(result_df)
             delta = len_after - len_before
 
-            if i % 10 == 0 or i == total_jobs - 1:
+            if i % 100 == 0 or i == total_jobs - 1:
                 ratio = delta / len_new if len_new > 0 else "N/A"
                 logging.debug2(
                     f"[Expand] Job {i+1}/{total_jobs} Old: {len_before}, New: {len_new}, "
@@ -221,89 +252,174 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
 
         if not result_df.empty:
-            group_cols = [col for col in result_df.columns if col != "og_job_uuids"]
-            result_df["og_job_uuids"] = result_df["og_job_uuids"].apply(lambda x: [x])
+            group_cols = [col for col in result_df.columns if col != "parent_job_uuids"]
+            result_df["parent_job_uuids"] = result_df["parent_job_uuids"].apply(lambda x: [x])
 
             result_df = (
                 result_df.groupby(groupby_col, as_index=False)
                 .agg({
                     **{col: "first" for col in group_cols if col != groupby_col},
-                    "og_job_uuids": lambda x: sorted(set(sum(x, [])))
+                    "parent_job_uuids": lambda x: sorted(set(sum(x, [])))
                 })
             )
 
         return result_df
 
 
+
+
     @staticmethod
-    def store_and_update(to_create: list, to_update: list[str], orm_instance):
-        """
-        Stores new job entries and updates 'og_job_uuids' for existing jobs.
-
-        Args:
-            to_create (list[BaseJob]): New Pydantic job objects (not ORM).
-            to_update (list[str]): List of job_uuid strings to update.
-            orm_instance (Base): SQLAlchemy ORM class (e.g., ProviderJobs).
-        """
-
+    def store_and_update(to_create: list, to_update: list):
         if not to_create and not to_update:
             logging.info("No jobs to create or update.")
             return
+        
+        session: Session = DBEngine("jobs").get_session()
+        created = updated = unchanged = 0
+        start = time.time()
+        try:
+            # ---------------- Phase 1 – ORM insert/update ----------------
+            for job in to_create:
+                try:
+                    session.add(orm_WorkerJobs(**job.to_sql_row()))
+                    created += 1
+                except Exception as e:
+                    unchanged += 1
+                    logging.warning(f"[Create] {job.job_uuid}: {e}")
 
-        from app.utils.SQL.DBEngine import DBEngine
-        session = DBEngine("temp").get_session()
+            for job_no, job in enumerate(to_update):
+                try:
+                    job.update_timestamp()  # Ensure timestamps are fresh
+                    row = job.to_sql_row()
+                    fields_to_update = {
+                        "updated": job.updated,
+                    }
+                    session.query(orm_WorkerJobs).filter_by(job_uuid=job.job_uuid).update(
+                        fields_to_update, synchronize_session=False
+                    )
+                    if job.parent_job_uuids:
+                        stmt = text("""
+                            UPDATE "WorkerJobs"
+                            SET parent_job_uuids = (
+                                SELECT jsonb_agg(DISTINCT elem)
+                                FROM (
+                                    SELECT jsonb_array_elements_text(parent_job_uuids) AS elem
+                                    UNION
+                                    SELECT unnest(:parent_job_uuids)
+                                ) AS all_elems
+                            )
+                            WHERE job_uuid = :job_uuid
+                        """).bindparams(
+                            bindparam("parent_job_uuids", type_=ARRAY(String)),
+                            bindparam("job_uuid", type_=String)
+                        )
+                        session.execute(
+                            stmt,
+                            {
+                                "parent_job_uuids": job.parent_job_uuids,  # Must be a list of strings
+                                "job_uuid": job.job_uuid,
+                            }
+                        )
+                    updated += 1
+                    if job_no % 500 == 0:
+                        logging.debug2(f"[StoringWorkerJobs] for {job.job_type.value}  {job_no}/{len(to_update)} updated successfully.")
+                except Exception as e:
+                    unchanged += 1
+                    logging.warning(f"[Update] {job.job_uuid}: {e}")
 
-        created_count = updated_count = unchanged_count = 0
+            session.commit()  # keep events for compatibility
 
-        # ✅ Handle creation (convert Pydantic -> ORM)
-        if to_create:
-            orm_rows = [orm_instance(**job.to_sql_row()) for job in to_create]
-            session.add_all(orm_rows)
-            created_count = len(orm_rows)
 
-        # ✅ Handle updates (merge og_job_uuids)
-        if to_update:
-            db_jobs = session.query(orm_instance).filter(
-                orm_instance.job_uuid.in_(to_update)
-            ).all()
+            # ---------------- Phase 2 – batched JobLink sync -------------
+            _bulk_upsert_joblinks_with_status(session, to_create + to_update)
 
-            # job_uuid → existing ORM row
-            for db_job in db_jobs:
-                # Example: update og_job_uuids by adding "new_parent_id"
-                old_parents = set(db_job.og_job_uuids or [])
-                new_parents = set(db_job.job_uuid)  # replace this with actual logic
-                combined = old_parents | new_parents
+            # ---------------- Phase 3 – status roll‑up ------------------
+            kinds = {job.job_type for job in to_create + to_update}
+            _roll_up_statuses(session, kinds)
 
-                if combined != old_parents:
-                    db_job.og_job_uuids = list(combined)
-                    updated_count += 1
-                else:
-                    unchanged_count += 1
+            session.commit()
 
-        session.commit()
+        except Exception as e:
+            session.rollback()
+            logging.exception("[JobStorage] transaction failed", exc_info=e)
+        finally:
+            session.close()
 
         logging.info(
-            f"Job store/update summary for {orm_instance.__name__}:\n"
-            f"  ✅ Created: {created_count}\n"
-            f"  🔁 Updated: {updated_count}\n"
-            f"  ⏭️ Unchanged: {unchanged_count}\n"
+            "Job storage summary → WorkerJobs:\n"
+            f"  ✅ Created: {created}\n  🔁 Updated: {updated}\n  ⏭️ Unchanged/Failed: {unchanged}"
+        )
+        elapsed = time.time() - start
+        logging.debug2(f"[Timing] Processed {len(to_create + to_update)} jobs in {elapsed:.2f} seconds ({elapsed/len(to_create + to_update):.3f} s/job)")
+
+
+
+
+def _bulk_upsert_joblinks_with_status(session, jobs, batch_size: int = 5000):
+    link_pairs: list[tuple[str, str]] = []
+    for job in jobs:
+        for p in job.parent_job_uuids:
+            link_pairs.append((p, job.job_uuid))
+
+    for i in range(0, len(link_pairs), batch_size):
+        batch = link_pairs[i : i + batch_size]
+        temp_table_name = f"temp_links_{uuid.uuid4().hex}"
+
+        # 1) Create unique temp table
+        session.execute(
+            text(f"""
+            CREATE TEMP TABLE {temp_table_name} (
+                parent_uuid TEXT,
+                child_uuid  TEXT
+            ) ON COMMIT DROP;
+            """)
         )
 
-        #logging.debug2(
-        #    f"{''.join(update_log_lines) if update_log_lines else ''}"
-        #    f"  ✅ Session committed.\n"
-        #)
+        # 2) Bulk insert into temp table
+        session.execute(
+            text(f"""
+            INSERT INTO {temp_table_name} (parent_uuid, child_uuid)
+            VALUES (:parent, :child)
+            """),
+            [{"parent": p, "child": c} for (p, c) in batch],  # batch is list of tuples!
+        )
+
+        # 3) Upsert into jobLink using the unique temp table
+        session.execute(
+            text(f"""
+            INSERT INTO "jobLink" (parent_uuid, child_uuid, child_kind, rel_state)
+            SELECT tl.parent_uuid,
+                w.job_uuid,
+                w.job_type,
+                w.status
+            FROM {temp_table_name} tl
+            JOIN "WorkerJobs" w ON w.job_uuid = tl.child_uuid
+            ON CONFLICT (parent_uuid, child_uuid) DO UPDATE
+            SET rel_state = EXCLUDED.rel_state,
+                child_kind = EXCLUDED.child_kind;
+            """)
+        )
 
 
 
-
-
-
-
-
-
-
-
-
-
+def _roll_up_statuses(session: Session, child_kinds: set[str]):
+    """Aggregate rel_state → update DoEJobs.<kind>_status in one pass per kind."""
+    for kind in child_kinds:
+        column = f"{kind.lower()}_status"
+        session.execute(
+            text(
+                f"""
+                UPDATE "DoEJobs" AS d
+                SET {column} = sub.max_state
+                FROM (
+                    SELECT parent_uuid, MAX(rel_state) AS max_state
+                    FROM "jobLink"
+                    WHERE child_kind = :kind
+                    GROUP BY parent_uuid
+                ) AS sub
+                WHERE d.job_uuid = sub.parent_uuid;
+                """
+            ),
+            {"kind": kind},
+        )
 
