@@ -8,14 +8,21 @@ class DoEJobs_Out(api_BaseModel):
     orm_class: ClassVar = orm_DoEJobs
     db_key: ClassVar[str] = "jobs"
 
-
     job_uuid: str
+    job_type: str
+    
+    status: str
+    attempts: int
+    next_retry: datetime
     segmenter_status: str
     modeler_status: str
     transfer_status: str
     provider_status: str
-    payload: dict
+    
     created: datetime
     updated: datetime
+    
+    payload: dict
+    parent_job_uuids: List[str]
 
 

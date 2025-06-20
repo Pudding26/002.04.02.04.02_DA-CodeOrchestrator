@@ -3,6 +3,7 @@ from app.utils.SQL.DBEngine import DBEngine
 
 
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy import Column, String, Integer
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -29,28 +30,33 @@ class orm_WorkerJobs(orm_BaseModel):
     parent_job_uuids = Column(JSONB)
 
     parent_links = relationship(
-        "JobLink",
-        back_populates="child",
-        primaryjoin="orm_WorkerJobs.job_uuid == foreign(JobLink.child_uuid)"
+        "orm_JobLink",
+        back_populates="child_worker",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    linked_doe_jobs = association_proxy(
+        "parent_links",
+        "parent_doe"
     )
 
 
+
     @classmethod
-    def update_row(cls, row: dict):
-        # Use a context manager from your DB layer
-        session = DBEngine("jobs").get_session()
-        job_uuid = row.get("job_uuid")
-
+    def update_row(cls, session, row: dict):
+        job_uuid = row.pop("job_uuid", None)
         if not job_uuid:
-            raise ValueError("Missing job_uuid for update.")
+            raise ValueError("Missing job_uuid in row")
 
-        stmt = (
-            update(cls)
-            .where(cls.job_uuid == job_uuid)
-            .values(**row)
-        )
+        obj = session.get(cls, job_uuid)
+        if not obj:
+            raise LookupError(f"WorkerJob {job_uuid} not found")
 
-        session.execute(stmt)
-        session.commit()
+        for key, value in row.items():
+            setattr(obj, key, value)
+
+        return obj
+
 
 

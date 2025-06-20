@@ -32,6 +32,7 @@ class DBEngine:
         self.engine = _engine_cache[db_key]
         self.SessionLocal = sessionmaker(bind=self.engine)
 
+
     def get_session(self):
         """Creates a new SQLAlchemy session bound to the engine."""
         return self.SessionLocal()
@@ -57,6 +58,7 @@ class DBEngine:
 
         return f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
     
+
 
 
 

@@ -24,20 +24,20 @@ class orm_JobLink(orm_BaseModel):
     """
     __tablename__  = "jobLink"
 
-    parent_uuid = Column(String, ForeignKey("DoEJobs.job_uuid"), primary_key=True)
-    child_uuid  = Column(String, primary_key=True)
-    child_kind  = Column(PgEnum(JobKind), primary_key=True)
-    rel_state   = Column(PgEnum(RelationState), default=RelationState.IN_PROGRESS)
 
-    child_provider = relationship(
-        "ProviderJobs",
-        back_populates="parent_links",
-        primaryjoin="foreign(JobLink.child_uuid) == ProviderJobs.job_uuid"
-    )
+    parent_uuid = Column(String, ForeignKey("DoEJobs.job_uuid", ondelete="CASCADE"), primary_key=True)
+    child_uuid = Column(String, ForeignKey("WorkerJobs.job_uuid", ondelete="CASCADE"), primary_key=True)
+
+    child_kind = Column(String, nullable=False)
+    rel_state = Column(String, nullable=False, default=RelationState.IN_PROGRESS)
+
+    parent_doe = relationship("orm_DoEJobs", back_populates="child_links")
+    child_worker = relationship("orm_WorkerJobs", back_populates="parent_links")
+
+
     
     
     
-    #parent_doe = relationship("DoEJobs", back_populates="doe_child_links")
 
 
     

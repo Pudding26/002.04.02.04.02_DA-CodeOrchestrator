@@ -18,12 +18,13 @@ class BaseJob(BaseModel):
     job_uuid : str = Field(default_factory=uuid4)
     job_type : str
 
+
     status  : str
     attempts: int = 0
-    next_retry: datetime = Field(default_factory=datetime.now(timezone.utc))
+    next_retry: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    created  : datetime = Field(default_factory=datetime.now(timezone.utc))
-    updated  : datetime = Field(default_factory=datetime.now(timezone.utc))
+    created  : datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated  : datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     parent_job_uuids: List[str] = Field(default_factory=list)
 
@@ -37,14 +38,23 @@ class BaseJob(BaseModel):
         )
         self.updated = datetime.now(timezone.utc)
 
-    def update_db(self):
+    def update_db(self, fields_to_update: Optional[List[str]] = None):
         if self.orm_model is None:
             raise ValueError(f"{self.__class__.__name__} must define `orm_model` to support update_db()")
 
         self.updated = datetime.now(timezone.utc)
         row = self.to_sql_row()
-        row["updated"] = self.updated
+        row["updated"] = self.updated  # always update 'updated' timestamp
+
+        if fields_to_update is not None:
+            # Keep only fields explicitly listed, plus 'job_uuid and updated' (needed to locate the record)
+            row = {k: v for k, v in row.items() if k in fields_to_update or k in {"job_uuid", "updated"}}
+
         self.orm_model.update_row(row)
+
+    def update_timestamp(self):
+        self.updated = datetime.now(timezone.utc)
+
         
     def is_ready(self, task: str) -> bool:
         task_field = f"{task}_status"

@@ -34,6 +34,7 @@ from typing import List, Type, TypeVar, Optional, Any, Dict, ClassVar, Union, ge
 from app.utils.SQL.DBEngine import DBEngine
 
 
+
 _cid: ContextVar[str] = ContextVar("_cid")
 
 T = TypeVar("T", bound="SharedBaseModel")
@@ -63,7 +64,7 @@ class api_BaseModel(BaseModel):
     def store_dataframe(
         cls,
         df: pd.DataFrame,
-        db_key: str,
+        db_key: str = None,
         method: str = "append",
         insert_method: str = "bulk_save_objects",
     ) -> None:
@@ -77,10 +78,19 @@ class api_BaseModel(BaseModel):
         """
         from app.utils.SQL.DBEngine import DBEngine
         from sqlalchemy.orm import sessionmaker
+        
+        
+        if db_key is not None:
+            logging.warning(f"🔍 DEPRECATED; db_key is fetched from api_instance.")
+
+        db_key = cls.db_key
+
+
 
         engine  = DBEngine(db_key).get_engine()
         Session = sessionmaker(bind=engine)
         session = Session()
+        table_name = cls.orm_class.__tablename__
 
         try:
             def _log_step(df, step_name, steps_log):
@@ -104,8 +114,11 @@ class api_BaseModel(BaseModel):
             logging.debug3(f"\n=== DataFrame Shape Report ===\n{summary}")
 
 
+
+
             # 2.  validate with Pydantic
             validated = _model_validate_dataframe(cls, df)
+
 
 
             # 3.  optional table truncate
