@@ -125,6 +125,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
             try:
                 job = ProviderJob.model_validate(row["payload"])
                 total_parsed += 1
+                job.job_uuid = row["job_uuid"]
                 if job.next_retry <= datetime.now(timezone.utc):
                     self.jobs.append(job)
                     retry_ready += 1
@@ -143,6 +144,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
         logging.info(f"  • Jobs ready to run (retry OK):     {retry_ready}")
         logging.info(f"  • Skipped (next_retry in future):   {retry_delayed}")
         logging.debug3(f"🧱 Built {len(self.jobs)} ProviderJob objects")
+
 
 
 
@@ -292,20 +294,18 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     job.updated = datetime.now(timezone.utc)
                     
                     job.input.image_data = None
-                    job.update_db()
+                    job.update_db(fields_to_update=["status"])
 
 
 
                 except Exception as e:
                     logging.error(f"[Storer] Error: {e}", exc_info=True)
                     job.register_failure(str(e))
-                    if job.retry.attempts >= 5:
+                    if job.attempts >= 5:
                         job.status = JobStatus.FAILED
-                    job.updated = datetime.now(timezone.utc)
-                    
                     
                     job.input.image_data = None
-                    job.update_db()
+                    job.update_db(fields_to_update=["status, attempts", "next_retry"])
 
 
                     with error_counter["lock"]:
