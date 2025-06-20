@@ -62,6 +62,8 @@ class TA30_A_ProviderJobBuilder:
         to_update = []
         all_jobs = []
 
+        job_df = job_df.iloc[:30]
+
         for row_no, row in job_df.reset_index(drop=True).iterrows():
             
             job_uuid = row["job_uuid"]
@@ -82,6 +84,7 @@ class TA30_A_ProviderJobBuilder:
                     src_file_path=cls.HDF5_PATH_MAP[row["sourceNo"]],
                     src_ds_rel_path=rel_paths,
                     stored_locally=row["sourceStoredLocally"],
+                    dest_rel_path=row["hdf5_dataset_path"],
                 ),
                 attrs=ProviderAttrs(
                     # ------------ identical to legacy logic ------------

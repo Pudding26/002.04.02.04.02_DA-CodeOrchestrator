@@ -15,7 +15,7 @@ class WoodMasterPotential_Out(api_BaseModel):
     db_key: ClassVar[str] = "production"
 
     sampleID: str
-    sampleID_status: sampleID_statusEnum
+    #sampleID_status: sampleID_statusEnum
     transfer_trys: int = 0
 
 
@@ -63,6 +63,7 @@ class WoodMasterPotential_Out(api_BaseModel):
     GPS_Lat: Optional[float]  = None
     GPS_Long: Optional[float]  = None
 
+    hdf5_dataset_path: str # The path to the later dataset. excluding the stackID
     sourceFilePath_rel: Any # JSONB type in SQLAlchemy, using Any for flexibility
     specimenID: str
     sourceID: str

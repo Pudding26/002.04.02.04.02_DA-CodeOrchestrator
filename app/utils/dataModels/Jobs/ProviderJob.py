@@ -41,7 +41,7 @@ class ProviderJob(BaseJob):
 class ProviderJobInput(BaseModel):
     src_file_path: str
     src_ds_rel_path: Union[str, List[str]]
-    dest_rel_path: Optional[str] = "set by provider.storer()"
+    dest_rel_path: str
     stored_locally: List[int]
     image_data: Optional[Any] = None
     job_No: Optional[int] = None

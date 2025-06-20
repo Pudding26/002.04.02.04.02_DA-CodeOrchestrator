@@ -12,7 +12,7 @@ class WoodMasterPotential(orm_BaseModel):
 
 
     sampleID = Column(String, primary_key=True)
-    sampleID_status = Column(String) 
+    #sampleID_status = Column(String) 
     transfer_trys = Column(Integer)
 
     woodType = Column(String)
@@ -62,6 +62,7 @@ class WoodMasterPotential(orm_BaseModel):
     GPS_Long = Column(Float)
     
     sourceFilePath_rel = Column(JSONB)
+    hdf5_dataset_path = Column(String)  # The path to the later dataset, excluding the stackID
     #stackID = Column(String) -> not possible on this level
     specimenID = Column(String)
     sourceID = Column(String)
