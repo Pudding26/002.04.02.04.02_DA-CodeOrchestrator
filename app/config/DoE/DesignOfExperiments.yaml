@@ -5,9 +5,9 @@ primary_data:
     #- Softwood
     #- Hardwood
   sourceNo:
-    - [DS01, DS04, DS07, DS11]
+    #- [DS01, DS04, DS07, DS11]
     #- [DS04, DS11]
-    #- DS07
+    - DS07
 
 
   family:
@@ -18,6 +18,8 @@ primary_data:
   genus:
     #- [Pinus, Picea, Abies, Larix, Tsuga, Cedrus]
     #- ['Quercus', 'Fagus', 'Castanea', 'Nothofagus']
+    - [Phoebe]
+    - ['Alnus', 'Betula']
     - None
   
   species:
@@ -42,15 +44,15 @@ primary_data:
     - 500
 
   noShotsRange:
-    - [[2, 10], [12, 17]]
+    #- [[2, 10], [12, 17]]
     #- [[34, 60]]
     - None
 
   filterNo:
-    #- FF01
-    #- FF02
+    - FF01
+    - FF02
     #- FF03
-    - None
+    #- None
 
 secondaryDataBins:
   - SD01

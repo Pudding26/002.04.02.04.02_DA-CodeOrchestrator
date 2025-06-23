@@ -36,7 +36,7 @@ class TA30_A_ProviderJobBuilder:
     }
 
     @classmethod
-    def build(cls, job_df: pd.DataFrame) -> None:
+    def build(cls, job_df: pd.DataFrame, jobs) -> None:
         if job_df.empty:
             logging.info("[ProviderBuilder] Nothing to build.")
             return
