@@ -11,6 +11,9 @@ primary_data:
   maxShots: "{maxShots}"
   noShotsRange: "{noShotsRange}"
 
+segmentation:
+  filterNo: "{filterNo}"
+
 secondary_data:
   secondaryDataBins: "{secondaryDataBins}"
 

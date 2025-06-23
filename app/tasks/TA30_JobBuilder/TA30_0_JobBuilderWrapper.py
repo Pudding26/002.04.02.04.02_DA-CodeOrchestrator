@@ -41,7 +41,7 @@ from app.utils.dataModels.Jobs.DoEJob import DoEJob
 
 
 from app.tasks.TA30_JobBuilder.TA30_A_ProviderJobBuilder import TA30_A_ProviderJobBuilder
-#from app.tasks.TA30_JobBuilder.TA30_B_SegmenterJobBuilder import TA30_B_SegmenterJobBuilder
+from app.tasks.TA30_JobBuilder.TA30_B_SegmenterJobBuilder import TA30_B_SegmenterJobBuilder
 #from app.tasks.TA30_JobBuilder.TA30_C_ModelerJobBuilder import TA30_C_ModelerJobBuilder
 
 
@@ -97,20 +97,28 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                                 include_cols.remove("filterNo")
 
 
-
+                            filter_model = FilterModel.from_human_filter({"contains": {"provider_status": "todo"}})
                             filter_table = WoodMasterPotential_Out
+                        case "segmenter":
+                            groupby_col = "stackID"
+                            if "maxShots" in include_cols:
+                                include_cols.remove("maxShots")
+                            if "filterNo" in include_cols: # later distinction if it is in then we can mark as done, either in jobbuilder or in the segmenter state, have to decide
+                                include_cols.remove("filterNo")
+                            id_field = "job_uuid"
+
+                            
+#
+                            BuilderClass = TA30_B_SegmenterJobBuilder
+
+                            filter_model = FilterModel.from_human_filter({"contains": {"segmenter_status": "todo"}})
+                            filter_table = WoodMaster_Out
                         case _:
                             continue  # Skip unsupported builders for now
-                        #case "segmenter":
-                        #    groupby_col = "stackID"
-#
-                        #    BuilderClass = TA30_B_SegmenterJobBuilder
-                        #    filter_table = WoodMaster_Out
                         #case "modeler":
                         #    BuilderClass = TA30_C_ModelerJobBuilder
 
                     self.controller.update_message(f"Checking {b} jobs (status: todo)")
-                    filter_model = FilterModel.from_human_filter({"contains": {status_col: "todo"}})
                     raw_df = DoEJobs_Out.fetch(filter_model=filter_model)
 
                     raw_df = raw_df.drop(columns=[col for col in ["input", "attrs"] if col in raw_df.columns])
@@ -146,7 +154,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                         continue
 
                     logging.info(f"[TA30] Dispatching {len(job_df)} rows to {BuilderClass.__name__}")
-                    BuilderClass.build(job_df)
+                    BuilderClass.build(job_df, jobs)
 
                 self.controller.update_message("Sleeping")
                 logging.info("[TA30] Sleeping for 3 minutes to allow other tasks to process.")

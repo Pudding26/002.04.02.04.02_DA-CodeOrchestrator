@@ -108,7 +108,7 @@ class TA27_A_DoEJobGenerator:
                 injected = inject(deepcopy(template))
 
                 # Patch missing fields (if segmentation isn't in YAML)
-                segmentation_block = injected.get("segmentation", {"filterNo": ["DEFAULT"]})
+                segmentation_block = injected.get("segmentation", {"filterNo": ["GS"]})
 
                 doe_cfg = DOE_config(
                     primary_data=PrimaryData(**injected["primary_data"]),
@@ -122,6 +122,7 @@ class TA27_A_DoEJobGenerator:
                     job_uuid=injected.get("DoE_UUID"),
                     doe_config=doe_cfg
                 )
+
 
                 jobs.append(job)
 

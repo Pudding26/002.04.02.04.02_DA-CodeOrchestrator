@@ -115,7 +115,6 @@ class TA25_0_CreateWoodHDF(TaskBase):
         total_parsed = 0
 
 
-        df = df.iloc[:5]
 
 
     
@@ -295,6 +294,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     
                     job.input.image_data = None
                     job.update_db(fields_to_update=["status"])
+
 
 
 
