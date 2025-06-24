@@ -78,7 +78,7 @@ class TA30_A_ProviderJobBuilder:
                 job_uuid= job_uuid,
                 parent_job_uuids=row["parent_job_uuids"],
 
-                status = JobStatus.TODO.value,
+                status = JobStatus.READY.value,
                 job_type = JobKind.PROVIDER.value,
                 input=ProviderJobInput(
                     src_file_path=cls.HDF5_PATH_MAP[row["sourceNo"]],

@@ -17,11 +17,12 @@ class orm_DoEJobs(orm_BaseModel):
     
     status = Column(String)
     
-    segmenter_status = Column(String)
-    modeler_status = Column(String)
-    transfer_status = Column(String)
     provider_status = Column(String)
-    
+    segmenter_status = Column(String)
+    extractor_status = Column(String)
+    modeler_status = Column(String)
+    validator_status = Column(String)
+
     attempts = Column(Integer)
     next_retry = Column(DateTime)
     
@@ -30,6 +31,7 @@ class orm_DoEJobs(orm_BaseModel):
     
     payload = Column(JSONB)
     parent_job_uuids = Column(JSONB)
+
 
 
 

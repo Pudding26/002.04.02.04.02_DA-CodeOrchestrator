@@ -16,16 +16,18 @@ from app.utils.dataModels.Jobs.JobEnums import JobStatus, JobKind
 from app.utils.SQL.models.jobs.orm_DoEJobs import orm_DoEJobs
 
 
+
 class DoEJob(BaseJob):
     job_type : JobKind = JobKind.DOE.value
 
     orm_model = orm_DoEJobs
 
-    status: JobStatus = JobStatus.TODO.value
-    segmenter_status: JobStatus = JobStatus.TODO.value
-    modeler_status: JobStatus = JobStatus.TODO.value
-    transfer_status: JobStatus = JobStatus.TODO.value
-    provider_status: JobStatus = JobStatus.TODO.value
+    status: JobStatus = JobStatus.READY.value
+    provider_status: JobStatus = JobStatus.READY.value
+    segmenter_status: JobStatus = JobStatus.BLOCKED.value
+    extractor_status: JobStatus = JobStatus.BLOCKED.value
+    modeler_status: JobStatus = JobStatus.BLOCKED.value
+    validator_status: JobStatus = JobStatus.BLOCKED.value
 
     doe_config    : DOE_config
 
@@ -90,10 +92,11 @@ class DoEJob(BaseJob):
             "job_uuid": self.job_uuid,
             "job_type": self.job_type,
             "status": self.status,
-            "segmenter_status": self.segmenter_status,
-            "modeler_status": self.modeler_status,
-            "transfer_status": self.transfer_status,
             "provider_status": self.provider_status,
+            "segmenter_status": self.segmenter_status,
+            "extractor_status": self.extractor_status,
+            "modeler_status": self.modeler_status,
+            "validator_status": self.validator_status,
             "attempts": self.attempts,
             "next_retry": self.next_retry,
             "created": self.created,

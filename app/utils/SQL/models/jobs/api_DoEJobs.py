@@ -14,15 +14,17 @@ class DoEJobs_Out(api_BaseModel):
     status: str
     attempts: int
     next_retry: datetime
-    segmenter_status: str
-    modeler_status: str
-    transfer_status: str
     provider_status: str
+    segmenter_status: str
+    extractor_status: str
+    modeler_status: str
+    validator_status: str
     
     created: datetime
     updated: datetime
     
     payload: dict
     parent_job_uuids: List[str]
+
 
 
