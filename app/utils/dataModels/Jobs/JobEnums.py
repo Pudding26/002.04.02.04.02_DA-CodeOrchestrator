@@ -1,7 +1,8 @@
 from enum import Enum   
 
 class JobStatus(str, Enum):
-    TODO = "todo"
+    BLOCKED = "blocked"
+    READY = "ready"
     DONE = "done"
     IN_PROGRESS = "in_progress"
     FAILED = "failed"
@@ -16,8 +17,10 @@ class RelationState(str, Enum):
 
 
 class JobKind(str, Enum):
+    DOE       = "DoE"
     PROVIDER   = "provider"
     SEGMENTER  = "segmenter"
+    EXTRACTOR  = "extractor"
     MODELER    = "modeler"
+    VALIDATOR  = "validator"
     TRANSFER   = "transfer"
-    DOE       = "DoE"

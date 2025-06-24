@@ -23,6 +23,8 @@ from app.utils.dataModels.Jobs.SegmenterJob import (
 
 from app.utils.SQL.models.jobs.api_DoEJobs import DoEJobs_Out
 from app.utils.SQL.models.jobs.api_WorkerJobs import WorkerJobs_Out
+from app.utils.SQL.models.production.api.api_WoodMaster import WoodMaster_Out
+
 
 
 
@@ -39,6 +41,10 @@ class TA30_B_SegmenterJobBuilder:
             return
 
         job_df_raw = job_df.copy()
+        job_df_raw["attrs_raw"] = job_df_raw.apply(
+            lambda row: row.dropna().to_dict(),
+            axis=1
+        )
 
         uuid_to_dest_filter = {
             job.job_uuid: job.doe_config.segmentation.filterNo[0]
@@ -75,14 +81,14 @@ class TA30_B_SegmenterJobBuilder:
         job_df["job_uuid"] = job_df["dest_stackID_FF"].apply(
             lambda v: "segmenter_" + hashlib.sha1(str(v).encode()).hexdigest()[:10]
         )
-        job_df["dest_FF_file_path"] = job_df.apply(
+        job_df["dest_file_path_FF"] = job_df.apply(
             lambda row: os.path.join(
             "/".join(row["path"].split("/")[:-1]), row["dest_stackID_FF"]
             ),
             axis=1
         )
 
-        job_df["dest_GS_file_path"] = job_df.apply(
+        job_df["dest_file_path_GS"] = job_df.apply(
             lambda row: os.path.join(
             "/".join(row["path"].split("/")[:-1]), row["dest_stackID_GS"]
             ),
@@ -90,12 +96,10 @@ class TA30_B_SegmenterJobBuilder:
         )
 
 
-        job_df["dest_GS_file_path"]
-
-        
 
 
         existing = WorkerJobs_Out.fetch_distinct_values(column="job_uuid")
+
 
         to_create: List[SegmenterJob] = []
         to_update: List[SegmenterJob] = []
@@ -108,22 +112,23 @@ class TA30_B_SegmenterJobBuilder:
 
         for jobNo, row in job_df.iterrows():
             filter_no = row.get("dest_FilterNo")
-            attrs = FILTER_PRESETS.get(filter_no, {})
+            filter_instructions = FILTER_PRESETS.get(filter_no, {})
 
             job = SegmenterJob(
                 job_uuid=row["job_uuid"],
                 parent_job_uuids=row.get("parent_job_uuids", []),
-                status=JobStatus.TODO.value,
+                status=JobStatus.READY.value,
                 job_type=JobKind.SEGMENTER.value,
                 input=SegmenterJobInput(
                     src_file_path=row["path"],
-                    dest_GS_file_path=row["dest_GS_file_path"],
-                    dest_FF_file_path=row["dest_FF_file_path"],
-                    dest_FF_stackID=row["dest_stackID_FF"],
-                    dest_GS_stackID=row["dest_stackID_GS"],
+                    dest_file_path_GS=row["dest_file_path_GS"],
+                    dest_file_path_FF=row["dest_file_path_FF"],
+                    dest_stackID_FF=row["dest_stackID_FF"],
+                    dest_stackID_GS=row["dest_stackID_GS"],
                     dest_FilterNo=row["dest_FilterNo"],
+                    filter_instructions=FILTER_PRESETS.get(filter_no, {}),
                 ),
-                attrs=attrs,
+                attrs={"attrs_raw": row["attrs_raw"]},
             )
 
             if job.job_uuid in existing:

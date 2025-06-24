@@ -45,7 +45,7 @@ class WoodMaster(orm_BaseModel):
     contributor = Column(String(length=255))
     digitizedDate = Column(DateTime)
     sourceNo = Column(String(length=255))
-    raw_UUID = Column(String(length=255), unique=True, nullable=False)
+    raw_UUID = Column(String(length=255), nullable=False)
 
     GPS_Alt = Column(Float)
     GPS_Lat = Column(Float)

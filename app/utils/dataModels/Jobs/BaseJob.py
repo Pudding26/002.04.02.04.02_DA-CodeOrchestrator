@@ -113,6 +113,20 @@ class BaseJob(BaseModel):
 
     @classmethod
     def from_sql_row(cls, row: dict) -> "BaseJob":
-        return cls.model_validate(row["payload"])
+        payload = row.get("payload", {}) or {}
+
+        merged = {
+            "job_uuid": row.get("job_uuid"),     # explicit
+            **payload,
+            "status": row.get("status"),
+            "created": row.get("created"),
+            "updated": row.get("updated"),
+            "attempts": row.get("attempts", 0),
+            "next_retry": row.get("next_retry", datetime.now(timezone.utc)),
+            "job_type": row.get("job_type"),
+            "parent_job_uuids": row.get("parent_job_uuids", []),
+        }
+        return cls.model_validate(merged)
+
 
 

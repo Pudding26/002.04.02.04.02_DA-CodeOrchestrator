@@ -42,6 +42,7 @@ from app.utils.dataModels.Jobs.DoEJob import DoEJob
 
 from app.tasks.TA30_JobBuilder.TA30_A_ProviderJobBuilder import TA30_A_ProviderJobBuilder
 from app.tasks.TA30_JobBuilder.TA30_B_SegmenterJobBuilder import TA30_B_SegmenterJobBuilder
+from app.tasks.TA30_JobBuilder.TA30_C_ExtractorJobBuilder import TA30_C_ExtractorJobBuilder
 #from app.tasks.TA30_JobBuilder.TA30_C_ModelerJobBuilder import TA30_C_ModelerJobBuilder
 
 
@@ -58,21 +59,33 @@ class TA30_0_JobBuilderWrapper(TaskBase):
         self.segmentation_jobs = []
         logging.info("[TA30_A] Setup complete.")
 
+        self.FOLLOW_UP_STEPS = [
+            ("provider_status",  "segmenter_status"),
+            ("segmenter_status", "extractor_status"),
+            ("extractor_status", "modeler_status"),
+            ("modeler_status",   "validator_status"),
+        ]
+
 
 
     def run(self):
         try:
             logging.info("[TA30] Starting infinite job builder loop")
             loop = True
+            loop_no = 0 
             while loop == True:
+                loop_no += 1
                 loop_start = datetime.now(timezone.utc)
                 loop = False
                 logging.info(f"[TA30] Job loop started at {loop_start.isoformat()}")
 
                 self.controller.update_message("Scanning for new DoE Jobs")
-                builders = ["provider", "segmenter", "modeler"]
+                builders = ["provider", "segmenter", "extractor", "modeler"]
 
                 for b in builders:
+                    _unblock_follow_up_tasks(session = DBEngine("jobs").get_session(), FOLLOW_UP_STEPS = self.FOLLOW_UP_STEPS, loop_no = loop_no)
+                    
+                    
                     status_col = f"{b}_status"
 
                     include_cols = [
@@ -97,7 +110,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                                 include_cols.remove("filterNo")
 
 
-                            filter_model = FilterModel.from_human_filter({"contains": {"provider_status": "todo"}})
+                            filter_model = FilterModel.from_human_filter({"contains": {"provider_status": "ready"}})
                             filter_table = WoodMasterPotential_Out
                         case "segmenter":
                             groupby_col = "stackID"
@@ -107,18 +120,25 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                                 include_cols.remove("filterNo")
                             id_field = "job_uuid"
 
-                            
-#
                             BuilderClass = TA30_B_SegmenterJobBuilder
 
-                            filter_model = FilterModel.from_human_filter({"contains": {"segmenter_status": "todo"}})
+                            filter_model = FilterModel.from_human_filter({"contains": {"segmenter_status": "ready"}})
                             filter_table = WoodMaster_Out
+                        case "extractor":
+                            BuilderClass = TA30_C_ExtractorJobBuilder
+                            TA30_C_ExtractorJobBuilder.build()
+                            continue
+
+
+
+
                         case _:
                             continue  # Skip unsupported builders for now
                         #case "modeler":
                         #    BuilderClass = TA30_C_ModelerJobBuilder
 
-                    self.controller.update_message(f"Checking {b} jobs (status: todo)")
+                    self.controller.update_message(f"Checking {b} jobs (status: ready)")
+                    logging.debug5(f"[TA30] Starting builder loop for: {b}")
                     raw_df = DoEJobs_Out.fetch(filter_model=filter_model)
 
                     raw_df = raw_df.drop(columns=[col for col in ["input", "attrs"] if col in raw_df.columns])
@@ -126,7 +146,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
                     if raw_df.empty:
                         logging.debug(f"[TA30] No '{b}' jobs found.")
-                        continue
+                        continue 
 
                     jobs = []
                     id_field = "job_uuid"
@@ -139,7 +159,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                         jobs.append(job)
 
                     logging.info(f"[TA30] {len(jobs)} '{b}' jobs found in DB.")
-
+    
                     job_df = self.expand_jobs_via_filters(
                         jobs,
                         include_cols=include_cols,
@@ -170,10 +190,6 @@ class TA30_0_JobBuilderWrapper(TaskBase):
             raise
         finally:
             self.cleanup()
-
-
-
-
 
 
     def cleanup(self):
@@ -274,8 +290,6 @@ class TA30_0_JobBuilderWrapper(TaskBase):
         return result_df
 
 
-
-
     @staticmethod
     def store_and_update(to_create: list, to_update: list):
         if not to_create and not to_update:
@@ -299,8 +313,12 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                 try:
                     job.update_timestamp()  # Ensure timestamps are fresh
                     row = job.to_sql_row()
+                    
+                    
+                    
                     fields_to_update = {
                         "updated": job.updated,
+
                     }
                     session.query(orm_WorkerJobs).filter_by(job_uuid=job.job_uuid).update(
                         fields_to_update, synchronize_session=False
@@ -361,8 +379,6 @@ class TA30_0_JobBuilderWrapper(TaskBase):
         logging.debug2(f"[Timing] Processed {len(to_create + to_update)} jobs in {elapsed:.2f} seconds ({elapsed/len(to_create + to_update):.3f} s/job)")
 
 
-
-
 def _bulk_upsert_joblinks_with_status(session, jobs, batch_size: int = 5000):
     link_pairs: list[tuple[str, str]] = []
     for job in jobs:
@@ -409,7 +425,6 @@ def _bulk_upsert_joblinks_with_status(session, jobs, batch_size: int = 5000):
         )
 
 
-
 def _roll_up_statuses(session: Session, child_kinds: set[str]):
     """Aggregate rel_state → update DoEJobs.<kind>_status in one pass per kind."""
     for kind in child_kinds:
@@ -431,3 +446,30 @@ def _roll_up_statuses(session: Session, child_kinds: set[str]):
             {"kind": kind},
         )
 
+
+def _unblock_follow_up_tasks(session, FOLLOW_UP_STEPS, loop_no):
+    """
+    Promote the next pipeline column from 'blocked' → 'ready'
+    whenever the previous stage is already 'done'.
+    Runs once per job-builder loop; fully idempotent.
+    """
+    updates = []
+    for done_col, next_col in FOLLOW_UP_STEPS:
+        result = session.execute(
+            text(f"""
+                UPDATE "DoEJobs"
+                SET    {next_col} = 'ready'
+                WHERE  {done_col} = 'done'
+                  AND  {next_col} = 'blocked';
+            """)
+        )
+        changed = result.rowcount or 0
+        if changed:
+            updates.append(f"{changed} {done_col}→{next_col}")
+    session.commit()
+
+    if updates:
+        logging.debug2(
+            "[Loop %03d] Promoted: %s",
+            loop_no, ", ".join(updates),
+        )

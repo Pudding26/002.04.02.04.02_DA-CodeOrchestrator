@@ -228,3 +228,7 @@ tasks:
       
 
 
+  TA41_Segmentation:
+    TA41_0_SegmentationOrchestrator:
+      taskName: TA41_0_SegmentationOrchestrator
+      HDF5_file_path: "data/productionData/primaryData.hdf5"

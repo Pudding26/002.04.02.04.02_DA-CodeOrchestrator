@@ -71,9 +71,15 @@ class TA25_0_CreateWoodHDF(TaskBase):
         self._load_jobs_from_db()
 
 
+
     def run(self):
         try:
             logging.debug2("🚀 Starting main run loop")
+            if len(self.jobs) ==0:
+                sleep_time = self.instructions.get("sleep_time", 1)
+                logging.debug5(f"📦 No ProviderJobs found in the database. Sleeping for {sleep_time} s")
+                time.sleep(sleep_time)
+                return
             self.controller.update_message("Building job pipeline")
             self._run_pipeline(self.jobs)
             self.controller.update_message("Finalizing WoodMaster")
@@ -98,17 +104,18 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
         filter_model = FilterModel.from_human_filter({"contains": 
-                                                      {"status": "todo", 
+                                                      {"status": "ready", 
                                                        "job_type": "provider"}
                                                       })
         
         
         df = WorkerJobs_Out.fetch(filter_model=filter_model)
 
-
+        df = df.iloc[:30]
         total_raw_jobs = len(df)
         self.controller.update_item_count(total_raw_jobs)
         logging.debug2(f"📊 {total_raw_jobs} provider job records loaded from DB")
+
 
         retry_ready = 0
         retry_delayed = 0
@@ -116,8 +123,6 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
 
-
-    
 
 
         for row in df.to_dict(orient="records"):
@@ -265,6 +270,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                         error_counter["count"] += 1
                 finally:
                     input_queue.task_done()
+
 
 
         def storer():
