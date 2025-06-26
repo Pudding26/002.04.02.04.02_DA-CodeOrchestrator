@@ -1,11 +1,11 @@
-from typing import Optional
+from typing import Union, List, Optional
 import numpy as np
 import pandas as pd
 import h5py
 import logging
 
 
-
+from app.utils.SQL.models.production.api.api_WoodMaster import WoodMaster_Out
 
 class HDF5Inspector:
 
@@ -76,3 +76,48 @@ class HDF5Inspector:
             logging.warning(f"Path {dataset_path} not found.")
         attrs["path"] = dataset_path
         return attrs
+
+
+
+    @staticmethod
+    def update_woodMaster_paths(
+        hdf5_path: str,
+        dataset_paths: Union[str, List[str]]
+    ) -> Optional[pd.DataFrame]:
+        """
+        Update woodMaster SQL table for one or more dataset paths by extracting metadata from HDF5.
+        """
+        logging.info(f"🧩 Updating woodMaster rows for: {dataset_paths} from {hdf5_path}")
+
+        if not os.path.exists(hdf5_path):
+            logging.warning(f"❌ HDF5 file not found: {hdf5_path}")
+            return None
+
+        # Ensure dataset_paths is a list
+        if isinstance(dataset_paths, str):
+            dataset_paths = [dataset_paths]
+
+        try:
+            records = []
+            for path in dataset_paths:
+                record = HDF5Inspector.collect_attributes_for_dataset_threadSafe(hdf5_path, path)
+                if record:
+                    record["stackID"] = path.split("/")[-1]
+                    records.append(record)
+
+            if not records:
+                logging.warning("⚠️ No valid metadata records found.")
+                return None
+
+            df = pd.DataFrame(records)
+            if "dataset_shape_drop" in df.columns:
+                df = df.drop(columns=["dataset_shape_drop"])
+
+            WoodMaster_Out.store_dataframe(df, db_key="production", method="append")
+            logging.debug1(f"✅ Updated woodMaster with {len(df)} entries.")
+
+            return df
+
+        except Exception as e:
+            logging.error(f"❌ Failed to update woodMaster paths: {e}", exc_info=True)
+            return None
