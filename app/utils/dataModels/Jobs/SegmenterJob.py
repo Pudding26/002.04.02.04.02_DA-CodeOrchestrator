@@ -40,7 +40,7 @@ class SegmenterJob(BaseJob):
     status: JobStatus = JobStatus.READY.value
     input: SegmenterJobInput
     attrs: SegmenterAttrs
-    
+    stats: Dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid")
 

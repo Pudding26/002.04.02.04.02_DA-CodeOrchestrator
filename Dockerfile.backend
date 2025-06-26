@@ -1,0 +1,20 @@
+FROM python:3.12-slim
+
+WORKDIR /workspace/002.04.02.04.02_DA-CodeOrchestrator
+
+RUN apt-get update && apt-get install -y \
+    curl git nodejs hdf5-tools graphviz default-jre \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+
+# Copy requirements first so they can be cached
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code
+COPY . .
+
+# Expose the port and set the default command
+EXPOSE 8000
+#CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] #For devcontainer usage
+CMD ["tail", "-f", "/dev/null"] 

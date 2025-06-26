@@ -7,6 +7,7 @@ from app.utils.API.TaskRouter import router as task_router
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.tasks.TA01_setup.TA01_A_SQLSetup import TA01_A_SQLSetup
+from app.tasks.TA01_setup.TA01_B_PIDCleaup import TA01_B_PIDCleaup
 
 from app.utils.HDF5.HDF5Utils import HDF5Utils
 from app.utils.controlling.TaskController import TaskController
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
     
     TA01_A_SQLSetup.createDatabases()
     TA01_A_SQLSetup.create_all_tables()
+    TA01_B_PIDCleaup.cleanup_pids()
 
     TaskController.clean_orphaned_tasks_on_start()
 

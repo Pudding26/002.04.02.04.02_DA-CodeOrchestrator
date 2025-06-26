@@ -94,6 +94,10 @@ class TaskBase(ABC):
             logger.setLevel(previous_level)
 
 
+    @staticmethod
+    def record_pid(pid: int, pidfile: str = "/tmp/my_orchestrator_pids"):
+        with open(pidfile, "a") as f:
+            f.write(f"{pid}\n")
 
 
     @abstractmethod
