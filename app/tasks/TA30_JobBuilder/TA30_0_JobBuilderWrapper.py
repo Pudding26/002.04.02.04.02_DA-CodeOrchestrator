@@ -33,6 +33,7 @@ from app.utils.SQL.models.jobs.orm_WorkerJobs import orm_WorkerJobs
 
 
 from app.utils.SQL.models.production.api.api_ModellingResults import ModellingResults_Out
+from app.utils.SQL.models.production.api_SegmentationResults import SegmentationResults_Out
 
 
 from app.utils.dataModels.FilterModel.FilterModel import FilterModel
@@ -42,8 +43,8 @@ from app.utils.dataModels.Jobs.DoEJob import DoEJob
 
 from app.tasks.TA30_JobBuilder.TA30_A_ProviderJobBuilder import TA30_A_ProviderJobBuilder
 from app.tasks.TA30_JobBuilder.TA30_B_SegmenterJobBuilder import TA30_B_SegmenterJobBuilder
-from app.tasks.TA30_JobBuilder.TA30_C_ExtractorJobBuilder import TA30_C_ExtractorJobBuilder
-#from app.tasks.TA30_JobBuilder.TA30_C_ModelerJobBuilder import TA30_C_ModelerJobBuilder
+#from app.tasks.TA30_JobBuilder.TA30_C_ExtractorJobBuilder import TA30_C_ExtractorJobBuilder
+from app.tasks.TA30_JobBuilder.TA30_C_ModelerJobBuilder import TA30_C_ModelerJobBuilder
 
 
 #from app.utils.SQL.models.temp.api.SegmentationJobs_out import SegmentationJobs_out
@@ -61,8 +62,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
         self.FOLLOW_UP_STEPS = [
             ("provider_status",  "segmenter_status"),
-            ("segmenter_status", "extractor_status"),
-            ("extractor_status", "modeler_status"),
+            ("segmenter_status", "modeler_status"),
             ("modeler_status",   "validator_status"),
         ]
 
@@ -121,13 +121,31 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                             id_field = "job_uuid"
 
                             BuilderClass = TA30_B_SegmenterJobBuilder
+                            human_filter = {
+                                "contains": {
+                                    "segmenter_status": {"or": ["in_progress", "ready"]},
+                                },
+                                "notcontains": {
+                                    "status": "failed"
+                                },
+                            }
 
-                            filter_model = FilterModel.from_human_filter({"contains": {"segmenter_status": "ready"}})
+
+                            filter_model = FilterModel.from_human_filter(human_filter)
                             filter_table = WoodMaster_Out
-                        case "extractor":
-                            BuilderClass = TA30_C_ExtractorJobBuilder
-                            TA30_C_ExtractorJobBuilder.build()
-                            continue
+                        case "modeler":
+                            BuilderClass = TA30_C_ModelerJobBuilder
+                            groupby_col = "stackID"
+                                       
+                            if "maxShots" in include_cols:
+                                include_cols.remove("maxShots")
+
+
+                            
+                            filter_model = FilterModel.from_human_filter({"contains": {"modeler_status": "ready"}})
+                            
+                            filter_table = WoodMaster_Out
+
 
 
 
@@ -254,6 +272,9 @@ class TA30_0_JobBuilderWrapper(TaskBase):
             with self.suppress_logging():
                 new_subset = src_data_api.fetch(filter_model=filter_model, stream=False)
             
+            new_subset = src_data_api.fetch(filter_model=filter_model, stream=False)
+
+
             new_subset["parent_job_uuids"] = filter_model.job_id
             new_subset = new_subset.copy()
             len_new = len(new_subset)

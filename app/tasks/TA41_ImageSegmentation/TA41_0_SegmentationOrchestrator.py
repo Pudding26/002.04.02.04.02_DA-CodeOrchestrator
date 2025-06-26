@@ -27,6 +27,8 @@ from app.tasks.TA41_ImageSegmentation.TA41_A_Segmenter import TA41_A_Segmenter
 from app.utils.dataModels.Jobs.SegmenterJob import SegmenterJob
 from app.utils.dataModels.Jobs.ExtractorJob import ExtractorJobInput
 
+from app.utils.HDF5.HDF5_Inspector import HDF5Inspector
+
 from app.utils.SQL.models.jobs.api_WorkerJobs import WorkerJobs_Out
 from app.utils.SQL.models.production.api_SegmentationResults import SegmentationResults_Out
 
@@ -179,6 +181,7 @@ def storer(
             last_job = job.input.job_No
             try:
                 start_time = time.time()
+                woodMaster_updates = []
                 handler.handle_dataset(
                     hdf5_file=f,
                     dataset_name=job.input.dest_file_path_FF,
@@ -186,6 +189,8 @@ def storer(
                     attributes_new=job.attrs.attrs_FF,
                     attribute_process="att_replace",
                 )
+                woodMaster_updates.append(job.input.dest_file_path_FF)
+
                 job.input.image_FF = None
 
                 if job.input.image_GS and not isinstance(job.input.image_GS[0], type(None)):
@@ -196,6 +201,8 @@ def storer(
                         attributes_new=job.attrs.attrs_GS,
                         attribute_process="att_replace",
                     )
+                    woodMaster_updates.append(job.input.dest_file_path_GS)
+
                 job.input.image_GS = None
 
                 f.flush()
@@ -211,6 +218,8 @@ def storer(
                         stackID=job.input.dest_stackID_FF,
                     )
                     job.attrs.segmentation_mask_raw = None
+                
+                
                 store_time_image = time.time()
                 
                 with suppress_logging(logging.WARNING):
@@ -220,9 +229,12 @@ def storer(
                     job.attrs.features_df = None
                 store_time_results = time.time()
                 
+                HDF5Inspector.update_woodMaster_row(
+                    hdf5_path=handler.file_path,
+                    dataset_path=woodMaster_updates
+                )
                 
-                
-                job.status = JobStatus.IN_PROGRESS
+                job.status = JobStatus.DONE
                 job.updated = datetime.now(timezone.utc)
 
                 job.stats.update({

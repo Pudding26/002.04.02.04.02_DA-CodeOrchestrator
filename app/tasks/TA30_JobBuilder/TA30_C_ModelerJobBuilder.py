@@ -8,7 +8,7 @@ import random
 from app.tasks.TaskBase import TaskBase
 
 
-from app.utils.SQL.models.temp.api.api_DoEJobs import DoEJobs_Out
+from app.utils.SQL.models.jobs.api_DoEJobs import DoEJobs_Out
 from app.utils.SQL.models.production.api.api_WoodMasterPotential import WoodMasterPotential_Out
 from app.utils.SQL.models.production.api.api_WoodMaster import WoodMaster_Out
 
