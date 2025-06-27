@@ -220,6 +220,7 @@ def storer(
                     job.attrs.segmentation_mask_raw = None
                 
                 
+                
                 store_time_image = time.time()
                 
                 with suppress_logging(logging.WARNING):

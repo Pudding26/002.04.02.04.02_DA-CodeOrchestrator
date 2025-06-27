@@ -8,6 +8,7 @@ class orm_SegmentationResults(orm_BaseModel):
     ROWID = Column(Integer, primary_key=True, autoincrement=True)
 
     shotID = Column(String(length=255), nullable=False, index=True)
+    stackID = Column(String(length=255), nullable=False, index=True)
     bin_label = Column(String(length=50), nullable=False)
     bin_type = Column(String(length=50), nullable=False)
 

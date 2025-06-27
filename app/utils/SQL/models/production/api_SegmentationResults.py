@@ -9,6 +9,7 @@ class SegmentationResults_Out(api_BaseModel):
     db_key: ClassVar[str] = "production"
 
     shotID: str
+    stackID: str
     bin_label: str
     bin_type: str
 

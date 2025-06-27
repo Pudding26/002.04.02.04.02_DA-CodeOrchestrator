@@ -30,9 +30,13 @@ class TA41_B_FeatureProcessor:
         for i, (stack_id, dfs) in enumerate(jobs):
             shot_id = f"{stack_id}_{i:03d}"
             summary_df = self.process(shot_id, dfs)
+            summary_df["stackID"] = stack_id
             if not summary_df.empty:
                 all_rows.append(summary_df)
-        return pd.concat(all_rows, ignore_index=True) if all_rows else pd.DataFrame()
+
+        feature_df = pd.concat(all_rows, ignore_index=True) if all_rows else pd.DataFrame()
+        
+        return feature_df
 
 
     def _summarise(self, df: pd.DataFrame) -> pd.DataFrame:
