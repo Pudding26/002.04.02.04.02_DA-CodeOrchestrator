@@ -113,7 +113,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                             filter_model = FilterModel.from_human_filter({"contains": {"provider_status": "ready"}})
                             filter_table = WoodMasterPotential_Out
                         case "segmenter":
-                            groupby_col = "stackID"
+                            groupby_col = "sampleID"
                             if "maxShots" in include_cols:
                                 include_cols.remove("maxShots")
                             if "filterNo" in include_cols: # later distinction if it is in then we can mark as done, either in jobbuilder or in the segmenter state, have to decide
@@ -185,6 +185,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                         is_max=["maxShots"],
                         src_data_api=filter_table,
                         id_field=id_field,
+                        groupby_col=groupby_col
                     )
 
                     if job_df.empty:

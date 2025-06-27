@@ -77,7 +77,7 @@ def loader(
             attrs_raw = job.attrs.attrs_raw.copy()
             attrs_raw.pop("parent_job_uuids", None)
             attrs_raw.update({"colorDepth": "8bit", "colorSpace": "GS", "filterNo": job.input.dest_FilterNo})
-            job.attrs.attrs_FF = {**attrs_raw, "filterNo": "FF"}
+            job.attrs.attrs_FF = {**attrs_raw, "filterNo": job.input.dest_FilterNo}
             job.attrs.attrs_GS = {**attrs_raw, "filterNo": "GS"}
 
             segmentor = TA41_A_Segmenter(
@@ -228,11 +228,12 @@ def storer(
                         method="append")
                     job.attrs.features_df = None
                 store_time_results = time.time()
+                with suppress_logging(logging.WARNING):
                 
-                HDF5Inspector.update_woodMaster_row(
-                    hdf5_path=handler.file_path,
-                    dataset_path=woodMaster_updates
-                )
+                    HDF5Inspector.update_woodMaster_paths(
+                        hdf5_path=handler.file_path,
+                        dataset_paths=woodMaster_updates
+                    )
                 
                 job.status = JobStatus.DONE
                 job.updated = datetime.now(timezone.utc)
@@ -276,7 +277,7 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
                 return
 
             num_workers = round(max(1, min(len(self.jobs) // 60, 6)))
-            num_workers = 6
+            num_workers = 4
 
             logging.info(f"🔧 Using {num_workers} worker processes for processing")
             self._run_pipeline(self.jobs, num_loader_workers=num_workers, max_queue_size=50, error_threshold=3)
@@ -446,8 +447,8 @@ def _create_pipeline_summary(stats_list: Dict) -> pd.DataFrame:
         summary_df[col] = summary_df[col].map(lambda x: round(x, 2))
 
     # Compute rates
-    summary_df['images_per_s'] = (summary_df['images'] / summary_df['elapsed_total']).round(2)
-    summary_df['stacks_per_s'] = (summary_df['jobs'] / summary_df['elapsed_total']).round(2)
+    summary_df['images_per_s'] = (summary_df['images'] * num_workers / summary_df['elapsed_total']).round(2)
+    summary_df['stacks_per_s'] = (summary_df['jobs'] * num_workers / summary_df['elapsed_total']).round(2)
     summary_df['overhead_per_image'] = (summary_df["total_overhead"] / summary_df['images']).round(2)
 
     return summary_df
