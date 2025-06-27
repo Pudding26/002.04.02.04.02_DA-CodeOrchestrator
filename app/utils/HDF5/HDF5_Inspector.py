@@ -3,8 +3,14 @@ import numpy as np
 import pandas as pd
 import h5py
 import logging
+import os
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from app.utils.SQL.DBEngine import DBEngine
 
 
+from app.utils.SQL.models.production.orm.WoodMaster import WoodMaster
 from app.utils.SQL.models.production.api.api_WoodMaster import WoodMaster_Out
 
 class HDF5Inspector:
@@ -82,42 +88,106 @@ class HDF5Inspector:
     @staticmethod
     def update_woodMaster_paths(
         hdf5_path: str,
-        dataset_paths: Union[str, List[str]]
+        dataset_paths: Union[str, List[str]],
+        db_key: str = "production",
+        table_name: str = "woodMaster"
     ) -> Optional[pd.DataFrame]:
         """
-        Update woodMaster SQL table for one or more dataset paths by extracting metadata from HDF5.
+        Update woodMaster using raw UPSERT, avoiding ORM. Uses session from DBEngine(db_key).
         """
-        logging.info(f"🧩 Updating woodMaster rows for: {dataset_paths} from {hdf5_path}")
+        def _raw_upsert(df: pd.DataFrame, session: Session, table_name: str):
+            if df.empty:
+                logging.info("🟡 Skipping UPSERT — empty DataFrame.")
+                return
 
+            try:
+                columns_raw = list(df.columns)                                # e.g. ["GPS_Lat", "family", ...]
+                columns_quoted = [f'"{col}"' for col in columns_raw]          # e.g. ['"GPS_Lat"', '"family"', ...]
+                placeholders = ", ".join(f":{col}" for col in columns_raw)    # e.g. ":GPS_Lat, :family, ..."
+
+                update_clause = ", ".join(
+                    f'{quoted} = EXCLUDED.{quoted}'
+                    for col, quoted in zip(columns_raw, columns_quoted)
+                    if col != "stackID"
+                )
+
+                sql = text(f"""
+                    INSERT INTO "{table_name}" ({', '.join(columns_quoted)})
+                    VALUES ({placeholders})
+                    ON CONFLICT ("stackID") DO UPDATE SET
+                    {update_clause}
+                """)
+
+                for row in df.to_dict(orient="records"):
+                    session.execute(sql, params=row)
+                session.commit()
+                logging.debug(f"✅ Successfully upserted {len(df)} rows into '{table_name}'")
+
+            except Exception as e:
+                session.rollback()
+                logging.error(f"❌ Raw UPSERT failed: {e}", exc_info=True)
+                raise
+
+
+            
         if not os.path.exists(hdf5_path):
             logging.warning(f"❌ HDF5 file not found: {hdf5_path}")
             return None
 
-        # Ensure dataset_paths is a list
         if isinstance(dataset_paths, str):
             dataset_paths = [dataset_paths]
 
         try:
+            expected_cols = set(WoodMaster_Out.model_fields.keys())
+
+            # 🔒 Only enforce these as required
+            required_fields = {
+                "stackID", "sampleID", "woodType", "species", "family", "genus", "view",
+                "lens", "totalNumberShots", "filterNo", "bitDepth", "colorDepth", "colorSpace",
+                "pixel_x", "pixel_y", "citeKey", "sourceNo", "raw_UUID", "path",
+                "stackID", "specimenID", "sourceID", "was_cropped"
+            }
+
             records = []
+
             for path in dataset_paths:
                 record = HDF5Inspector.collect_attributes_for_dataset_threadSafe(hdf5_path, path)
-                if record:
-                    record["stackID"] = path.split("/")[-1]
-                    records.append(record)
+                if not record:
+                    continue
+
+                record["stackID"] = path.split("/")[-1]
+
+                missing_required = required_fields - set(record.keys())
+                if missing_required:
+                    logging.warning(f"⚠️ Skipping path '{path}' — missing required fields: {missing_required}")
+                    continue
+
+                # Fill in missing optional fields as None
+                for col in expected_cols:
+                    if col not in record:
+                        record[col] = None
+
+                records.append(record)
 
             if not records:
-                logging.warning("⚠️ No valid metadata records found.")
+                logging.info("ℹ️ No valid records to insert.")
                 return None
 
             df = pd.DataFrame(records)
+
             if "dataset_shape_drop" in df.columns:
-                df = df.drop(columns=["dataset_shape_drop"])
+                df.drop(columns=["dataset_shape_drop"], inplace=True)
 
-            WoodMaster_Out.store_dataframe(df, db_key="production", method="append")
-            logging.debug1(f"✅ Updated woodMaster with {len(df)} entries.")
+            df = df[[col for col in expected_cols if col in df.columns]]
 
+            session: Session = DBEngine(db_key).get_session()
+            _raw_upsert(df, session, table_name)
+
+            logging.debug3(f"✅ Upserted {len(df)} rows to '{table_name}'.")
             return df
 
         except Exception as e:
             logging.error(f"❌ Failed to update woodMaster paths: {e}", exc_info=True)
             return None
+
+
