@@ -61,5 +61,8 @@ class ModelerJobInput(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 class ModelerAttrs(BaseModel):
-    pass
+    raw_data: Optional[Any] = None  # Pandas
+    preprocessed_data: Optional[Any] # cupy
+    model_results: Optional[Any] #pandas
+
 
