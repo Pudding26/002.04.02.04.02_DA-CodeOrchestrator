@@ -62,7 +62,6 @@ class TA30_A_ProviderJobBuilder:
         to_update = []
         all_jobs = []
 
-        job_df = job_df.iloc[:30]
 
         for row_no, row in job_df.reset_index(drop=True).iterrows():
             

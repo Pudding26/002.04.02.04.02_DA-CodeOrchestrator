@@ -95,7 +95,8 @@ class TA01_A_SQLSetup:
         from app.utils.SQL.models.production.orm.WoodMaster import WoodMaster
         from app.utils.SQL.models.production.orm.WoodMasterPotential import WoodMasterPotential
         from app.utils.SQL.models.production.orm.DoEArchive import DoEArchive
-        from app.utils.SQL.models.production.orm.ModellingResults import ModellingResults
+        from app.utils.SQL.models.production.orm_ModellingResults import orm_ModellingResults
+        from app.utils.SQL.models.production.orm_ClusterEmbeddings import orm_ClusterEmbeddings
         from app.utils.SQL.models.production.orm_SegmentationResults import orm_SegmentationResults
 
 
@@ -107,10 +108,11 @@ class TA01_A_SQLSetup:
         from app.utils.SQL.models.jobs.orm_JobLink import orm_JobLink
     
 
+
         grouped_models = {
             "progress": [ProfileArchive, ProgressArchive],
             "raw": [PrimaryDataRaw],
-            "production": [WoodMaster, WoodMasterPotential, orm_SegmentationResults, WoodTableA, WoodTableB, DoEArchive, DS09, DS12, DS40, ModellingResults],
+            "production": [WoodMaster, WoodMasterPotential, orm_SegmentationResults, orm_ModellingResults, orm_ClusterEmbeddings, WoodTableA, WoodTableB, DoEArchive, DS09, DS12, DS40],
             "jobs" : [orm_DoEJobs, orm_WorkerJobs, orm_JobLink],
         }
 

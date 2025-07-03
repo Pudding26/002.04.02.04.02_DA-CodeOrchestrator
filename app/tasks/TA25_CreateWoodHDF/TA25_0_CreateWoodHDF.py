@@ -34,7 +34,6 @@ from app.utils.SQL.models.jobs.api_WorkerJobs import WorkerJobs_Out
 
 
 
-
 class WoodJobAttrs(BaseModel):
     Level1: Dict[str, Union[str, int]]
     Level2: Dict[str, Union[str, int]]
@@ -111,7 +110,6 @@ class TA25_0_CreateWoodHDF(TaskBase):
         
         df = WorkerJobs_Out.fetch(filter_model=filter_model)
 
-        df = df.iloc[:30]
         total_raw_jobs = len(df)
         self.controller.update_item_count(total_raw_jobs)
         logging.debug2(f"📊 {total_raw_jobs} provider job records loaded from DB")
@@ -183,6 +181,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
             print(f"[Loader-{worker_id}] Started")
             while True:
                 job = input_queue.get()
+                logging.debug2(f"[Loader-{worker_id}] Processing job #{job.input.job_No} from input queue")
                 if job is None:
                     logging.debug2(f"[Loader-{worker_id}] Exiting")
                     input_queue.task_done()
@@ -222,10 +221,18 @@ class TA25_0_CreateWoodHDF(TaskBase):
                                 url = job.input.src_file_path.replace("{id}", p)
                                 images.append(Crawler.fetch_image_from_url(url))
 
+                    if images is None or len(images) == 0 or all(img is None for img in images):
+
+                        logging.warning(f"[Loader-{worker_id}] No images found for job #{job.input.job_No} an {job.attrs.Level7['sampleID']} with rel path {rel_path}")
+                        job.register_failure("No images found")
+                        job.status = JobStatus.FAILED
+                        job.update_db(fields_to_update=["status", "next_retry"])
+                        continue
 
 
                     image_data, was_cropped, filter_type = _create_stack_and_opt_crop(images)
                     
+
 
 
         

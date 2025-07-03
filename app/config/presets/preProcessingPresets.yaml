@@ -1,91 +1,33 @@
-FF01:
-  name: "CLAHE + Gaussian"
-  description: "Preprocessing using CLAHE followed by Gaussian blur; Otsu segmentation."
+PP02:
+  name: "Random Oversampling"
+  description: "Duplicate minority class samples using shotID scope."
+  method: "resampling"
+  resampling:
+    submethod: "oversampling"
+    oversampling:
+      subsubmethod: "RandomOverSampler"
+      RandomOverSampler:
+        scope: "species"
+        random_state: 42
+      SMOTESampler: null
+    undersampling: null
+    bootstrapping: null
+    hybrid: null
 
-  preprocessing:
-    gray_channel: "Luminance"
-
-    contrast:
-      method: "CLAHE"
-      clahe:
-        clip_limit: 2.0
-        tile_size: 8
-      gamma: 1.0
-      manual:
-        contrast: 1.0
-        brightness: 0
-
-    noise:
-      method: "Gaussian"
-      gaussian:
-        ksize: 5
-      median:
-        ksize: 5
-      bilateral:
-        d: 9
-        sigma_color: 75
-        sigma_space: 75
-
-    normalization:
-      method: "MinMax"
-
-  segmentation:
-    threshold:
-      method: "Otsu"
-      adaptive:
-        block_size: 11
-        C: 2
-      manual:
-        value: 127
-
-    edge:
-      method: "None"
-      canny:
-        low: 100
-        high: 200
-      sobel:
-        dx: 1
-        dy: 0
-        ksize: 3
-
-FF02:
-  name: "Gamma + Canny"
-  description: "Gamma correction and Canny edge detection with manual thresholding."
-
-  preprocessing:
-    gray_channel: "Red"
-
-    contrast:
-      method: "Gamma"
-      gamma: 1.8
-      clahe:
-        clip_limit: 2.0
-        tile_size: 8
-      manual:
-        contrast: 1.0
-        brightness: 0
-
-    noise:
-      method: "None"
-
-    normalization:
-      method: "ZScore"
-
-  segmentation:
-    threshold:
-      method: "Manual"
-      manual:
-        value: 140
-      adaptive:
-        block_size: 11
-        C: 2
-
-    edge:
-      method: "Canny"
-      canny:
-        low: 50
-        high: 150
-      sobel:
-        dx: 1
-        dy: 0
-        ksize: 3
+PP01:
+  name: "SMOTE Oversampling"
+  description: "SMOTE interpolation based on shotID labels, using GPU k-NN."
+  method: "resampling"
+  resampling:
+    submethod: "oversampling"
+    oversampling:
+      subsubmethod: "SMOTESampler"
+      SMOTESampler:
+        scope: "species"
+        k_neighbors: 5
+        sampling_strategy: "auto"
+        random_state: 42
+      RandomOverSampler: null
+    undersampling: null
+    bootstrapping: null
+    hybrid: null

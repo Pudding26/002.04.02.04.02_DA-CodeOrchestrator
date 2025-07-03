@@ -20,6 +20,7 @@ from typing import Dict, Any, List
 
 import numpy as np
 import pandas as pd
+import logging
 
 
 class FeatureExtractor:
@@ -41,12 +42,12 @@ class FeatureExtractor:
         "major_axis_length",
         "minor_axis_length",
         "eccentricity",
-        "orientation",
-        "extent",
-        "solidity",
-        "centroid",
-        "euler_number",
-        "moments_hu",   # 7 Hu moments → columns moments_hu-0 … moments_hu-6
+        #"orientation",
+        #"extent",
+        #"solidity",
+        #"centroid",
+        #"euler_number",
+        #"moments_hu",   # 7 Hu moments → columns moments_hu-0 … moments_hu-6
         "bbox",         # needed for compactness
     ]
 
@@ -104,18 +105,35 @@ class FeatureExtractor:
     # ──────────────────────────────────────────────────────────────────────
     # internal helpers
     # ──────────────────────────────────────────────────────────────────────
-    def _cpu_props(
-        self, mask: np.ndarray, connectivity: int
-    ) -> tuple[np.ndarray, Dict[str, Any]]:
+    def _cpu_props(self, mask: np.ndarray, connectivity: int = 2, area_threshold: int = 5):
         from skimage.measure import label, regionprops_table
+        import numpy as np
+        import pandas as pd
 
-        labelled = label(mask.astype(np.uint8), connectivity=connectivity)
-        props = regionprops_table(
-            labelled,
-            properties=self.base_props,
-            cache=True,
-        )
-        return labelled, props
+        # Label once
+        labeled = label(mask, connectivity=connectivity)
+
+        # First pass: get area and label only
+        area_data = regionprops_table(labeled, properties=["label", "area"])
+        area_df = pd.DataFrame(area_data)
+        keep_labels = area_df.loc[area_df["area"] > area_threshold, "label"].to_numpy()
+
+        if keep_labels.size == 0:
+            return labeled, {k: [] for k in self.base_props}
+
+        # Build lookup array: fast and avoids np.isin()
+        lookup = np.zeros(labeled.max() + 1, dtype=bool)
+        lookup[keep_labels] = True
+        mask_filtered = lookup[labeled]
+
+        # Reuse original labels — this preserves shapes, avoids relabeling!
+        labeled_filtered = labeled * mask_filtered
+
+        # Second pass: compute full props only on surviving regions
+        props = regionprops_table(labeled_filtered, properties=self.base_props)
+        return labeled, props
+
+
 
     def _gpu_props(
         self, mask: np.ndarray, connectivity: int
