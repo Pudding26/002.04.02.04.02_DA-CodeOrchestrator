@@ -273,7 +273,6 @@ class TA30_0_JobBuilderWrapper(TaskBase):
             with self.suppress_logging():
                 new_subset = src_data_api.fetch(filter_model=filter_model, stream=False)
             
-            new_subset = src_data_api.fetch(filter_model=filter_model, stream=False)
 
 
             new_subset["parent_job_uuids"] = filter_model.job_id

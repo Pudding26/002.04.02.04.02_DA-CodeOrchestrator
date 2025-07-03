@@ -6,8 +6,9 @@ primary_data:
     #- Hardwood
   sourceNo:
     #- [DS01, DS04, DS07, DS11]
-    #- [DS04, DS11]
+    - [DS04, DS11]
     - DS07
+    - DS01
 
 
   family:
@@ -16,11 +17,18 @@ primary_data:
     - None
 
   genus:
-    #- [Pinus, Picea, Abies, Larix, Tsuga, Cedrus]
-    #- ['Quercus', 'Fagus', 'Castanea', 'Nothofagus']
-    - [Phoebe]
-    - ['Alnus', 'Betula']
-    - None
+    - [Pinus, Picea, Abies, Larix, Tsuga, Cedrus, Juniperus, Taxus, Cupressus]
+    - [Quercus, Fagus, Castanea, Nothofagus, Tilia, Ulmus, Acer, Fraxinus]
+    - [Pinus, Picea, Abies, Nothofagus, Eucalyptus, Acacia, Araucaria, Podocarpus]
+    - [Alnus, Betula, Populus, Salix, Carpinus, Corylus, Juglans]
+    - [Quercus, Pinus, Juniperus, Cedrus, Cupressus, Olea, Pistacia]
+    - [Phoebe, Shorea, Dipterocarpus, Hopea, Terminalia, Albizia, Dalbergia]
+    - [Alnus, Betula, Populus, Salix, Eucalyptus, Ailanthus, Robinia]
+    - [Pinus, Quercus, Fagus, Betula, Abies, Picea, Tilia, Ulmus, Acer]
+    - [Picea, Abies, Larix, Betula, Salix, Alnus, Populus]
+    - [Quercus, Juglans, Dalbergia, Tectona, Swietenia, Pinus, Pterocarpus, Cedrela]
+
+    #- [None]
   
   species:
     #- [PinusSylvestris, PiceaAbies, AbiesAlba]
@@ -28,7 +36,7 @@ primary_data:
     #- [LarixDecidua, TsugaHeterophylla, PiceaAbies]
     #- [QuercusRobur, FagusSylvatica, CastaneaSativa, NothofagusObliqua]
     #- [AlnusFirma]
-    - None
+    - [None]
 
   view:
     - TS # Cross Section
@@ -36,8 +44,8 @@ primary_data:
     #- TLS # Tangential Longitudinal Section
 
   lens:
-    #- [10, 25]
-    - None
+    - [10, 25]
+    - [None]
 
   maxShots:
     #- 1000
@@ -60,8 +68,8 @@ secondaryDataBins:
 
 # Step 2:
 preProcessingNo:
-  - PPNO1
-  #- PP02
+  - PPO1
+  - PP02
   #- PP03
 
 featureBins:
@@ -73,5 +81,5 @@ featureBins:
 
 metricModelNo:
   - MM01
-  - MM02
+  #- MM02
 

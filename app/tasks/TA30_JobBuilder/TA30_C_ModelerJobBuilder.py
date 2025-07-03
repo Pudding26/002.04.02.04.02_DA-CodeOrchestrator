@@ -20,7 +20,7 @@ from app.utils.dataModels.FilterModel.FilterModel import FilterModel
 from app.utils.dataModels.FilterModel.FilterModel import Border
 
 from app.utils.dataModels.Jobs.DoEJob import DoEJob
-from app.utils.dataModels.Jobs.ModelerJob import ModelerJob
+from app.utils.dataModels.Jobs.ModelerJob import ModelerJob, ModelerJobInput, ModelerAttrs, PreProcessingAttributes, MetricModelAttributes
 
 from app.utils.dataModels.Jobs.JobEnums import JobKind, JobStatus
 
@@ -99,6 +99,22 @@ class TA30_C_ModelerJobBuilder:
 
 
         logging.debug3(f"Starting to create a total of ModelerJobs", len(job_df))
+        def find_scope_in_dict(d):
+            if isinstance(d, dict):
+                for k, v in d.items():
+                    if k == "scope" and v is not None:
+                        return v
+                    if isinstance(v, (dict, list)):
+                        found = find_scope_in_dict(v)
+                        if found is not None:
+                            return found
+            elif isinstance(d, list):
+                for item in d:
+                    found = find_scope_in_dict(item)
+                    if found is not None:
+                        return found
+            return None
+
 
         for jobNo, row in agg_df.iterrows():
             metricModelNo = row.get("metricModelNo")
@@ -114,11 +130,14 @@ class TA30_C_ModelerJobBuilder:
                     preProcessingNo=preProcessingNo,
                     metricModelNo=metricModelNo,
                     job_No=jobNo,
-                    metricModel_instructions=MM_PRESETS.get(metricModelNo, {}),
-                    preprocessing_instructions=PREP_PRESETS.get(preProcessingNo, {}),
+                    preProcessing_instructions=PreProcessingAttributes(**PREP_PRESETS.get(preProcessingNo, {})),
+                    metricModel_instructions=MetricModelAttributes(**MM_PRESETS.get(metricModelNo, {})),
+                    scope=find_scope_in_dict(d =PREP_PRESETS)
                 ),
-                attrs={},
+                attrs=ModelerAttrs(),  # default empty
             )
+
+
 
             if job.job_uuid in existing:
                 to_update.append(job)
@@ -145,3 +164,5 @@ class TA30_C_ModelerJobBuilder:
         TA30_0_JobBuilderWrapper.store_and_update(
             to_create=to_create, to_update=to_update
         )
+
+

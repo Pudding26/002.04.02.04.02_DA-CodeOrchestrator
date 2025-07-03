@@ -14,6 +14,8 @@ import pandas as pd
 
 from multiprocessing import Process, Queue, Event, Manager
 from multiprocessing import JoinableQueue
+import multiprocessing
+multiprocessing.set_start_method("spawn", force=True)
 
 
 from app.utils.logger.loggingWrapper import LoggingHandler
@@ -50,7 +52,7 @@ def loader(
     ):
     from app.tasks.TA41_ImageSegmentation.TA41_B_FeatureProcessor import TA41_B_FeatureProcessor
     feature_processor = TA41_B_FeatureProcessor()
-    logging.debug(f"[Loader-{worker_id}] Started")
+    logging.debug2(f"[Loader-{worker_id}] Started")
     ellapsed_setup = time.time() - setup_start_time
     
     while True:
@@ -93,6 +95,7 @@ def loader(
 
             start_time = time.time()
             result = segmentor.run_stack()
+            seg_stats = result.get("stats", {})
             
             time_seg = time.time()
             feature_df = feature_processor.process_all(
@@ -112,6 +115,13 @@ def loader(
 
 
             n, h, w = job.input.image_FF.shape
+            
+            def aggregate_timings(timings):
+                keys = timings[0].keys()
+                return {f"avg_{k}": float(np.sum([t[k] for t in timings])) for k in keys}
+
+            avg_stats = aggregate_timings(result.get("stats", []))
+
 
             job.stats = {
                 "stackID_FF": job.input.dest_stackID_FF,
@@ -120,11 +130,15 @@ def loader(
                 "height": h,
                 "width": w,
                 "filterNo": job.input.dest_FilterNo,
+                "avg_segmentation_time": avg_stats.get("avg_segmentation_time", 0.0),
+                "avg_preprocessing_time": avg_stats.get("avg_preprocessing_time", 0.0),
+                "avg_feature_extraction_time": avg_stats.get("avg_feature_extraction_time", 0),                
                 "elapsed_seg": time_seg - start_time,
                 "elapsed_binning": time_binning - time_seg,
                 "elapsed_total": time.time() - start_time,
                 "loader_id": f"Loader-{worker_id}",
                 "ellapsed_setup": ellapsed_setup,
+
             }
             ellapsed_setup = 0
 
@@ -193,7 +207,8 @@ def storer(
 
                 job.input.image_FF = None
 
-                if job.input.image_GS and not isinstance(job.input.image_GS[0], type(None)):
+                if job.input.image_GS is not None and len(job.input.image_GS) > 0 and job.input.image_GS[0] is not None:
+
                     handler.handle_dataset(
                         hdf5_file=f,
                         dataset_name=job.input.dest_file_path_GS,
@@ -278,7 +293,7 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
                 return
 
             num_workers = round(max(1, min(len(self.jobs) // 60, 6)))
-            num_workers = 4
+            #num_workers = 1
 
             logging.info(f"🔧 Using {num_workers} worker processes for processing")
             self._run_pipeline(self.jobs, num_loader_workers=num_workers, max_queue_size=50, error_threshold=3)
@@ -301,7 +316,8 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
     def load_jobs_from_db(self):
         logging.debug2("📥 Loading SegmenterJobs from database")
 
-        filter_model = FilterModel.from_human_filter({"contains": {"job_type": "segmenter"}})
+        filter_model = FilterModel.from_human_filter({"contains": {"job_type": "segmenter",
+                                                                   "status": "ready"}})
         df = WorkerJobs_Out.fetch(filter_model=filter_model)
 
         total_raw_jobs = len(df)
@@ -438,12 +454,17 @@ def _create_pipeline_summary(stats_list: Dict) -> pd.DataFrame:
         elapsed_binning=('elapsed_binning', 'mean'),
         elapsed_store_image=('elapsed_store_image', 'mean'),
         elapsed_store_results=('elapsed_store_results', 'mean'),
+        avg_segmentation_time=('avg_segmentation_time', 'mean'),
+        avg_preprocessing_time=('avg_preprocessing_time', 'mean'),
+        avg_feature_extraction_time=('avg_feature_extraction_time', 'mean'),
     )
     summary_df["total_overhead"] = setup_ratio
 
     # Round elapsed time columns
     time_cols = ['elapsed_total', 'elapsed_seg', 'elapsed_binning',
-                 'elapsed_store_image', 'elapsed_store_results']
+                 'elapsed_store_image', 'elapsed_store_results',
+                 'avg_segmentation_time', 'avg_preprocessing_time', 
+                 'avg_feature_extraction_time']
     for col in time_cols:
         summary_df[col] = summary_df[col].map(lambda x: round(x, 2))
 

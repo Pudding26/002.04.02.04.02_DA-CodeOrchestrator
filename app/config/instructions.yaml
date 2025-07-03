@@ -6,12 +6,13 @@
   #    prd_db: "prd"
   #    source_db: "source"
   #    raw_db: "raw"
-inactive:
+inactvie:
   TA05_PassiveRsyncWatcher:
     TA05_0_PassiveRsyncWatcher:
       taskName: TA05_0_PassiveRsyncWatcher
     TA05_A_SingleRsyncWorker:
       taskName: TA05_A_SingleRsyncWorker
+tasks:
 
 
   TA11_DataImport:
@@ -178,7 +179,6 @@ inactive:
 
 
     
-tasks:
 
   TA23_CreateWoodMaster:
     TA23_0_CreateWoodMasterPotential:

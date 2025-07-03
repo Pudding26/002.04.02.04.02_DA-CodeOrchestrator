@@ -6,8 +6,19 @@ import pandas as pd
 
 class TA41_B_FeatureProcessor:
     _BIN_FEATURES = ["area", "eccentricity", "major_axis_length"]
-    _SUM_FEATS = ["area", "eccentricity", "major_axis_length",
-                  "solidity", "orientation"]
+    _SUM_FEATS = [
+        "area",
+        "eccentricity",
+        "major_axis_length",
+        #"solidity",
+        #"orientation",
+        "perimeter",
+        "equivalent_diameter",
+        "minor_axis_length",
+        "extent",
+        #"euler_number",
+    ]
+   #     + [f"moments_hu-{i}" for i in range(7)]
     _STATS = ["mean", "std", "min", "max"]
     _UNITS = {
         "area": "px²",
@@ -28,7 +39,7 @@ class TA41_B_FeatureProcessor:
     def process_all(self, jobs: Sequence[Tuple[str, Sequence[pd.DataFrame]]]) -> pd.DataFrame:
         all_rows = []
         for i, (stack_id, dfs) in enumerate(jobs):
-            shot_id = f"{stack_id}_{i:03d}"
+            shot_id = f"{stack_id}_{i+1:03d}"
             summary_df = self.process(shot_id, dfs)
             summary_df["stackID"] = stack_id
             if not summary_df.empty:
@@ -41,34 +52,33 @@ class TA41_B_FeatureProcessor:
 
     def _summarise(self, df: pd.DataFrame) -> pd.DataFrame:
         all_rows = []
-        n_bins = 20
+        count_rows = []
+        n_bins = 4
         edges = np.linspace(0, 1, n_bins + 1, dtype=np.float32)
         percentiles = (edges * 100).astype(int)
-        bin_labels = [f"p{percentiles[i]:02d}-p{percentiles[i+1]:02d}"
-                      for i in range(n_bins)]
+        bin_labels = [f"p{percentiles[i]:02d}-p{percentiles[i+1]:02d}" for i in range(n_bins)]
 
         for anchor in self._BIN_FEATURES:
             if anchor not in df.columns:
                 continue
-            quantile_edges = np.unique(
-                df[anchor].quantile(edges, interpolation="nearest").to_numpy()
-            )
+            quantile_edges = np.unique(df[anchor].quantile(edges, interpolation="nearest").to_numpy())
             if quantile_edges.size < 2:
                 continue
 
-            bins = pd.cut(
-                df[anchor],
-                bins=quantile_edges,
-                labels=bin_labels[: len(quantile_edges)-1],
-                include_lowest=True,
-                right=True,
-            )
+            bins = pd.cut(df[anchor], bins=quantile_edges,
+                        labels=bin_labels[: len(quantile_edges)-1],
+                        include_lowest=True, right=True)
 
-            # Count per bin
+            bin_type = f"by_{anchor}"
+
+            # Calculate and store bin count info once per anchor
             bin_counts = df.groupby(bins, observed=False).size().reset_index(name="bin_count")
             bin_counts.rename(columns={bin_counts.columns[0]: "bin_label"}, inplace=True)
             bin_counts["bin_fraction"] = bin_counts["bin_count"] / len(df)
+            bin_counts["bin_type"] = bin_type
+            count_rows.append(bin_counts)
 
+            # Feature summaries
             target_cols = [c for c in self._SUM_FEATS if c in df.columns]
             agg_funcs = {c: self._STATS for c in target_cols}
             tbl = df.groupby(bins, observed=False)[target_cols].agg(agg_funcs)
@@ -81,18 +91,26 @@ class TA41_B_FeatureProcessor:
             skew_df.rename(columns={skew_df.columns[0]: "bin_label"}, inplace=True)
 
             tbl = pd.merge(tbl, skew_df, on="bin_label", how="left")
-            tbl = pd.merge(tbl, bin_counts, on="bin_label", how="left")
 
             long_df = tbl.melt(
-                id_vars=["bin_label", "bin_count", "bin_fraction"],
+                id_vars=["bin_label"],
                 var_name="feature_stat",
                 value_name="feature_value"
             )
             long_df[["feature_name", "stat_type"]] = long_df["feature_stat"].str.rsplit("_", n=1, expand=True)
             long_df.drop(columns="feature_stat", inplace=True)
-            long_df["bin_type"] = f"by_{anchor}"
+            long_df["bin_type"] = bin_type
             long_df["unit"] = long_df["feature_name"].map(self._UNITS).astype("category")
 
             all_rows.append(long_df)
 
-        return pd.concat(all_rows, ignore_index=True) if all_rows else pd.DataFrame()
+        # Combine all rows
+        df = pd.concat(all_rows, ignore_index=True) if all_rows else pd.DataFrame()
+
+        # Merge bin count info once
+        if count_rows and not df.empty:
+            count_df = pd.concat(count_rows, ignore_index=True)
+            df = pd.merge(df, count_df, on=["bin_label", "bin_type"], how="left")
+
+        return df
+
