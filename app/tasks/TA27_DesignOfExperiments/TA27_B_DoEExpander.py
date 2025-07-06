@@ -35,9 +35,26 @@ class TA27_B_DoEExpander:
                 row = dict(zip(list(primary_keys) + other_keys, list(p_combo) + list(o_combo)))
                 row = {k: v if isinstance(v, list) else [v] for k, v in row.items()}
                 base_str = str(sorted(row.items()))
-                row["DoE_UUID"] = "DoE_" + hashlib.sha1(base_str.encode()).hexdigest()[:10]
+                row["DoE_UUID"] = generate_doe_uuid(row)
+
                 combined_rows.append(row)
 
         df = pd.DataFrame(combined_rows)
         logging.info(f"✅ Expanded DoE to {len(df)} combinations with {len(df.columns)} columns.")
         return df
+
+
+def generate_doe_uuid(row: dict) -> str:
+    """Generates a deterministic DoE_UUID from a config row.
+    Ensures all values are lists and sorts both keys and their contents.
+    """
+    normalized_row = {}
+
+    for k, v in row.items():
+        if isinstance(v, list):
+            normalized_row[k] = sorted(v)  # Sort the list itself
+        else:
+            normalized_row[k] = [v]  # Wrap scalar in list
+
+    base_str = str(sorted(normalized_row.items()))  # Sort key-value pairs
+    return "DoE_" + hashlib.sha1(base_str.encode()).hexdigest()[:10]

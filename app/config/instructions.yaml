@@ -204,6 +204,9 @@ tasks:
       job_template_path: app/config/templates/DoE_job_template.yaml
       output_jobs_yaml: path/to/DoE_jobs_expanded.yaml
 
+  TA28_DoECreator:
+    TA28_0_DoECreatorOrchestrator:
+      taskName: TA28_0_DoECreatorOrchestrator
 
   TA30_JobBuilder:
     TA30_0_JobBuilderWrapper:

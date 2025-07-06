@@ -4,6 +4,8 @@ import logging
 
 from app.utils.logger.loggingWrapper import LoggingHandler
 from app.utils.API.TaskRouter import router as task_router
+from app.utils.API.VisuRouter import router as visu_router
+
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.tasks.TA01_setup.TA01_A_SQLSetup import TA01_A_SQLSetup
@@ -54,6 +56,7 @@ app.add_middleware(
 )
 
 app.include_router(task_router, prefix="/tasks", tags=["tasks"])
+app.include_router(visu_router, prefix="/visu")
 
 @app.get("/")
 def read_root():

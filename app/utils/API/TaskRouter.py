@@ -60,3 +60,5 @@ def control_task(command: dict):
     else:
         raise HTTPException(400, "Unknown action")
     return {"status": "updated", "action": action}
+
+

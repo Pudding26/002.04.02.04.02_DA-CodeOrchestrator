@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, conlist, field_validator
-from typing import List, TypeAlias, Literal, Union, Iterable, ClassVar
+from pydantic import BaseModel, ConfigDict, conlist, field_validator, Field, RootModel
+from typing import List, TypeAlias, Literal, Union, Iterable, ClassVar, Optional, Dict
 import pandas as pd
 import math
 
@@ -14,6 +14,26 @@ from app.utils.dataModels.Jobs.BaseJob import BaseJob
 from app.utils.dataModels.Jobs.JobEnums import JobStatus, JobKind
 
 from app.utils.SQL.models.jobs.orm_DoEJobs import orm_DoEJobs
+
+class DEAPInnerMetadata(BaseModel):
+    origin: Optional[str] = None
+    parent_job_uuids: List[str] = Field(default_factory=list)
+    score: Optional[float] = None
+    created_by: Optional[str] = None
+
+class DEAPSubBranch(BaseModel):
+    generation: int
+    metadata: DEAPInnerMetadata
+
+class DEAPMetadata(RootModel[Dict[str, Dict[str, DEAPSubBranch]]]):
+    def get(self, branch: str, subbranch: str) -> Optional[DEAPSubBranch]:
+        return self.root.get(branch, {}).get(subbranch)
+
+    def dict(self, *args, **kwargs):
+        return self.root  # Ensure you return the nested dict structure
+
+
+
 
 
 
@@ -31,14 +51,13 @@ class DoEJob(BaseJob):
 
     doe_config    : DOE_config
 
+    DEAP_metadata: DEAPMetadata = Field(default_factory=lambda: DEAPMetadata(root={}))
+
+
+
     model_config = ConfigDict(populate_by_name=True)
 
-    ## inside DoEJob model class:
-    #child_links: ClassVar = relationship(
-    #    "JobLink",
-    #    back_populates="parent",
-    #    cascade="all, delete-orphan",
-    #)
+
 
 
 
@@ -103,9 +122,11 @@ class DoEJob(BaseJob):
             "updated": self.updated,
             "parent_job_uuids": self.parent_job_uuids,
             "payload": {
-                "doe_config": clean_dict["doe_config"],
+                "doe_config": clean_dict["doe_config"],       
+            },
+            "DEAP_metadata": self.DEAP_metadata.dict()
 
-            }
+
         }
 
         return row
@@ -164,3 +185,6 @@ class PreProcessingCfg(BaseModel):
 class ModelingCfg(BaseModel):
     metricModelNo : List[str]
     model_config = ConfigDict(populate_by_name=True)
+
+
+
