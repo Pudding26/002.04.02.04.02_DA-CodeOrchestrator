@@ -17,6 +17,7 @@ import time
 from app.tasks.TaskBase import TaskBase
 from app.utils.controlling.TaskController import TaskController
 from app.utils.HDF5.SWMR_HDF5Handler import SWMR_HDF5Handler
+from app.utils.HDF5.HDF5_Inspector import HDF5Inspector
 
 from app.tasks.TA25_CreateWoodHDF._create_stack_and_opt_crop import _create_stack_and_opt_crop
 
@@ -72,26 +73,50 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
     def run(self):
-        try:
-            logging.debug2("🚀 Starting main run loop")
-            if len(self.jobs) ==0:
-                sleep_time = self.instructions.get("sleep_time", 1)
-                logging.debug5(f"📦 No ProviderJobs found in the database. Sleeping for {sleep_time} s")
-                time.sleep(sleep_time)
-                return
-            self.controller.update_message("Building job pipeline")
-            self._run_pipeline(self.jobs)
-            self.controller.update_message("Finalizing WoodMaster")
-            TA23_0_CreateWoodMasterPotential.refresh_woodMaster(hdf5_path=self.instructions["HDF5_file_path"])
-            self.controller.finalize_success()
-            logging.info("✅ Task completed successfully")
-        except Exception as e:
-            self.controller.finalize_failure(str(e))
-            logging.error(f"❌ Task failed: {e}", exc_info=True)
-            raise
-        finally:
-            self.cleanup()
-            logging.debug2("🧹 Cleanup completed")
+        
+        loop_counter = 1
+        backoff_counter = 0  # how many consecutive empty loops
+        base_sleep = self.instructions.get("sleep_time", 60)
+        max_sleep = self.instructions.get("max_sleep_time", 600)  # 10 min default max
+     
+        while True:
+            try:
+                
+                if self.controller.should_stop():
+                    logging.info("🛑 Task stopped by controller")
+                    self.controller.finalize_success()
+                    break
+                
+                logging.debug2("🚀 Starting main run loop")
+                self.jobs = []
+                self._load_jobs_from_db()
+
+
+
+                if len(self.jobs) == 0:
+                    # 🔁 Exponential backoff logic
+                    sleep_time = min(base_sleep * (2 ** backoff_counter), max_sleep)
+                    logging.debug5(f"📦 No jobs found. Sleeping for {sleep_time}s (backoff #{backoff_counter})")
+                    self.controller.update_message(f"No jobs found, sleeping for {sleep_time}s (backoff #{backoff_counter})")
+                    
+                    time.sleep(sleep_time)
+                    backoff_counter += 1
+                    loop_counter += 1
+                    continue
+
+                backoff_counter = 0  # reset backoff if we found jobs
+
+                self.controller.update_message("Building job pipeline")
+                self._run_pipeline(self.jobs, loop_counter=loop_counter)
+
+
+            except Exception as e:
+                self.controller.finalize_failure(str(e))
+                logging.error(f"❌ Task failed: {e}", exc_info=True)
+                raise
+            finally:
+                self.cleanup()
+                logging.debug2("🧹 Cleanup completed")
 
     def cleanup(self):
         logging.debug2("🧹 Running cleanup")
@@ -140,19 +165,24 @@ class TA25_0_CreateWoodHDF(TaskBase):
             job.input.job_No = job_no
 
 
-        logging.info("📦 Job Loading Summary")
-        logging.info(f"  • Total jobs fetched from DB:        {total_raw_jobs}")
-        logging.info(f"  • Successfully parsed ProviderJobs: {total_parsed}")
-        logging.info(f"  • Jobs ready to run (retry OK):     {retry_ready}")
-        logging.info(f"  • Skipped (next_retry in future):   {retry_delayed}")
-        logging.debug3(f"🧱 Built {len(self.jobs)} ProviderJob objects")
+        logging.debug2(
+            f"""
+        📦 Job Loading Summary
+        • Total jobs fetched from DB:        {total_raw_jobs}
+        • Successfully parsed ProviderJobs: {total_parsed}
+        • Jobs ready to run (retry OK):     {retry_ready}
+        • Skipped (next_retry in future):   {retry_delayed}
+        🧱 Built {len(self.jobs)} ProviderJob objects
+        """
+        )
 
 
 
 
 
 
-    def _run_pipeline(self, jobs: List[WoodJob], num_loader_workers=6, max_queue_size=25, error_threshold=3):
+
+    def _run_pipeline(self, jobs: List[WoodJob], num_loader_workers=6, max_queue_size=25, error_threshold=3, loop_counter=1):
         logging.debug2("🔄 Initializing pipeline queues and threads")
         from threading import Lock
         stats_lock = Lock()
@@ -298,9 +328,19 @@ class TA25_0_CreateWoodHDF(TaskBase):
                                     **job.attrs.Level7, **job.attrs.dataSet_attrs}
                     handler.store_image(dataset_path=job.input.dest_rel_path, image_data=job.input.image_data, attributes=merged_attrs)
                     logging.debug1(f"[Storer] Stored job #{job.input.job_No} → {job.input.dest_rel_path}")
-                    if job.input.job_No % 10 == 0:
+                    if job.input.job_No % 100 == 0:
                         logging.debug3(f"[Storer] Job #{job.input.job_No} stored → {job.input.dest_rel_path}")
                 
+
+                    HDF5Inspector.update_woodMaster_paths(
+                        hdf5_path=self.instructions["HDF5_file_path"],
+                        dataset_paths=job.input.dest_rel_path
+                    )
+
+
+
+
+
                     # ✅ Mark job done in DB
                     job.status = JobStatus.DONE
                     job.updated = datetime.now(timezone.utc)
@@ -359,11 +399,16 @@ class TA25_0_CreateWoodHDF(TaskBase):
       
         summary_df = self._create_pipeline_summary(pipeline_stats)
 
-        logging.debug5("📊 Pipeline Summary:")
-        logging.debug5(f"🔢 Total Jobs: {pipeline_stats['total_jobs']}")
-        logging.debug5(f"🖼️  Total Images: {pipeline_stats['total_images']}")
-        logging.debug5(f"✂️  Total Crops: {pipeline_stats['total_crops']}")
-        logging.debug5("\n" + summary_df.to_string(index=False))
+        logging.debug5(
+            f"""
+        📊 Pipeline Summary for Loop #{loop_counter}:
+        🔢 Total Jobs: {pipeline_stats['total_jobs']}
+        🖼️  Total Images: {pipeline_stats['total_images']}
+        ✂️  Total Crops: {pipeline_stats['total_crops']}
+        {summary_df.to_string(index=False)}
+        """
+        )
+
 
 
         logging.info("🎉 Image processing pipeline completed")
