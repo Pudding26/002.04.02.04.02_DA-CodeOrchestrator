@@ -79,14 +79,16 @@ class TA25_0_CreateWoodHDF(TaskBase):
         base_sleep = self.instructions.get("sleep_time", 60)
         max_sleep = self.instructions.get("max_sleep_time", 600)  # 10 min default max
      
-        while True:
-            try:
+        try:
+            while True:
                 
                 if self.controller.should_stop():
                     logging.info("🛑 Task stopped by controller")
                     self.controller.finalize_success()
                     break
                 
+                self.controller.update_message("Loading Jobs")
+
                 logging.debug2("🚀 Starting main run loop")
                 self.jobs = []
                 self._load_jobs_from_db()
@@ -106,17 +108,17 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
                 backoff_counter = 0  # reset backoff if we found jobs
 
-                self.controller.update_message("Building job pipeline")
-                self._run_pipeline(self.jobs, loop_counter=loop_counter)
+                self.controller.update_message("Setting up job pipeline")
+                self._run_pipeline(self.jobs, loop_counter=loop_counter, total_jobs=len(self.jobs))
 
 
-            except Exception as e:
-                self.controller.finalize_failure(str(e))
-                logging.error(f"❌ Task failed: {e}", exc_info=True)
-                raise
-            finally:
-                self.cleanup()
-                logging.debug2("🧹 Cleanup completed")
+        except Exception as e:
+            self.controller.finalize_failure(str(e))
+            logging.error(f"❌ Task failed: {e}", exc_info=True)
+            raise
+        finally:
+            self.cleanup()
+            logging.debug2("🧹 Cleanup completed")
 
     def cleanup(self):
         logging.debug2("🧹 Running cleanup")
@@ -182,7 +184,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
 
-    def _run_pipeline(self, jobs: List[WoodJob], num_loader_workers=6, max_queue_size=25, error_threshold=3, loop_counter=1):
+    def _run_pipeline(self, jobs: List[WoodJob], num_loader_workers=6, max_queue_size=25, error_threshold=3, loop_counter=1, total_jobs=None):
         logging.debug2("🔄 Initializing pipeline queues and threads")
         from threading import Lock
         stats_lock = Lock()
@@ -211,14 +213,19 @@ class TA25_0_CreateWoodHDF(TaskBase):
             print(f"[Loader-{worker_id}] Started")
             while True:
                 job = input_queue.get()
-                logging.debug2(f"[Loader-{worker_id}] Processing job #{job.input.job_No} from input queue")
+                logging.debug1(f"[Loader-{worker_id}] Processing job #{job.input.job_No} from input queue")
                 if job is None:
                     logging.debug2(f"[Loader-{worker_id}] Exiting")
                     input_queue.task_done()
                     break
                 if error_counter["count"] >= error_threshold:
                     logging.warning(f"[Loader-{worker_id}] Error threshold reached ({error_counter['count']} errors), stopping further processing")
-                    #input_queue.task_done()
+                    input_queue.task_done()
+                    break
+
+                if self.controller.should_stop():
+                    logging.debug2(f"[Loader-{worker_id}] Stopping due to controller request")
+                    input_queue.task_done()
                     break
 
                 try:
@@ -293,11 +300,11 @@ class TA25_0_CreateWoodHDF(TaskBase):
                             pipeline_stats["per_source"][source]["crops"] += 1
 
                     try:
-                        output_queue.put(job, timeout=2)
+                        output_queue.put(job, timeout=60)
                     except Full:
                         logging.warning(f"[Loader-{worker_id}] ⏳ Output queue full — job #{job.input.job_No} blocked >2s")
                     logging.debug1(f"[Loader-{worker_id}] Job #{job.input.job_No} prepared — shape {image_data.shape}, type {filter_type}")
-                    if job.input.job_No % 10 == 0:
+                    if job.input.job_No % 250 == 0:
                         logging.debug3(f"[Loader-{worker_id}] Job #{job.input.job_No} prepared — shape {image_data.shape}, type {filter_type}")
                             
                 
@@ -311,6 +318,9 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
         def storer():
+
+
+
             handler = SWMR_HDF5Handler(self.instructions["HDF5_file_path"])
             logging.debug2("[Storer] Started")
             last_job = -1
@@ -328,14 +338,24 @@ class TA25_0_CreateWoodHDF(TaskBase):
                                     **job.attrs.Level7, **job.attrs.dataSet_attrs}
                     handler.store_image(dataset_path=job.input.dest_rel_path, image_data=job.input.image_data, attributes=merged_attrs)
                     logging.debug1(f"[Storer] Stored job #{job.input.job_No} → {job.input.dest_rel_path}")
-                    if job.input.job_No % 100 == 0:
-                        logging.debug3(f"[Storer] Job #{job.input.job_No} stored → {job.input.dest_rel_path}")
+                    
+                    
+                    if job.input.job_No % 10 == 0:
+                        with stats_lock:
+                            progress = ((job.input.job_No + 1) / total_jobs)
+                            self.controller.update_progress(progress)
+                            self.controller.update_message(f"Running Pipeline No{loop_counter} at: job#{job.input.job_No}/{total_jobs}")
                 
+                    if job.input.job_No % 100 == 0:
+                        logging.debug2(f"[Storer] Running Pipeline No{loop_counter} at: job#{job.input.job_No}/{total_jobs}")
 
-                    HDF5Inspector.update_woodMaster_paths(
-                        hdf5_path=self.instructions["HDF5_file_path"],
-                        dataset_paths=job.input.dest_rel_path
-                    )
+
+
+                    with self.suppress_logging():
+                        HDF5Inspector.update_woodMaster_paths(
+                            hdf5_path=self.instructions["HDF5_file_path"],
+                            dataset_paths=job.input.dest_rel_path
+                        )
 
 
 
