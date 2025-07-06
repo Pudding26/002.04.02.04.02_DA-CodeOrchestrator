@@ -32,7 +32,7 @@ from app.utils.SQL.models.jobs.api_DoEJobs import DoEJobs_Out
 from app.utils.SQL.models.jobs.orm_WorkerJobs import orm_WorkerJobs
 
 
-from app.utils.SQL.models.production.api.api_ModellingResults import ModellingResults_Out
+from app.utils.SQL.models.production.api_ModellingResults import ModellingResults_Out
 from app.utils.SQL.models.production.api_SegmentationResults import SegmentationResults_Out
 
 
@@ -73,7 +73,16 @@ class TA30_0_JobBuilderWrapper(TaskBase):
             logging.info("[TA30] Starting infinite job builder loop")
             loop = True
             loop_no = 0 
+            backoff = 0
+            max_sleep = 600
+
             while loop == True:
+                if self.controller.should_stop():
+                    logging.info("[TA30] Stopping job builder loop as requested.")
+                    self.controller.finalize_success()
+                    break
+
+
                 loop_no += 1
                 loop_start = datetime.now(timezone.utc)
                 loop = False
@@ -166,6 +175,8 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                         logging.debug(f"[TA30] No '{b}' jobs found.")
                         continue 
 
+                    work_done = True
+
                     jobs = []
                     id_field = "job_uuid"
                     for _, row in raw_df.iterrows():
@@ -195,10 +206,17 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                     logging.info(f"[TA30] Dispatching {len(job_df)} rows to {BuilderClass.__name__}")
                     BuilderClass.build(job_df, jobs)
 
-                self.controller.update_message("Sleeping")
-                logging.info("[TA30] Sleeping for 3 minutes to allow other tasks to process.")
-                #time.sleep(180)
-                time.sleep(10)
+                if not work_done:
+                    backoff += 1
+                    sleep_time = min(60 * (2 ** backoff), max_sleep)
+                    logging.debug5(f"[TA30] No new jobs — sleeping {sleep_time}s (backoff)")
+                    self.controller.update_message(f"Sleeping for {sleep_time}s (backoff #{backoff}) after loop: #{loop_no}")  # Update message with backoff info
+                    
+                else:
+                    backoff = 0
+                    sleep_time = 10
+
+                time.sleep(sleep_time)
 
         except KeyboardInterrupt:
             logging.info("[TA30] Interrupted by user — shutting down gracefully.")
