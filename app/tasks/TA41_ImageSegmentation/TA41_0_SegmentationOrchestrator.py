@@ -11,11 +11,17 @@ import numpy as np
 import h5py
 import pandas as pd
 
-
+from threading import Thread
 from multiprocessing import Process, Queue, Event, Manager
 from multiprocessing import JoinableQueue
 import multiprocessing
 multiprocessing.set_start_method("spawn", force=True)
+
+
+
+from queue import Queue
+from app.utils.dataModels.Jobs.SWMR_StorerJob import SWMR_StorerJob
+from app.tasks.TA02_HDF5Storer.shared_queue import store_queue
 
 
 from app.utils.logger.loggingWrapper import LoggingHandler
@@ -48,7 +54,9 @@ def loader(
         ready_to_read,
         jobs_len: int,
         error_threshold: int,
-        setup_start_time
+        setup_start_time,
+        loop_no: int = 0,
+
     ):
     from app.tasks.TA41_ImageSegmentation.TA41_B_FeatureProcessor import TA41_B_FeatureProcessor
     feature_processor = TA41_B_FeatureProcessor()
@@ -63,16 +71,16 @@ def loader(
             break
 
         with error_lock:
-            if error_counter['count'] >= error_threshold:
+            if error_counter.value >= error_threshold:
                 input_queue.task_done()
                 logging.warning(f"[Loader-{worker_id}] Error threshold exceeded")
                 continue
 
         try:
-            if job.input.job_No % 25 == 0 or job.input.job_No == 0 or job.input.job_No == jobs_len - 1:
-                logging.debug2(f"[Loader-{worker_id}] Processing job #{job.input.job_No}/{jobs_len}")
+            if job.input.job_No % 250 == 0 or job.input.job_No == 0 or job.input.job_No == jobs_len - 1:
+                logging.debug2(f"[Loader-{worker_id}] Processing job #{job.input.job_No}/{jobs_len} in loopNo # {loop_no}")
 
-            ready_to_read.wait()
+            #ready_to_read.wait()
             hdf5 = SWMR_HDF5Handler(job.input.hdf5_path)
             image_stack = hdf5.load_image(job.input.src_file_path)
 
@@ -147,9 +155,11 @@ def loader(
         except Exception as e:
             logging.exception(f"[Loader-{worker_id}] Error: {e}")
             with error_lock:
-                error_counter['count'] += 1
+                error_counter.value += 1
+
         finally:
             input_queue.task_done()
+
 
 
 def storer(
@@ -157,121 +167,119 @@ def storer(
     error_counter,
     error_lock,
     hdf5_path,
-    ready_to_read,
-    stats_list: List[Dict[str, Any]] = []
+    stats_list,
+    controller,
+    jobs_len,
+    loop_no,
 ):
-    logging.debug2("[Storer] Started")
-    handler = SWMR_HDF5Handler(hdf5_path)
-    @contextmanager
-    def suppress_logging(self, level=logging.WARNING):
-        """
-        Temporarily suppress logging below the given level (default: WARNING).
+    """
+    Consumer process that receives segmentation jobs from the output queue,
+    stores images via the centralized HDF5 storer, updates woodMaster metadata,
+    stores segmentation results and input payloads for downstream extractor tasks,
+    and updates job state.
 
-        Usage:
-            with self.suppress_logging():
-                self.fetch(...)
-        """
-        logger = logging.getLogger()
-        previous_level = logger.level
-        logger.setLevel(level)
+    Parameters:
+        output_queue (Queue): Queue of processed segmentation jobs to be stored.
+        error_counter (dict): Shared error counter (with a lock).
+        error_lock (Lock): Lock for safely incrementing the error count.
+        hdf5_path (str): Target HDF5 file for storage.
+        ready_to_read (Event): Signal flag for extractor readiness.
+        stats_list (list): Shared list to collect per-job timing/statistics.
+        controller (TaskController): Used to update progress and status in UI.
+        jobs_len (int): Total number of jobs in this loop.
+        loop_no (int): Current pipeline loop number (for display).
+    """
+
+    while True:
+        job = output_queue.get()
+        if job is None:
+            output_queue.task_done()
+            break
+
         try:
-            yield
-        finally:
-            logger.setLevel(previous_level)
+            # Prepare woodMaster update paths
+            woodMaster_updates = [job.input.dest_file_path_FF]
+            if job.input.image_GS is not None:
+                woodMaster_updates.append(job.input.dest_file_path_GS)
 
+            # Prepare and submit FF write job
+            result_queue_ff = Queue()
+            store_queue.put(SWMR_StorerJob(
+                dataset_path=job.input.dest_file_path_FF,
+                image_data=job.input.image_FF,
+                attributes=job.attrs.attrs_FF,
+                attribute_process="att_replace",
+                handler_method="store_image",
+                result_queue=result_queue_ff
+            ))
 
-    with h5py.File(handler.file_path, "a", libver="latest") as f:
-        f.swmr_mode = True
-        ready_to_read.set()
+            success_ff, result_ff = result_queue_ff.get(timeout=30)
+            if not success_ff:
+                raise result_ff
+            job.input.image_FF = None
 
-        last_job = -1
-        while True:
-            job = output_queue.get()
-            if job is None:
-                output_queue.task_done()
-                logging.debug2(f"[Storer] Exiting after last job #{last_job}")
-                break
-
-            last_job = job.input.job_No
-            try:
-                start_time = time.time()
-                woodMaster_updates = []
-                handler.handle_dataset(
-                    hdf5_file=f,
-                    dataset_name=job.input.dest_file_path_FF,
-                    numpy_array=job.input.image_FF,
-                    attributes_new=job.attrs.attrs_FF,
+            # Prepare and submit GS write job (if present)
+            if job.input.image_GS is not None and len(job.input.image_GS) > 0 and job.input.image_GS[0] is not None:
+                result_queue_gs = Queue()
+                store_queue.put(SWMR_StorerJob(
+                    dataset_path=job.input.dest_file_path_GS,
+                    image_data=job.input.image_GS,
+                    attributes=job.attrs.attrs_GS,
                     attribute_process="att_replace",
-                )
-                woodMaster_updates.append(job.input.dest_file_path_FF)
+                    handler_method="store_image",
+                    result_queue=result_queue_gs
+                ))
 
-                job.input.image_FF = None
-
-                if job.input.image_GS is not None and len(job.input.image_GS) > 0 and job.input.image_GS[0] is not None:
-
-                    handler.handle_dataset(
-                        hdf5_file=f,
-                        dataset_name=job.input.dest_file_path_GS,
-                        numpy_array=job.input.image_GS,
-                        attributes_new=job.attrs.attrs_GS,
-                        attribute_process="att_replace",
-                    )
-                    woodMaster_updates.append(job.input.dest_file_path_GS)
-
+                success_gs, result_gs = result_queue_gs.get(timeout=30)
+                if not success_gs:
+                    raise result_gs
                 job.input.image_GS = None
 
-                f.flush()
+            # Update HDF5 woodMaster metadata
+            HDF5Inspector.update_woodMaster_paths(
+                hdf5_path=hdf5_path,
+                dataset_paths=woodMaster_updates
+            )
 
-                if job.attrs.segmentation_mask_raw is not None:
-                    mask = job.attrs.segmentation_mask_raw
-                    n, h, w = mask.shape
-                    job.attrs.extractorJobinput = ExtractorJobInput(
-                        mask=mask,
-                        n_images=n,
-                        width=w,
-                        height=h,
-                        stackID=job.input.dest_stackID_FF,
-                    )
-                    job.attrs.segmentation_mask_raw = None
-                
-                
-                
-                store_time_image = time.time()
-                
-                with suppress_logging(logging.WARNING):
-                    SegmentationResults_Out.store_dataframe(
-                        df=job.attrs.features_df,
-                        method="append")
-                    job.attrs.features_df = None
-                store_time_results = time.time()
-                with suppress_logging(logging.WARNING):
-                
-                    HDF5Inspector.update_woodMaster_paths(
-                        hdf5_path=handler.file_path,
-                        dataset_paths=woodMaster_updates
-                    )
-                
-                job.status = JobStatus.DONE
-                job.updated = datetime.now(timezone.utc)
+            # Store segmentation result DataFrame
+            SegmentationResults_Out.store_dataframe(
+                df=job.attrs.features_df,
+                method="append",
+        
+            )
+            job.attrs.features_df = None
 
-                job.stats.update({
-                    "elapsed_store_image": store_time_image - start_time,
-                    "elapsed_store_results": store_time_results - start_time,
-                    "elapsed_total": job.stats.get("elapsed_total", 0) + (store_time_results - start_time),
-                })
-                
+            
+    
 
-                job.update_db(fields_to_update=["status", "payload"])
-                stats_list.append(job.stats.copy())
-                if len(stats_list) % 25 == 0:
-                    _print_summary_df(list(stats_list))
+            # Update job status
+            job.status = JobStatus.DONE
+            job.updated = datetime.now(timezone.utc)
+            job.update_db(fields_to_update=["status"])
 
-            except Exception as e:
-                logging.exception(f"[Storer] Error on job #{job.input.job_No}: {e}")
-                with error_lock:
-                    error_counter['count'] += 1
-            finally:
-                output_queue.task_done()
+            # Report progress every 10 jobs
+            if job.input.job_No % 10 == 0:
+                progress = ((job.input.job_No + 1) / jobs_len) * 100
+                controller.update_progress(progress)
+                controller.update_message(f"Loop {loop_no}: job {job.input.job_No}/{jobs_len}")
+
+            # Report stats (per job timing)
+            if job.stats and "timing" in job.stats:
+                stats_list.append(job.stats["timing"])
+
+        except Exception as e:
+            # Log and register failure
+            job.register_failure(str(e))
+            job.update_db(fields_to_update=["status", "attempts", "next_retry"])
+
+            with error_lock:
+                error_counter.value += 1
+
+            logging.exception(f"[Storer] Failed to store job #{job.input.job_No}")
+
+        finally:
+            output_queue.task_done()
+
 
 
 
@@ -283,23 +291,58 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
         self.controller.update_message("Loading job metadata")
 
     def run(self):
+        
+        loop_no = 1
+        backoff = 0
+        max_sleep = 600
+        base_sleep = self.instructions.get("sleep_time", 60)
+        
         try:
-            logging.debug2("🚀 Starting main run loop")
-            self.controller.update_message("Building job pipeline")
-            self.load_jobs_from_db()
-            if len(self.jobs) == 0:
-                logging.warning("⚠️ No jobs found to process, exiting")
-                self.controller.finalize_success()
-                return
+            while True:
+                if self.controller.should_stop():
+                    logging.info("🛑 Task stopped by controller")
+                    self.controller.finalize_success()
+                    break
 
-            num_workers = round(max(1, min(len(self.jobs) // 60, 6)))
-            #num_workers = 1
+                loop_start = datetime.now(timezone.utc)
+                logging.debug2(f"🔁 Starting Loop #{loop_no}")
+                self.controller.update_message(f"Loop #{loop_no} — loading jobs")
 
-            logging.info(f"🔧 Using {num_workers} worker processes for processing")
-            self._run_pipeline(self.jobs, num_loader_workers=num_workers, max_queue_size=50, error_threshold=3)
-            self.controller.update_message("Finalizing WoodMaster")
-            self.controller.finalize_success()
-            logging.info("✅ Task completed successfully")
+                self.jobs = []
+                self.load_jobs_from_db()
+                total_jobs = len(self.jobs)
+
+                self.controller.update_item_count(total_jobs)
+
+                if total_jobs == 0:
+                    sleep_time = min(base_sleep * (2 ** backoff), max_sleep)
+                    logging.info(f"🕒 No jobs — sleeping {sleep_time}s (backoff={backoff})")
+                    time.sleep(sleep_time)
+                    backoff += 1
+                    loop_no += 1
+                    continue
+
+                backoff = 0  # reset backoff
+                self.controller.update_message("Running segmentation pipeline")
+                summary_df = self._run_pipeline(self.jobs,
+                                                num_loader_workers=round(max(1, min(len(self.jobs) // 60, 6))),
+                                                loop_no=loop_no)
+                
+                logging.debug5(
+                        f"""
+                    📊 Segmentation Summary — Loop #{loop_no}
+                    🔢 Jobs: {total_jobs}
+                    ⏱️  Duration: {round((datetime.now(timezone.utc) - loop_start).total_seconds(), 2)}s
+                    {summary_df.to_string(index=False)}
+                    """
+                    )
+                self.controller.update_message(f"Loop #{loop_no} done")
+                
+
+                logging.info(f"✅ Loop #{loop_no} done — processed {total_jobs} jobs")
+                loop_no += 1
+                time.sleep(base_sleep)
+                
         except Exception as e:
             self.controller.finalize_failure(str(e))
             logging.error(f"❌ Task failed: {e}", exc_info=True)
@@ -350,80 +393,84 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
         logging.info(f"  • Jobs ready to run (retry OK):     {retry_ready}")
         logging.info(f"  • Skipped (next_retry in future):   {retry_delayed}")
 
-    def _run_pipeline(
-        self,
-        jobs: List[SegmenterJob],
-        num_loader_workers: int = 4,
-        max_queue_size: int = 50,
-        error_threshold: int = 3,
-    ):
-        manager = Manager()
-        ready_to_read = Event()
-        input_queue = JoinableQueue()
-        output_queue = JoinableQueue(maxsize=max_queue_size)
-        error_counter = manager.dict(count=0)
-        error_lock = manager.Lock()
-        stats_list = manager.list()
+    def _run_pipeline(self, jobs: list[SegmenterJob], loop_no: int = 0, num_loader_workers: int = 4) -> pd.DataFrame:
 
-        pipeline_stats = {
-            "total_jobs": len(jobs),
-            "total_images": 0,
-            "error_count": 0,
-            "per_source": defaultdict(lambda: {"jobs": 0, "images": 0, "elapsed": 0.0}),
-        }
-
-        
-
-        storer_proc = Process(
-            target=storer,
-            args=(output_queue, error_counter, error_lock, self.instructions["HDF5_file_path"], ready_to_read, stats_list),
-            daemon=True,
-        )
-        storer_proc.start()
-        self.record_pid(storer_proc.pid)
+        error_threshold = 5  # or however many you want
 
 
-        setup_start_time = time.time()
-        loaders = [
-            Process(
-                target=loader,
-                args=(i, input_queue, output_queue, error_counter, error_lock, ready_to_read, len(jobs), error_threshold, setup_start_time),
-                daemon=True,
-            )
-            for i in range(num_loader_workers)
-        ]
 
-        for l in loaders:
-            l.start()
-            self.record_pid(l.pid)
+        input_queue = multiprocessing.JoinableQueue()
+        output_queue = multiprocessing.JoinableQueue()
+        error_counter = multiprocessing.Value("i", 0)
+        error_lock = multiprocessing.Lock()
+        stats_list = multiprocessing.Manager().list()
 
-        # Feed jobs
+        # Feed jobs into the input queue
         for job in jobs:
             input_queue.put(job)
 
-        # Tell loaders to stop
-        for _ in loaders:
+        # Add sentinel objects for each worker to signal shutdown
+        for _ in range(num_loader_workers):
             input_queue.put(None)
 
-        # No more puts after this
-        input_queue.close()          # optional — just to prevent further puts
-        input_queue.join_thread()    # optional — join feeder thread
+        # 🔁 Start loader processes
+        workers = []
+        ready_to_read = multiprocessing.Event()
+        setup_start_time = time.time()
 
-        # Wait for all loader processes
-        for l in loaders:
-            l.join()
+        # Launch loader processes
+        for worker_id in range(num_loader_workers):
+            p = multiprocessing.Process(
+                target=loader,
+                args=(
+                    worker_id,
+                    input_queue,
+                    output_queue,
+                    error_counter,
+                    error_lock,
+                    ready_to_read,
+                    len(jobs),
+                    error_threshold,
+                    setup_start_time,
+                    loop_no,
+                ),
+                daemon=True,
+            )
+            self.record_pid(p.pid)
+            p.start()
+            workers.append(p)
 
-        # Tell storer to stop
+
+
+        # 🧵 Start storer thread
+        storer_thread = Thread(
+            target=storer,
+            args=(
+                output_queue,
+                error_counter,
+                error_lock,
+                self.instructions["HDF5_file_path"],
+                stats_list,
+                self.controller,
+                len(jobs),
+                loop_no,
+            ),
+            daemon=True,
+        )
+        storer_thread.start()
+
+        # 🧼 Wait for all loaders to finish
+        for p in workers:
+            p.join()
+
+        # ✅ Signal the storer to stop
         output_queue.put(None)
 
-        # Close output queue and wait for join
-        output_queue.close()
-        output_queue.join_thread()
+        # 🧼 Wait for storer to finish
+        storer_thread.join()
 
-        # Wait for storer process
-        storer_proc.join()
-        summary_df = _create_pipeline_summary(list(stats_list))
-        logging.debug2("\n" + summary_df.to_string(index=False))
+        return pd.DataFrame(list(stats_list))
+
 
 
 def _print_summary_df(stats_list: List[Dict]):

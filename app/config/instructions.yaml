@@ -13,7 +13,11 @@ inactvie:
     TA05_A_SingleRsyncWorker:
       taskName: TA05_A_SingleRsyncWorker
 tasks:
-
+  TA02_HDF5Storer:
+    TA02_0_HDF5Storer:
+      taskName: TA02_0_HDF5Storer
+      HDF5_file_path: "data/productionData/primaryData.hdf5"
+  
 
   TA11_DataImport:
     TA11_0_DataImportWrapper:

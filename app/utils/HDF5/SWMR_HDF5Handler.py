@@ -16,6 +16,7 @@ class SWMR_HDF5Handler:
     def __init__(self, file_path: str):
         self.file_path = file_path
         self.ensure_swmr_hdf5_file()
+        
 
     def ensure_swmr_hdf5_file(self):
         directory = os.path.dirname(self.file_path)

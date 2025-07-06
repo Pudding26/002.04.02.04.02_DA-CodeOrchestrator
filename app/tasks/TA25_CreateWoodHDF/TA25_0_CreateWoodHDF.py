@@ -9,10 +9,18 @@ import pandas as pd
 from datetime import timezone
 
 
+
+from app.utils.dataModels.Jobs.SWMR_StorerJob import SWMR_StorerJob
+from app.tasks.TA02_HDF5Storer.shared_queue import store_queue
+
+
 from threading import Lock
 stats_lock = Lock()
 from collections import defaultdict
 import time
+
+from app.utils.logger.loggingWrapper import LoggingHandler
+
 
 from app.tasks.TaskBase import TaskBase
 from app.utils.controlling.TaskController import TaskController
@@ -32,7 +40,8 @@ from app.utils.dataModels.Jobs.ProviderJob import ProviderJob
 from app.utils.dataModels.Jobs.JobEnums import JobStatus
 from app.utils.SQL.models.jobs.api_WorkerJobs import WorkerJobs_Out
 
-
+# ==================== GLOBAL FUNCTIONS ====================
+LoggingHandler(logging_level="DEBUG-2")
 
 
 class WoodJobAttrs(BaseModel):
@@ -225,6 +234,8 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
                 if self.controller.should_stop():
                     logging.debug2(f"[Loader-{worker_id}] Stopping due to controller request")
+                    output_queue.put(None)
+                    
                     input_queue.task_done()
                     break
 
@@ -321,7 +332,6 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
 
-            handler = SWMR_HDF5Handler(self.instructions["HDF5_file_path"])
             logging.debug2("[Storer] Started")
             last_job = -1
             while True:
@@ -330,13 +340,33 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     last_job = job.input.job_No
                 if job is None:
                     logging.debug2(f"[Storer] Exiting, last job was #{last_job}")
+                    output_queue.put(None)
                     output_queue.task_done()
                     break
                 try:
                     merged_attrs = {**job.attrs.Level1, **job.attrs.Level2, **job.attrs.Level3,
                                     **job.attrs.Level4, **job.attrs.Level5, **job.attrs.Level6,
                                     **job.attrs.Level7, **job.attrs.dataSet_attrs}
-                    handler.store_image(dataset_path=job.input.dest_rel_path, image_data=job.input.image_data, attributes=merged_attrs)
+                    
+
+                    # Create result queue to track job outcome
+                    result_queue = Queue()
+                    store_queue.put(SWMR_StorerJob(
+                        dataset_path=job.input.dest_rel_path,
+                        image_data=job.input.image_data,
+                        attributes=merged_attrs,
+                        result_queue=result_queue
+                    ))
+
+                    success, result = result_queue.get(timeout=60)
+                    if not success:
+                        raise result
+
+
+
+
+
+
                     logging.debug1(f"[Storer] Stored job #{job.input.job_No} → {job.input.dest_rel_path}")
                     
                     
@@ -351,7 +381,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
 
-                    with self.suppress_logging():
+                    with self.suppress_logging(logging.WARNING):
                         HDF5Inspector.update_woodMaster_paths(
                             hdf5_path=self.instructions["HDF5_file_path"],
                             dataset_paths=job.input.dest_rel_path

@@ -61,13 +61,18 @@ class TA35_0_BackendOrchestrator(TaskBase):
 
 
 
+
+
             generalJob_df = TaskBase.trigger_task_via_http("TA27_0_DoEWrapper")
             TaskController.watch_task_completion(task_names="TA27_0_DoEWrapper",  timeout_sec=300, poll_interval=10.0)
 
-            self.create_job_df()
-            self.create_job_queue()
-
+            ### ASYNC TASKS START HERE ###
+            TaskBase.trigger_task_via_http("TA25_0_CreateWoodHDF")
             TaskBase.trigger_task_via_http("TA30_B_SegmentationOrchestrator")
+
+            TaskBase.trigger_task_via_http("TA28_0_DoECreator")
+            TaskBase.trigger_task_via_http("TA30_0_JobBuilder")
+
 
             self.controller.update_progress(1.0)
             self.controller.finalize_success()
