@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from app.utils.SQL.models import enums
 
 from app.utils.SQL.errors import BulkInsertError
+from app.utils.logger.loggingWrapper import LoggingHandler
 
 
 from app.utils.SQL.models.methods._bulk_save_objects import _bulk_save_objects
@@ -67,6 +68,7 @@ class api_BaseModel(BaseModel):
         db_key: str = None,
         method: str = "append",
         insert_method: str = "bulk_save_objects",
+        LOGGING_LEVEL: str = "WARNING",
     ) -> None:
         """
         • Cleans & validates a DataFrame with the model schema.
@@ -79,7 +81,10 @@ class api_BaseModel(BaseModel):
         from app.utils.SQL.DBEngine import DBEngine
         from sqlalchemy.orm import sessionmaker
         
+        LoggingHandler(logging_level=LOGGING_LEVEL)
         
+
+
         if db_key is not None:
             logging.warning(f"🔍 DEPRECATED; db_key is fetched from api_instance.")
 
@@ -111,7 +116,7 @@ class api_BaseModel(BaseModel):
             df = _log_step(to_SQLSanitizer().sanitize(df), "final sanitize", steps_log)
 
             summary = "\n".join(steps_log)
-            logging.debug3(f"\n=== DataFrame Shape Report ===\n{summary}")
+            logging.debug2(f"\n=== DataFrame Shape Report ===\n{summary}")
 
 
 
@@ -161,7 +166,7 @@ class api_BaseModel(BaseModel):
             else:
                 raise ValueError(f"Unknown insert_method: {insert_method}")
 
-            logging.info(
+            logging.debug3(
                 f"✅ Stored {len(validated)} rows to "
                 f"{cls.orm_class.__tablename__} in {time()-start:.2f}s "
                 f"using {insert_method}"

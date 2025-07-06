@@ -183,7 +183,7 @@ class HDF5Inspector:
             session: Session = DBEngine(db_key).get_session()
             _raw_upsert(df, session, table_name)
 
-            logging.debug3(f"✅ Upserted {len(df)} rows to '{table_name}'.")
+            logging.debug1(f"✅ Upserted {len(df)} rows to '{table_name}'.")
             return df
 
         except Exception as e:
