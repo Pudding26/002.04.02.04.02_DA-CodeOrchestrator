@@ -3,6 +3,7 @@
 from sqlalchemy.orm import declarative_base, Session
 import pandas as pd
 import logging
+from sqlalchemy import text
 
 
 class _Base:
@@ -55,6 +56,34 @@ class _Base:
 
         except Exception as e:
             logging.error(f"❌ Failed to store to {cls.__tablename__}: {e}", exc_info=True)
+            raise
+        finally:
+            session.close()
+
+
+
+    @classmethod
+    def execute_sql_query(cls, sql: str, params: dict = None) -> list[dict]:
+        """
+        Execute a raw SQL query using the same DB connection as the model's DBEngine.
+
+        Args:
+            sql (str): SQL query string with named parameters (e.g. :param).
+            params (dict): Optional dictionary of parameter bindings.
+
+        Returns:
+            List[dict]: Query result rows as dictionaries.
+        """
+        try:
+            from app.utils.SQL.DBEngine import DBEngine
+            db_key = cls.get_db_key() 
+            session = DBEngine(db_key).get_session()
+
+            stmt = text(sql)
+            result = session.execute(stmt, params or {})
+            return [dict(row) for row in result.mappings()]
+        except Exception as e:
+            logging.error(f"❌ SQL query failed: {e}", exc_info=True)
             raise
         finally:
             session.close()

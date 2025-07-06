@@ -31,6 +31,7 @@ class orm_DoEJobs(orm_BaseModel):
     
     payload = Column(JSONB)
     parent_job_uuids = Column(JSONB)
+    DEAP_metadata = Column(JSONB)
 
 
 

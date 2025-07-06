@@ -1,4 +1,4 @@
-from typing import List, ClassVar, Any
+from typing import List, ClassVar, Any, Optional
 from app.utils.SQL.models.api_BaseModel import api_BaseModel
 from app.utils.SQL.models.jobs.orm_DoEJobs import orm_DoEJobs
 
@@ -25,6 +25,7 @@ class DoEJobs_Out(api_BaseModel):
     
     payload: dict
     parent_job_uuids: List[str]
+    DEAP_metadata: Optional[dict] = {}
 
 
 

@@ -10,7 +10,7 @@ from app.utils.YAML.YAMLUtils import YAMLUtils
 
 from app.utils.SQL.models.production.api.api_DoEArchive import DoEArchive_Out
 from app.utils.SQL.models.jobs.api_DoEJobs import DoEJobs_Out 
-from app.utils.SQL.models.production.api.api_ModellingResults import ModellingResults_Out
+from app.utils.SQL.models.production.api_ModellingResults import ModellingResults_Out
 
 
 logger = logging.getLogger(__name__)

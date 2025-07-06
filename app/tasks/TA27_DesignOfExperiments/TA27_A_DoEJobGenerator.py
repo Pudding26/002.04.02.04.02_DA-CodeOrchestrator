@@ -5,10 +5,14 @@ import ast
 from copy import deepcopy
 import pandas as pd
 from typing import List
+import hashlib
+import json
+
 
 from app.utils.dataModels.Jobs.DoEJob import (
     DoEJob, DOE_config, PrimaryData, SegmentationCfg,
-    SecondaryData, PreProcessingCfg, ModelingCfg
+    SecondaryData, PreProcessingCfg, ModelingCfg,
+    DEAPMetadata, DEAPSubBranch, DEAPInnerMetadata
 )
 
 
@@ -96,6 +100,7 @@ class TA27_A_DoEJobGenerator:
 
 
 
+
         logging.debug3(f"📄 Loading job template from: {template_path}")
         with open(template_path, 'r', encoding='utf-8') as f:
             template = yaml.safe_load(f)
@@ -106,6 +111,18 @@ class TA27_A_DoEJobGenerator:
         for idx, (_, row) in enumerate(df.iterrows()):
             try:
                 injected = inject(deepcopy(template))
+
+                deap_metadata_obj = DEAPMetadata(root={
+                    row.get("branch_id"): {
+                        row.get("subbranch_id"): DEAPSubBranch(
+                            generation=row.get("generation", 0),
+                            metadata=DEAPInnerMetadata(
+                                origin=row.get("origin", "initial"),
+                                created_by=row.get("created_by", "TA28_DoECreator")
+                            )
+                        )
+                    }
+                })
 
                 # Patch missing fields (if segmentation isn't in YAML)
                 segmentation_block = injected.get("segmentation", {"filterNo": ["GS"]})
@@ -120,8 +137,11 @@ class TA27_A_DoEJobGenerator:
 
                 job = DoEJob(
                     job_uuid=injected.get("DoE_UUID"),
-                    doe_config=doe_cfg
+                    doe_config=doe_cfg.model_dump(),
+                    DEAP_metadata=json.loads(json.dumps(deap_metadata_obj.model_dump()))
                 )
+
+                
 
 
                 jobs.append(job)
@@ -135,3 +155,5 @@ class TA27_A_DoEJobGenerator:
             logging.warning("⚠️ No jobs were generated. Check DoE expansion or template placeholders.")
 
         return jobs
+
+
