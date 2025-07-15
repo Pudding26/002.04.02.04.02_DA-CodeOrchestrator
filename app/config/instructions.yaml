@@ -13,10 +13,18 @@ inactvie:
     TA05_A_SingleRsyncWorker:
       taskName: TA05_A_SingleRsyncWorker
 tasks:
+  TA01_Setup:
+    TA01_C_SQLMetaCache:
+      taskName: TA01_C_SQLMetaCache
+      cache_dir: "app/cache/sql_meta_cache"
+
+
+
   TA02_HDF5Storer:
     TA02_0_HDF5Storer:
       taskName: TA02_0_HDF5Storer
       HDF5_file_path: "data/productionData/primaryData.hdf5"
+
   
 
   TA11_DataImport:

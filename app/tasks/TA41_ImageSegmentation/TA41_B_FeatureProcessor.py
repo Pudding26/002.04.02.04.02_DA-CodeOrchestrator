@@ -28,20 +28,19 @@ class TA41_B_FeatureProcessor:
         "orientation": "°",
     }
 
-    def process(self, shotID: str, feature_tables: Sequence[pd.DataFrame]) -> pd.DataFrame:
-        if not feature_tables:
+    def process(self, shotID: str, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
             return pd.DataFrame()
-        df_regions = pd.concat(feature_tables, ignore_index=True, copy=False)
-        summary_df = self._summarise(df_regions)
+        summary_df = self._summarise(df)
         summary_df["shotID"] = shotID
         return summary_df
 
-    def process_all(self, jobs: Sequence[Tuple[str, Sequence[pd.DataFrame]]]) -> pd.DataFrame:
+    def process_all(self, stackID, dfs) -> pd.DataFrame:
         all_rows = []
-        for i, (stack_id, dfs) in enumerate(jobs):
-            shot_id = f"{stack_id}_{i+1:03d}"
-            summary_df = self.process(shot_id, dfs)
-            summary_df["stackID"] = stack_id
+        for i, df in enumerate(dfs):
+            shot_id = f"{stackID}_{i+1:03d}"
+            summary_df = self.process(shot_id, df)
+            summary_df["stackID"] = stackID
             if not summary_df.empty:
                 all_rows.append(summary_df)
 

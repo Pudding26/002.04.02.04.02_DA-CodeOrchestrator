@@ -1,0 +1,191 @@
+columns:
+- name: raw_UUID
+  type: categorical
+  unique_count: 3571
+- name: woodType
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - Hardwood
+  - Softwood
+- name: species
+  type: categorical
+  unique_count: 293
+- name: family
+  type: categorical
+  unique_count: 43
+- name: genus
+  type: categorical
+  unique_count: 162
+- name: view
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - TS
+- max: 25.0
+  min: 2.0
+  name: lens
+  type: numeric
+- max: 56
+  min: 1
+  name: totalNumberShots
+  type: numeric
+- name: DPI
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - '8581.08'
+  - null
+- name: pixelSize_um_per_pixel
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - '2.96'
+  - null
+- max: 1500
+  min: 768
+  name: pixel_x
+  type: numeric
+- max: 2080
+  min: 900
+  name: pixel_y
+  type: numeric
+- name: microscopicTechnic
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - light microscopy
+- max: 2.7
+  min: 2.7
+  name: area_x_mm
+  type: numeric
+- max: 2.7
+  min: 2.7
+  name: area_y_mm
+  type: numeric
+- max: 0.08
+  min: 0.08
+  name: numericalAperature_NA
+  type: numeric
+- name: IFAW_code
+  type: categorical
+  unique_count: 47
+- name: engName
+  type: categorical
+  unique_count: 47
+- name: deName
+  type: categorical
+  unique_count: 46
+- name: frName
+  type: categorical
+  unique_count: 47
+- name: japName
+  type: categorical
+  unique_count: 80
+- name: citeKey
+  type: categorical
+  unique_count: 3
+  unique_values:
+  - dasilva_2017
+  - martins_2012
+  - sugyiama_2020
+- name: institution
+  type: categorical
+  unique_count: 3
+  unique_values:
+  - University of Sao Paulo, USP
+  - Kyoto University; Xylarium
+  - UPFR
+- name: institutionCode
+  type: categorical
+  unique_count: 3
+  unique_values:
+  - RMCA
+  - XDD
+  - UPFR
+- name: contributor
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - Rosa da Silva
+  - unknown
+- name: digitizedDate
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: sourceNo
+  type: categorical
+  unique_count: 3
+  unique_values:
+  - DS04
+  - DS01
+  - DS07
+- name: filename
+  type: categorical
+  unique_count: 3031
+- name: path
+  type: categorical
+  unique_count: 0
+  unique_values:
+  - null
+- name: sourceFilePath_rel
+  type: categorical
+  unique_count: 3571
+- max: 6
+  min: 1
+  name: shotNo
+  type: numeric
+- max: 21
+  min: 1
+  name: specimenNo
+  type: numeric
+- name: GPS_Alt
+  type: categorical
+  unique_count: 89
+- name: GPS_Lat
+  type: categorical
+  unique_count: 89
+- name: GPS_Long
+  type: categorical
+  unique_count: 93
+- name: samplingPoint
+  type: categorical
+  unique_count: 108
+- name: origin
+  type: categorical
+  unique_count: 10
+  unique_values:
+  - null
+  - AF
+  - AM(C&S)
+  - AM(C)
+  - EU
+  - AM(S)
+  - AM(N)*
+  - AP
+  - AF AM
+  - AM(N)
+- name: anatomy1_DS04
+  type: categorical
+  unique_count: 4
+  unique_values:
+  - radial
+  - semi-ring
+  - ring
+  - null
+  - diffuse
+- name: anatomy2_DS04
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - null
+  - deciduous
+  - evergreen
+- max: 1
+  min: 1
+  name: sourceStoredLocally
+  type: numeric
+- name: source_UUID
+  type: categorical
+  unique_count: 3571

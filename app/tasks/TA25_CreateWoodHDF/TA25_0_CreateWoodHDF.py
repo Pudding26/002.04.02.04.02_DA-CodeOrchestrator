@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Union
 import pandas as pd
 from datetime import timezone
 
-
+import cv2
 
 from app.utils.dataModels.Jobs.SWMR_StorerJob import SWMR_StorerJob
 from app.tasks.TA02_HDF5Storer.shared_queue import store_queue
@@ -39,6 +39,7 @@ from app.tasks.TA23_CreateWoodMaster.TA23_0_CreateWoodMasterPotential import TA2
 from app.utils.dataModels.Jobs.ProviderJob import ProviderJob
 from app.utils.dataModels.Jobs.JobEnums import JobStatus
 from app.utils.SQL.models.jobs.api_WorkerJobs import WorkerJobs_Out
+from app.utils.SQL.models.production.api.api_WoodMaster import WoodMaster_Out
 
 # ==================== GLOBAL FUNCTIONS ====================
 LoggingHandler(logging_level="DEBUG-2")
@@ -139,7 +140,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
         filter_model = FilterModel.from_human_filter({"contains": 
-                                                      {"status": "ready", 
+                                                      {"status": "READY", 
                                                        "job_type": "provider"}
                                                       })
         
@@ -154,6 +155,11 @@ class TA25_0_CreateWoodHDF(TaskBase):
         retry_ready = 0
         retry_delayed = 0
         total_parsed = 0
+        not_needed = 0
+        already_done_stacks = set(WoodMaster_Out.fetch_distinct_values(column="sampleID"))
+
+
+
 
 
 
@@ -164,6 +170,16 @@ class TA25_0_CreateWoodHDF(TaskBase):
                 job = ProviderJob.model_validate(row["payload"])
                 total_parsed += 1
                 job.job_uuid = row["job_uuid"]
+                sampleID = row["payload"]["attrs"]["Level7"]["sampleID"]
+                
+                if sampleID in already_done_stacks:
+                    job.status = JobStatus.DONE.value
+
+                    
+                    job.update_db(fields_to_update=["status"])
+                    not_needed += 1
+                    continue
+
                 if job.next_retry <= datetime.now(timezone.utc):
                     self.jobs.append(job)
                     retry_ready += 1
@@ -183,6 +199,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
         • Successfully parsed ProviderJobs: {total_parsed}
         • Jobs ready to run (retry OK):     {retry_ready}
         • Skipped (next_retry in future):   {retry_delayed}
+        • Jobs marked as not needed:         {not_needed}
         🧱 Built {len(self.jobs)} ProviderJob objects
         """
         )
@@ -222,7 +239,6 @@ class TA25_0_CreateWoodHDF(TaskBase):
             print(f"[Loader-{worker_id}] Started")
             while True:
                 job = input_queue.get()
-                logging.debug1(f"[Loader-{worker_id}] Processing job #{job.input.job_No} from input queue")
                 if job is None:
                     logging.debug2(f"[Loader-{worker_id}] Exiting")
                     input_queue.task_done()
@@ -231,6 +247,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     logging.warning(f"[Loader-{worker_id}] Error threshold reached ({error_counter['count']} errors), stopping further processing")
                     input_queue.task_done()
                     break
+                logging.debug1(f"[Loader-{worker_id}] Processing job #{job.input.job_No} from input queue")
 
                 if self.controller.should_stop():
                     logging.debug2(f"[Loader-{worker_id}] Stopping due to controller request")
@@ -238,6 +255,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     
                     input_queue.task_done()
                     break
+
 
                 try:
                     self.check_control()
@@ -254,6 +272,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     
                     
                     rel_path = job.input.src_ds_rel_path
+
 
 
                     if job.input.stored_locally[0] == 1: #DIRTY! But allows to later be easier updated so DS11 can be archived locally if latency is terrible
@@ -273,13 +292,14 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
                         logging.warning(f"[Loader-{worker_id}] No images found for job #{job.input.job_No} an {job.attrs.Level7['sampleID']} with rel path {rel_path}")
                         job.register_failure("No images found")
-                        job.status = JobStatus.FAILED
+                        job.status = JobStatus.FAILED.value
                         job.update_db(fields_to_update=["status", "next_retry"])
                         continue
 
-
+                    images = self._enforce_gs_if_mixed(images)
                     image_data, was_cropped, filter_type = _create_stack_and_opt_crop(images)
                     
+
 
 
 
@@ -323,8 +343,12 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     logging.error(f"[Loader-{worker_id}] Error: {e}", exc_info=True)
                     with error_counter["lock"]:
                         error_counter["count"] += 1
+                    job.register_failure(str(e))
+                    job.status = JobStatus.FAILED.value
+                    job.update_db(fields_to_update=["status", "next_retry"])
                 finally:
                     input_queue.task_done()
+
 
 
 
@@ -392,7 +416,8 @@ class TA25_0_CreateWoodHDF(TaskBase):
 
 
                     # ✅ Mark job done in DB
-                    job.status = JobStatus.DONE
+                    job.status = JobStatus.DONE.value
+
                     job.updated = datetime.now(timezone.utc)
                     
                     job.input.image_data = None
@@ -405,7 +430,7 @@ class TA25_0_CreateWoodHDF(TaskBase):
                     logging.error(f"[Storer] Error: {e}", exc_info=True)
                     job.register_failure(str(e))
                     if job.attempts >= 5:
-                        job.status = JobStatus.FAILED
+                        job.status = JobStatus.FAILED.value
                     
                     job.input.image_data = None
                     job.update_db(fields_to_update=["status, attempts", "next_retry"])
@@ -476,3 +501,25 @@ class TA25_0_CreateWoodHDF(TaskBase):
         #TA25_0_CreateWoodHDF_stats_OUT.store(
 
         return summary_df
+    
+
+    def _enforce_gs_if_mixed(self, images: list[np.ndarray]) -> list[np.ndarray]:
+        """
+        If the input list contains a mix of RGB(A) and grayscale images,
+        convert all RGB(A) images to grayscale. Otherwise, return unchanged.
+        """
+        is_rgb_like = [(img.ndim == 3 and img.shape[2] in (3, 4)) for img in images]
+        is_gs = [(img.ndim == 2) or (img.ndim == 3 and img.shape[2] == 1) for img in images]
+
+        if any(is_rgb_like) and any(is_gs):
+            # Mixed stack → convert RGB(A) to grayscale
+            return [
+                cv2.cvtColor(img, cv2.COLOR_RGBA2GRAY) if img.ndim == 3 and img.shape[2] == 4 else
+                cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) if img.ndim == 3 and img.shape[2] == 3 else
+                img[:, :, 0] if img.ndim == 3 and img.shape[2] == 1 else
+                img
+                for img in images
+            ]
+        else:
+            return images
+

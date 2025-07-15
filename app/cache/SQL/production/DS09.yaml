@@ -1,0 +1,26 @@
+columns:
+- max: 2275
+  min: 1951
+  name: id
+  type: numeric
+- name: species
+  type: categorical
+  unique_count: 248
+- name: IFAW_code
+  type: categorical
+  unique_count: 316
+- name: origin
+  type: categorical
+  unique_count: 13
+- name: engName
+  type: categorical
+  unique_count: 306
+- name: deName
+  type: categorical
+  unique_count: 311
+- name: frName
+  type: categorical
+  unique_count: 312
+- name: genus
+  type: categorical
+  unique_count: 200

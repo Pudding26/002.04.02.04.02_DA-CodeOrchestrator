@@ -1,0 +1,168 @@
+columns:
+- max: 84665
+  min: 2
+  name: source_UUID
+  type: numeric
+- name: specimenNo_old
+  type: categorical
+  unique_count: 18647
+- name: name_drop
+  type: categorical
+  unique_count: 9808
+- name: family
+  type: categorical
+  unique_count: 307
+- name: species
+  type: categorical
+  unique_count: 9801
+- name: woodType
+  type: categorical
+  unique_count: 4
+  unique_values:
+  - Hardwood
+  - Fossil Hardwood
+  - Fossil Softwood
+  - Softwood
+- name: view
+  type: categorical
+  unique_count: 3
+  unique_values:
+  - TS
+  - TLS
+  - RLS
+- name: lens
+  type: categorical
+  unique_count: 29
+- name: contributor
+  type: categorical
+  unique_count: 71
+- name: institution
+  type: categorical
+  unique_count: 47
+- name: institutionCode
+  type: categorical
+  unique_count: 47
+- name: filename_old
+  type: categorical
+  unique_count: 63297
+- name: source_drop
+  type: categorical
+  unique_count: 7
+  unique_values:
+  - Color slide
+  - Color digital original
+  - B & W negative
+  - 3x4 inch B&W Print
+  - 4 x 5 inch B&W Print
+  - B & W digital original
+  - Large Format B & W Negative
+- name: todo_bitdepth_old
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - unknown
+  - 8-bit grayscale
+  - 16-bit grayscale
+  - 8-bit RGB color
+  - 24-bit color
+- name: digitizedDate
+  type: categorical
+  unique_count: 1059
+- max: 9999
+  min: 72
+  name: DPI
+  type: numeric
+- name: engName_old
+  type: categorical
+  unique_count: 2226
+- max: 1823184703106056193
+  min: 1821191565097304064
+  name: version_old
+  type: numeric
+- name: genus
+  type: categorical
+  unique_count: 2609
+- name: citeKey
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: sourceNo
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - DS11
+- max: 0
+  min: 0
+  name: sourceStoredLocally
+  type: numeric
+- name: GPS_Alt
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: GPS_Lat
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: GPS_Long
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: area_x_mm
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unclear
+- name: area_y_mm
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unclear
+- name: numericalAperature_NA
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: contributor_old
+  type: categorical
+  unique_count: 71
+- name: institution_old
+  type: categorical
+  unique_count: 47
+- name: view_old
+  type: categorical
+  unique_count: 3
+  unique_values:
+  - tangential section
+  - radial section
+  - cross section
+- name: lens_old
+  type: categorical
+  unique_count: 64
+- name: woodType_old
+  type: categorical
+  unique_count: 4
+  unique_values:
+  - Fossil Hardwood
+  - Modern Softwood
+  - Modern Hardwood
+  - Fossil Softwood
+- max: 29
+  min: 1
+  name: shotNo
+  type: numeric
+- max: 25
+  min: 1
+  name: specimenNo
+  type: numeric
+- max: 29
+  min: 1
+  name: totalNumberShots
+  type: numeric
+- max: 84665
+  min: 2
+  name: sourceFilePath_rel
+  type: numeric

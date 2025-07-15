@@ -99,26 +99,18 @@ class TA30_C_ModelerJobBuilder:
 
 
         logging.debug3(f"Starting to create a total of ModelerJobs", len(job_df))
-        def find_scope_in_dict(d):
-            if isinstance(d, dict):
-                for k, v in d.items():
-                    if k == "scope" and v is not None:
-                        return v
-                    if isinstance(v, (dict, list)):
-                        found = find_scope_in_dict(v)
-                        if found is not None:
-                            return found
-            elif isinstance(d, list):
-                for item in d:
-                    found = find_scope_in_dict(item)
-                    if found is not None:
-                        return found
-            return None
-
 
         for jobNo, row in agg_df.iterrows():
             metricModelNo = row.get("metricModelNo")
             preProcessingNo = row.get("preProcessingNo")
+            
+            pre_cfg = PREP_PRESETS.get(preProcessingNo, {})
+            scope = None
+
+            if "resampling" in pre_cfg:
+                method = pre_cfg["resampling"].get("method")
+                if method and method in pre_cfg["resampling"]:
+                    scope = pre_cfg["resampling"][method].get("scope")
 
             job = ModelerJob(
                 job_uuid=row["job_uuid"],
@@ -132,10 +124,11 @@ class TA30_C_ModelerJobBuilder:
                     job_No=jobNo,
                     preProcessing_instructions=PreProcessingAttributes(**PREP_PRESETS.get(preProcessingNo, {})),
                     metricModel_instructions=MetricModelAttributes(**MM_PRESETS.get(metricModelNo, {})),
-                    scope=find_scope_in_dict(d =PREP_PRESETS)
+                    scope=scope,
                 ),
                 attrs=ModelerAttrs(),  # default empty
             )
+
 
 
 
@@ -165,4 +158,7 @@ class TA30_C_ModelerJobBuilder:
             to_create=to_create, to_update=to_update
         )
 
-
+        return {
+            "created": len(to_create),
+            "updated": len(to_update)
+        }

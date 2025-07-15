@@ -1,0 +1,10 @@
+columns:
+- name: species
+  type: categorical
+  unique_count: 83
+- name: engName
+  type: categorical
+  unique_count: 83
+- name: deName
+  type: categorical
+  unique_count: 82

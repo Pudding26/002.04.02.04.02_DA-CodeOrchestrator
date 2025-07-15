@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 from contextlib import contextmanager
-
+import os
 
 import numpy as np
 import h5py
@@ -41,7 +41,6 @@ from app.utils.SQL.models.jobs.api_WorkerJobs import WorkerJobs_Out
 from app.utils.SQL.models.production.api_SegmentationResults import SegmentationResults_Out
 
 # ==================== GLOBAL FUNCTIONS ====================
-LoggingHandler(logging_level="DEBUG-2")
 
 
 
@@ -82,6 +81,7 @@ def loader(
 
             #ready_to_read.wait()
             hdf5 = SWMR_HDF5Handler(job.input.hdf5_path)
+            image_stack = None
             image_stack = hdf5.load_image(job.input.src_file_path)
 
             attrs_raw = job.attrs.attrs_raw.copy()
@@ -90,6 +90,14 @@ def loader(
             job.attrs.attrs_FF = {**attrs_raw, "filterNo": job.input.dest_FilterNo}
             job.attrs.attrs_GS = {**attrs_raw, "filterNo": "GS"}
 
+
+            if not isinstance(image_stack, np.ndarray):
+                logging.warning(f"[Loader-{worker_id}] No image data found for job #{job.input.job_No}")
+                job.status = JobStatus.FAILED.value
+                job.update_db(fields_to_update=["status"])
+                input_queue.task_done()
+                continue
+
             segmentor = TA41_A_Segmenter(
                 config=job.input.filter_instructions,
                 image_stack=image_stack,
@@ -97,21 +105,20 @@ def loader(
                 gpu_mode=False,
             )
 
-
-
-     
-
             start_time = time.time()
             result = segmentor.run_stack()
             seg_stats = result.get("stats", {})
             
             time_seg = time.time()
-            feature_df = feature_processor.process_all(
-                jobs= 
-                    [
-                    (job.input.dest_stackID_FF, result.get("features"))
-                    ]
-                )
+            feature_df = feature_processor.process_all(stackID=job.input.dest_stackID_FF, dfs=result.get("features", []))
+
+            
+            if feature_df is None or feature_df.empty:
+                logging.warning(f"[Loader-{worker_id}] No features extracted for job #{job.input.job_No}")
+                job.status = JobStatus.FAILED.value
+                job.update_db(fields_to_update=["status"])
+                input_queue.task_done()
+                continue
 
             time_binning = time.time()
             
@@ -189,8 +196,12 @@ def storer(
         jobs_len (int): Total number of jobs in this loop.
         loop_no (int): Current pipeline loop number (for display).
     """
-
+    stats_list = []
     while True:
+        LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "DEBUG-2")
+        LoggingHandler(logging_level="DEBUG-2")
+        
+
         job = output_queue.get()
         if job is None:
             output_queue.task_done()
@@ -253,19 +264,27 @@ def storer(
     
 
             # Update job status
-            job.status = JobStatus.DONE
+            job.status = JobStatus.DONE.value
             job.updated = datetime.now(timezone.utc)
             job.update_db(fields_to_update=["status"])
 
             # Report progress every 10 jobs
             if job.input.job_No % 10 == 0:
-                progress = ((job.input.job_No + 1) / jobs_len) * 100
+                progress = ((job.input.job_No + 1) / jobs_len)
                 controller.update_progress(progress)
                 controller.update_message(f"Loop {loop_no}: job {job.input.job_No}/{jobs_len}")
+            
+            if job.stats:
+                stats_list.append(job.stats)
 
-            # Report stats (per job timing)
-            if job.stats and "timing" in job.stats:
-                stats_list.append(job.stats["timing"])
+            if job.input.job_No % 250 == 0:
+                logging.debug2(f"[Storer] Processed job #{job.input.job_No}/{jobs_len} in loopNo # {loop_no}")
+                _print_summary_df(list(stats_list))
+
+
+
+
+
 
         except Exception as e:
             # Log and register failure
@@ -279,6 +298,7 @@ def storer(
 
         finally:
             output_queue.task_done()
+
 
 
 
@@ -328,6 +348,8 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
                                                 num_loader_workers=round(max(1, min(len(self.jobs) // 60, 6))),
                                                 loop_no=loop_no)
                 
+
+                
                 logging.debug5(
                         f"""
                     📊 Segmentation Summary — Loop #{loop_no}
@@ -360,8 +382,22 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
         logging.debug2("📥 Loading SegmenterJobs from database")
 
         filter_model = FilterModel.from_human_filter({"contains": {"job_type": "segmenter",
-                                                                   "status": "ready"}})
+                                                                   "status": "READY"}})
         df = WorkerJobs_Out.fetch(filter_model=filter_model)
+
+        def get_first_parent(payload):
+            try:
+                parents = payload.get("DEAP_metadata", {}).get("parents", [])
+                return parents[0] if parents else ""
+            except Exception:
+                return ""
+
+        # Add a new column for sorting
+        df["first_parent"] = df["payload"].apply(lambda p: get_first_parent(p))
+
+        # Sort by first_parent ascending
+        df = df.sort_values(by="first_parent", ascending=True)
+
 
         total_raw_jobs = len(df)
         self.controller.update_item_count(total_raw_jobs)
@@ -370,12 +406,30 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
         retry_ready = 0
         retry_delayed = 0
         total_parsed = 0
+        not_needed = 0
+
+        already_done_uuids = set(SegmentationResults_Out.fetch_distinct_values(
+            column="stackID",
+            ))
+
+
+
+
 
         for row in df.to_dict(orient="records"):
             try:
                 job = SegmenterJob.model_validate(row["payload"])
                 total_parsed += 1
                 job.job_uuid = row["job_uuid"]
+                if job.input.dest_stackID_FF in already_done_uuids:
+                    job.status = JobStatus.DONE.value
+
+                    
+                    job.update_db(fields_to_update=["status"])
+                    not_needed += 1
+                    continue
+                
+                
                 if job.next_retry <= datetime.now(timezone.utc):
                     self.jobs.append(job)
                     retry_ready += 1
@@ -387,11 +441,16 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
         for job_no, job in enumerate(self.jobs):
             job.input.job_No = job_no
 
-        logging.info("📦 Job Loading Summary")
-        logging.info(f"  • Total jobs fetched from DB:        {total_raw_jobs}")
-        logging.info(f"  • Successfully parsed SegmenterJobs: {total_parsed}")
-        logging.info(f"  • Jobs ready to run (retry OK):     {retry_ready}")
-        logging.info(f"  • Skipped (next_retry in future):   {retry_delayed}")
+        logging.debug5(
+                f"""
+            📦 Job Loading Summary
+            • Total jobs fetched from DB:        {total_raw_jobs}
+            • Successfully parsed SegmenterJobs: {total_parsed}
+            • Jobs ready to run (retry OK):      {retry_ready}
+            • Skipped (next_retry in future):    {retry_delayed}
+            • Jobs marked as not needed:         {not_needed}
+            """
+            )
 
     def _run_pipeline(self, jobs: list[SegmenterJob], loop_no: int = 0, num_loader_workers: int = 4) -> pd.DataFrame:
 
@@ -436,8 +495,8 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
                 ),
                 daemon=True,
             )
-            self.record_pid(p.pid)
             p.start()
+            self.record_pid(p.pid)
             workers.append(p)
 
 
@@ -469,7 +528,7 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
         # 🧼 Wait for storer to finish
         storer_thread.join()
 
-        return pd.DataFrame(list(stats_list))
+        return _create_pipeline_summary(list(stats_list))
 
 
 
@@ -483,14 +542,21 @@ def _print_summary_df(stats_list: List[Dict]):
     # Print summary
     logging.debug2("\n" + summary_df.to_string(index=False))
 
-def _create_pipeline_summary(stats_list: Dict) -> pd.DataFrame:
+def _create_pipeline_summary(stats_list: List[Dict]) -> pd.DataFrame:
+    import pandas as pd
+    import numpy as np
+
+    if not stats_list:
+        logging.warning("No stats provided — returning empty summary")
+        return pd.DataFrame()
 
     df = pd.DataFrame(stats_list)
-    num_workers = df['loader_id'].nunique()  # unique workers
+
+    num_workers = df['loader_id'].nunique()
     setup_ratio = df.groupby('loader_id')['ellapsed_setup'].max().sum() / num_workers
 
     summary_df = df.groupby('source', as_index=False).agg(
-        jobs=('source', 'count'),
+        jobs=('stackID_FF', 'count'),
         images=('images', 'sum'),
         width_min=('width', 'min'),
         width_max=('width', 'max'),
@@ -499,25 +565,23 @@ def _create_pipeline_summary(stats_list: Dict) -> pd.DataFrame:
         elapsed_total=('elapsed_total', 'sum'),
         elapsed_seg=('elapsed_seg', 'mean'),
         elapsed_binning=('elapsed_binning', 'mean'),
-        elapsed_store_image=('elapsed_store_image', 'mean'),
-        elapsed_store_results=('elapsed_store_results', 'mean'),
         avg_segmentation_time=('avg_segmentation_time', 'mean'),
         avg_preprocessing_time=('avg_preprocessing_time', 'mean'),
         avg_feature_extraction_time=('avg_feature_extraction_time', 'mean'),
     )
-    summary_df["total_overhead"] = setup_ratio
 
-    # Round elapsed time columns
-    time_cols = ['elapsed_total', 'elapsed_seg', 'elapsed_binning',
-                 'elapsed_store_image', 'elapsed_store_results',
-                 'avg_segmentation_time', 'avg_preprocessing_time', 
-                 'avg_feature_extraction_time']
-    for col in time_cols:
-        summary_df[col] = summary_df[col].map(lambda x: round(x, 2))
+    summary_df["total_overhead"] = round(setup_ratio, 2)
 
-    # Compute rates
+    # Add derived metrics
     summary_df['images_per_s'] = (summary_df['images'] * num_workers / summary_df['elapsed_total']).round(2)
     summary_df['stacks_per_s'] = (summary_df['jobs'] * num_workers / summary_df['elapsed_total']).round(2)
     summary_df['overhead_per_image'] = (summary_df["total_overhead"] / summary_df['images']).round(2)
+
+    # Round time fields for cleaner output
+    time_cols = [
+        'elapsed_total', 'elapsed_seg', 'elapsed_binning',
+        'avg_segmentation_time', 'avg_preprocessing_time', 'avg_feature_extraction_time'
+    ]
+    summary_df[time_cols] = summary_df[time_cols].round(2)
 
     return summary_df

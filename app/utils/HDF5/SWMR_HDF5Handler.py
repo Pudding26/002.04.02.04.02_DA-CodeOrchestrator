@@ -63,7 +63,7 @@ class SWMR_HDF5Handler:
         logging.debug1(f"[SWMR] Writing to {self.file_path} [{dataset_path}]")
         sleep_time = 0
         # retry-with-back-off helps when another writer has the lock
-        for attempt in range(5):
+        for attempt in range(10):
             try:
                 with h5py.File(self.file_path, "a", libver="latest") as f:
                     f.swmr_mode = True

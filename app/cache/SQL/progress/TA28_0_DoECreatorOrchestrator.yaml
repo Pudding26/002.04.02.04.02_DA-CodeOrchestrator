@@ -1,0 +1,19 @@
+columns:
+- name: key
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - Finished
+  - message
+  - start_time
+  - Status
+  - task_uuid
+- name: value
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - 9f63d5aa-5b13-4bc8-93e6-b541afcae3ff
+  - running
+  - '0'
+  - '2025-07-15 13:27:57'
+  - 'Step 1: Initializing orchestration dictionary'

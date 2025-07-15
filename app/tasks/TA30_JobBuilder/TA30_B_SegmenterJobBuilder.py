@@ -159,7 +159,10 @@ class TA30_B_SegmenterJobBuilder:
 
 
 
-    
+        return {
+            "created": len(to_create),
+            "updated": len(to_update)
+        }
     
     
     

@@ -15,6 +15,9 @@ from sqlalchemy.orm import object_session
 from sqlalchemy import text, update, func, bindparam, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Session
+from app.utils.logger.loggingWrapper import suppress_logging
+
+
 
 from app.utils.SQL.DBEngine import DBEngine
 
@@ -39,6 +42,7 @@ from app.utils.SQL.models.production.api_SegmentationResults import Segmentation
 from app.utils.dataModels.FilterModel.FilterModel import FilterModel
 from app.utils.dataModels.FilterModel.FilterModel import Border
 from app.utils.dataModels.Jobs.DoEJob import DoEJob
+from app.utils.logger.loggingWrapper import LoggingHandler
 
 
 from app.tasks.TA30_JobBuilder.TA30_A_ProviderJobBuilder import TA30_A_ProviderJobBuilder
@@ -69,12 +73,64 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
 
     def run(self):
+        def go_idle(work_done):
+            nonlocal backoff, loop_no
+            session: Session = DBEngine("Jobs").get_session()
+
+            if not work_done:
+                backoff += 1
+                total_sleep = min(60 * (2 ** backoff), max_sleep)
+                remaining_sleep = total_sleep
+                logging.debug5(f"[TA30] No new jobs — entering idle loop for {total_sleep}s (backoff)")
+                self.controller.update_message(
+                    f"Idle for {total_sleep}s (backoff #{backoff}) after loop: #{loop_no}"
+                )
+
+                session = DBEngine("jobs").get_session()
+
+                while remaining_sleep > 0:
+                    if self.controller.should_stop():
+                        logging.info("[TA30] Stopping idle loop as requested.")
+                        break
+
+
+                    rebuild_all_joblinks_with_status(session)
+                    roll_up_all_statuses(session)
+
+                    sleep_chunk = min(30, remaining_sleep)
+                    logging.debug5(f"[TA30] Idle chunk: sleeping {sleep_chunk}s (remaining {remaining_sleep}s)")
+                    time.sleep(sleep_chunk)
+                    remaining_sleep -= sleep_chunk
+
+                session.close()
+                work_done = False  # still idle
+            else:
+                rebuild_all_joblinks_with_status(session)
+                roll_up_all_statuses(session)
+                backoff = 0
+                sleep_time = 10
+                time.sleep(15)
+            return work_done
+
+
+
         try:
+            ###MONKEYPATCH Logging level gets supset somewhere in the code, so we have to set it here again
+            LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "DEBUG-2")
+            LoggingHandler(logging_level=LOGGING_LEVEL)
+
+
+
+
             logging.info("[TA30] Starting infinite job builder loop")
             loop = True
             loop_no = 0 
             backoff = 0
             max_sleep = 600
+            work_done = False
+            last_activity = {}
+
+
 
             while loop == True:
                 if self.controller.should_stop():
@@ -85,7 +141,6 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
                 loop_no += 1
                 loop_start = datetime.now(timezone.utc)
-                loop = False
                 logging.info(f"[TA30] Job loop started at {loop_start.isoformat()}")
 
                 self.controller.update_message("Scanning for new DoE Jobs")
@@ -119,7 +174,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                                 include_cols.remove("filterNo")
 
 
-                            filter_model = FilterModel.from_human_filter({"contains": {"provider_status": "ready"}})
+                            filter_model = FilterModel.from_human_filter({"contains": {"provider_status": "READY"}})
                             filter_table = WoodMasterPotential_Out
                         case "segmenter":
                             groupby_col = "sampleID"
@@ -132,10 +187,10 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                             BuilderClass = TA30_B_SegmenterJobBuilder
                             human_filter = {
                                 "contains": {
-                                    "segmenter_status": {"or": ["in_progress", "ready"]},
+                                    "segmenter_status": {"or": ["in_progress", "READY"]},
                                 },
                                 "notcontains": {
-                                    "status": "failed"
+                                    "status": "FAILED"
                                 },
                             }
 
@@ -151,7 +206,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
 
                             
-                            filter_model = FilterModel.from_human_filter({"contains": {"modeler_status": "ready"}})
+                            filter_model = FilterModel.from_human_filter({"contains": {"modeler_status": "READY"}})
                             
                             filter_table = WoodMaster_Out
 
@@ -173,6 +228,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
                     if raw_df.empty:
                         logging.debug(f"[TA30] No '{b}' jobs found.")
+                        work_done = go_idle(work_done)  # No work to do, go idle
                         continue 
 
                     work_done = True
@@ -201,26 +257,35 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
                     if job_df.empty:
                         logging.warning(f"[TA30] No stack rows matched for {b} jobs.")
+                        work_done = go_idle(work_done)  # No work to do, go idle
+                        
                         continue
 
                     logging.info(f"[TA30] Dispatching {len(job_df)} rows to {BuilderClass.__name__}")
-                    BuilderClass.build(job_df, jobs)
-
-                if not work_done:
-                    backoff += 1
-                    sleep_time = min(60 * (2 ** backoff), max_sleep)
-                    logging.debug5(f"[TA30] No new jobs — sleeping {sleep_time}s (backoff)")
-                    self.controller.update_message(f"Sleeping for {sleep_time}s (backoff #{backoff}) after loop: #{loop_no}")  # Update message with backoff info
+                    result = BuilderClass.build(job_df, jobs)
                     
-                else:
-                    backoff = 0
-                    sleep_time = 10
+                    
+                    work_done = go_idle(work_done)  # After processing, go idle
 
-                time.sleep(sleep_time)
 
-        except KeyboardInterrupt:
-            logging.info("[TA30] Interrupted by user — shutting down gracefully.")
-            self.controller.finalize_failure("Interrupted by user")
+                    created = result.get("created", 0)
+                    updated = result.get("updated", 0)
+
+                    prev = last_activity.get(b, {"created": -1, "updated": -1})
+                    last_activity[b] = {"created": created, "updated": updated}
+
+                    if prev == last_activity[b]:
+                        work_done = False
+                    else:
+                        work_done = True
+
+                    work_done = go_idle(work_done)
+
+                
+
+
+
+
         except Exception as e:
             logging.exception("[TA30] JobBuilder task failed", exc_info=True)
             self.controller.finalize_failure(str(e))
@@ -466,6 +531,7 @@ def _bulk_upsert_joblinks_with_status(session, jobs, batch_size: int = 5000):
 
 def _roll_up_statuses(session: Session, child_kinds: set[str]):
     """Aggregate rel_state → update DoEJobs.<kind>_status in one pass per kind."""
+    
     for kind in child_kinds:
         column = f"{kind.lower()}_status"
         session.execute(
@@ -486,29 +552,205 @@ def _roll_up_statuses(session: Session, child_kinds: set[str]):
         )
 
 
+
 def _unblock_follow_up_tasks(session, FOLLOW_UP_STEPS, loop_no):
     """
-    Promote the next pipeline column from 'blocked' → 'ready'
-    whenever the previous stage is already 'done'.
-    Runs once per job-builder loop; fully idempotent.
+    Promote or fail next pipeline column based on current stage:
+    Collect all stats and print as a single DataFrame.
     """
-    updates = []
+    records = []
+
     for done_col, next_col in FOLLOW_UP_STEPS:
-        result = session.execute(
+        # DONE → READY
+        already_ready = session.execute(
+            text(f"""
+                SELECT COUNT(*)
+                FROM "DoEJobs"
+                WHERE {done_col} = 'DONE'
+                  AND {next_col} = 'READY';
+            """)
+        ).scalar() or 0
+
+        changed_ready = session.execute(
             text(f"""
                 UPDATE "DoEJobs"
-                SET    {next_col} = 'ready'
-                WHERE  {done_col} = 'done'
-                  AND  {next_col} = 'blocked';
+                SET {next_col} = 'READY'
+                WHERE {done_col} = 'DONE'
+                  AND {next_col} = 'BLOCKED';
             """)
-        )
-        changed = result.rowcount or 0
-        if changed:
-            updates.append(f"{changed} {done_col}→{next_col}")
+        ).rowcount or 0
+
+        # FAILED → FAILED
+        already_failed = session.execute(
+            text(f"""
+                SELECT COUNT(*)
+                FROM "DoEJobs"
+                WHERE {done_col} = 'FAILED'
+                  AND {next_col} = 'FAILED';
+            """)
+        ).scalar() or 0
+
+        changed_failed = session.execute(
+            text(f"""
+                UPDATE "DoEJobs"
+                SET {next_col} = 'FAILED'
+                WHERE {done_col} = 'FAILED'
+                  AND {next_col} = 'BLOCKED';
+            """)
+        ).rowcount or 0
+
+        records.append({
+            "done_col": done_col,
+            "next_col": next_col,
+            "DONE→READY (upd)": changed_ready,
+            "DONE→READY (already)": already_ready,
+            "FAILED→FAILED (upd)": changed_failed,
+            "FAILED→FAILED (already)": already_failed,
+        })
+
     session.commit()
 
-    if updates:
-        logging.debug2(
-            "[Loop %03d] Promoted: %s",
-            loop_no, ", ".join(updates),
+    df = pd.DataFrame(records)
+    log_msg = f"[Loop {loop_no:03d}] Promotion summary:\n{df.to_string(index=False)}"
+    logging.debug2(log_msg)
+
+
+
+
+def roll_up_all_statuses(session: Session):
+    """
+    Force refresh of all DoEJobs' status columns from jobLink rel_state values.
+    Covers all child kinds (provider, segmenter, modeler, validator).
+    Logs a compact DataFrame summary.
+    """
+    child_kinds = ["PROVIDER", "SEGMENTER", "MODELER", "VALIDATOR"]
+    records = []
+
+    for kind in child_kinds:
+        column = f"{kind.lower()}_status"
+
+        # Before update: how many rows already match max_state
+        result_already = session.execute(
+            text(f"""
+                SELECT COUNT(*)
+                FROM "DoEJobs" AS d
+                JOIN (
+                    SELECT parent_uuid, MAX(rel_state) AS max_state
+                    FROM "jobLink"
+                    WHERE LOWER(child_kind) = LOWER(:kind)
+                    GROUP BY parent_uuid
+                ) AS sub
+                ON d.job_uuid = sub.parent_uuid
+                WHERE d.{column} = sub.max_state;
+            """),
+            {"kind": kind}
         )
+        already_correct = result_already.scalar() or 0
+
+        # Actual update
+        result_update = session.execute(
+            text(f"""
+                UPDATE "DoEJobs" AS d
+                SET {column} = COALESCE(sub.max_state, d.{column})
+                FROM (
+                    SELECT parent_uuid, MAX(rel_state) AS max_state
+                    FROM "jobLink"
+                    WHERE LOWER(child_kind) = LOWER(:kind)
+                    GROUP BY parent_uuid
+                ) AS sub
+                WHERE d.job_uuid = sub.parent_uuid
+                  AND COALESCE(sub.max_state, d.{column}) != d.{column};
+            """),
+            {"kind": kind}
+        )
+        changed = result_update.rowcount or 0
+
+        records.append({
+            "kind": kind,
+            "column": column,
+            "updated": changed,
+            "already_correct": already_correct
+        })
+
+    session.commit()
+
+    df = pd.DataFrame(records)
+    log_msg = f"roll_up_all_statuses summary:\n{df.to_string(index=False)}"
+    logging.debug2(log_msg)
+
+
+
+
+import pandas as pd
+
+def rebuild_all_joblinks_with_status(session: Session):
+    """
+    Ensure jobLink table is in sync for all child → parent relations.
+    Logs a compact, detailed summary.
+    """
+    from app.utils.SQL.models.jobs.orm_WorkerJobs import orm_WorkerJobs
+
+    jobs = session.query(orm_WorkerJobs).all()
+
+    link_pairs = []
+    for job in jobs:
+        parents = job.parent_job_uuids or []
+        for parent_uuid in parents:
+            link_pairs.append((parent_uuid, job.job_uuid, job.job_type, job.status))
+
+    if not link_pairs:
+        logging.debug2("rebuild_all_joblinks_with_status: No link pairs to sync")
+        return
+
+    temp_table_name = f"temp_links_{uuid.uuid4().hex}"
+
+    session.execute(text(f"""
+        CREATE TEMP TABLE {temp_table_name} (
+            parent_uuid TEXT,
+            child_uuid  TEXT,
+            child_kind  TEXT,
+            rel_state   TEXT
+        ) ON COMMIT DROP;
+    """))
+
+    session.execute(
+        text(f"""
+        INSERT INTO {temp_table_name} (parent_uuid, child_uuid, child_kind, rel_state)
+        VALUES (:parent, :child, :kind, :status)
+        """),
+        [
+            {"parent": p, "child": c, "kind": k, "status": s}
+            for (p, c, k, s) in link_pairs
+        ]
+    )
+
+    # Summarize before upsert
+    records = []
+    kinds = set(k for _, _, k, _ in link_pairs)
+    for kind in kinds:
+        filtered = [(p, c) for (p, c, k, s) in link_pairs if k == kind]
+        link_count = len(filtered)
+        distinct_parents = len(set(p for p, _ in filtered))
+        distinct_children = len(set(c for _, c in filtered))
+        records.append({
+            "kind": kind.lower(),
+            "link_pairs": link_count,
+            "distinct_parents": distinct_parents,
+            "distinct_children": distinct_children
+        })
+
+    session.execute(
+        text(f"""
+        INSERT INTO "jobLink" (parent_uuid, child_uuid, child_kind, rel_state)
+        SELECT * FROM {temp_table_name}
+        ON CONFLICT (parent_uuid, child_uuid)
+        DO UPDATE SET rel_state = EXCLUDED.rel_state,
+                      child_kind = EXCLUDED.child_kind;
+    """))
+
+    session.commit()
+
+    df = pd.DataFrame(records)
+    log_msg = f"rebuild_all_joblinks_with_status summary:\n{df.to_string(index=False)}"
+    logging.debug2(log_msg)
+

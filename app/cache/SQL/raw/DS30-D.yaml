@@ -1,0 +1,46 @@
+columns:
+- name: kwa
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - kinh
+- name: 'Unnamed: 1'
+  type: categorical
+  unique_count: 6
+  unique_values:
+  - EN 252
+  - 1***
+  - EN 113max
+  - Mean (kinh)*
+  - Soil/no Soil 1:1
+  - EN 113mean
+- max: 0.882
+  min: 0.486
+  name: W24submersion
+  type: numeric
+- max: 0.898
+  min: 0.542
+  name: W24100% RH
+  type: numeric
+- max: 0.851
+  min: 0.396
+  name: W240% RH
+  type: numeric
+- max: 0.809
+  min: 0.213
+  name: CWU
+  type: numeric
+- max: 0.912
+  min: 0.221
+  name: Mean
+  type: numeric
+- name: 1***
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - null
+  - '0.772'
+  - '0.75'
+  - '0.735'
+  - '0.849'
+  - '0.879'

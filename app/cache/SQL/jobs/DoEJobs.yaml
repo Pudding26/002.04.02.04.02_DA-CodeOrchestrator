@@ -1,0 +1,128 @@
+columns:
+- name: job_uuid
+  type: categorical
+  unique_count: 60
+- name: job_type
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - DoE
+- name: status
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - READY
+- name: provider_status
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - READY
+- name: segmenter_status
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - BLOCKED
+- name: extractor_status
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - BLOCKED
+- name: modeler_status
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - BLOCKED
+- name: validator_status
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - BLOCKED
+- max: 0
+  min: 0
+  name: attempts
+  type: numeric
+- name: next_retry
+  type: categorical
+  unique_count: 60
+- name: created
+  type: categorical
+  unique_count: 60
+- name: updated
+  type: categorical
+  unique_count: 60
+- name: payload
+  type: categorical
+  unique_count: 60
+- name: parent_job_uuids
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - []
+- name: DEAP_metadata
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - knn_acc:
+      branch_linear_01_B:
+        generation: 0
+        metadata:
+          created_by: TA28_DoECreator
+          mutation_config:
+            allow_multi_mutation: true
+            dependent_mutate_params:
+              primary_data.genus:
+                must_contain:
+                - null
+                mutate_chance: 0.1
+            elite_size: 5
+            fallback_on_invalid: true
+            generation_size: 30
+            max_generations: 50
+            mutation_func: 'lambda gen: max(0.05, min(0.45, 1.000 * gen / 50))'
+            mutation_strategy: linear
+            static_mutate_params:
+              primary_data.sourceNo:
+                must_contain:
+                - DS01
+                - DS04
+                mutate_chance: 0.2
+                mutation_rate: 0.3
+              primary_data.woodType:
+                must_contain:
+                - Softwood
+                mutate_chance: 0.2
+          origin: init
+          parent_job_uuids: []
+          score: null
+  - knn_acc:
+      branch_linear_01_A:
+        generation: 0
+        metadata:
+          created_by: TA28_DoECreator
+          mutation_config:
+            allow_multi_mutation: true
+            dependent_mutate_params:
+              primary_data.genus:
+                must_contain:
+                - null
+                mutate_chance: 0.1
+            elite_size: 5
+            fallback_on_invalid: true
+            generation_size: 30
+            max_generations: 50
+            mutation_func: 'lambda gen: max(0.05, min(0.45, 1.000 * gen / 50))'
+            mutation_strategy: linear
+            static_mutate_params:
+              primary_data.sourceNo:
+                must_contain:
+                - DS01
+                - DS04
+                mutate_chance: 0.2
+                mutation_rate: 0.3
+              primary_data.woodType:
+                must_contain:
+                - Softwood
+                mutate_chance: 0.2
+          origin: init
+          parent_job_uuids: []
+          score: null

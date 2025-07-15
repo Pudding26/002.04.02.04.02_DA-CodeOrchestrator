@@ -1,7 +1,7 @@
 LABEL_WEIGHTS:
   family: 0.2
   genus: 0.3
-  species: 0.4
+  species: 0.5
   sourceID: 0.3
   specimenID: 0.2
   sampleID: 0.15
@@ -25,3 +25,12 @@ FRAQ_WEIGHTS:
   0.75: 0.00
   1.0: 0.00
 
+ENTROPY_WEIGHTS:
+  family: 0.2
+  genus: 0.3
+  species: 0.5
+  sourceID: 0.3
+  specimenID: 0.0
+  sampleID: 0.0
+  stackID: 0.0
+  shotID: 0.00

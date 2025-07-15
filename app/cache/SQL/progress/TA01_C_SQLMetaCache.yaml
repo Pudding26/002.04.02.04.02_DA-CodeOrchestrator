@@ -1,0 +1,19 @@
+columns:
+- name: key
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - Finished
+  - message
+  - start_time
+  - Status
+  - task_uuid
+- name: value
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - '2025-07-15 15:23:16'
+  - Starting task...
+  - running
+  - '0'
+  - 3ac7d346-734a-430d-ac8a-46b962488773
