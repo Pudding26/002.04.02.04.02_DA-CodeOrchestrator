@@ -1,0 +1,34 @@
+columns:
+- name: woodType
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - Hardwoods
+  - Softwoods
+- name: Wood species
+  type: categorical
+  unique_count: 18
+- name: W24 submersion mean [%]
+  type: categorical
+  unique_count: 17
+- name: W24 submersion kwa [-]
+  type: categorical
+  unique_count: 16
+- name: W24 100 % RH mean [%]
+  type: categorical
+  unique_count: 17
+- name: W24 100 % RH kwa [-]
+  type: categorical
+  unique_count: 15
+- name: W24 0 % RH mean [%]
+  type: categorical
+  unique_count: 17
+- name: W24 0 % RH kwa [-]
+  type: categorical
+  unique_count: 17
+- name: CWU mean [g/cm2]
+  type: categorical
+  unique_count: 15
+- name: CWU kwa [-]
+  type: categorical
+  unique_count: 16

@@ -1,0 +1,119 @@
+columns:
+- name: citeKey
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - dasilva_2017
+- name: filename
+  type: categorical
+  unique_count: 931
+- name: sourceNo
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - DS01
+- name: source_UUID
+  type: categorical
+  unique_count: 931
+- name: sourceFilePath_rel
+  type: categorical
+  unique_count: 931
+- name: species
+  type: categorical
+  unique_count: 75
+- name: genus
+  type: categorical
+  unique_count: 57
+- name: filename_drop
+  type: categorical
+  unique_count: 931
+- max: 6
+  min: 4
+  name: max_split_drop
+  type: numeric
+- name: specimenID_old
+  type: categorical
+  unique_count: 331
+- max: 6
+  min: 1
+  name: shotNo
+  type: numeric
+- max: 6
+  min: 1
+  name: totalNumberShots
+  type: numeric
+- max: 10
+  min: 1
+  name: specimenNo
+  type: numeric
+- name: view
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - TS
+- name: microscopicTechnic
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - light microscopy
+- max: 25
+  min: 25
+  name: lens
+  type: numeric
+- name: institution
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - University of Sao Paulo, USP
+- name: contributor
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - Rosa da Silva
+- name: origin
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: digitizedDate
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: GPS_Alt
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: GPS_Lat
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: GPS_Long
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- max: 1
+  min: 1
+  name: sourceStoredLocally
+  type: numeric
+- name: institutionCode
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - RMCA
+- name: samplingPoint
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- max: 1500
+  min: 1500
+  name: pixel_x
+  type: numeric
+- max: 2080
+  min: 2080
+  name: pixel_y
+  type: numeric

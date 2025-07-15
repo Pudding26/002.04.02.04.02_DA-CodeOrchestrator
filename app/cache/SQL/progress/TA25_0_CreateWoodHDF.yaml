@@ -1,0 +1,20 @@
+columns:
+- name: key
+  type: categorical
+  unique_count: 6
+  unique_values:
+  - Finished
+  - item_count
+  - message
+  - start_time
+  - Status
+  - task_uuid
+- name: value
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - '2025-07-15 12:11:06'
+  - 'No jobs found, sleeping for 60s (backoff #0)'
+  - c6390815-4e4a-40d0-9a04-c5220f7c4fc3
+  - running
+  - '0'

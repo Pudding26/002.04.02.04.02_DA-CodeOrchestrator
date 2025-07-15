@@ -1,0 +1,74 @@
+columns:
+- max: 21989
+  min: 1
+  name: id
+  type: numeric
+- name: DoE_UUID
+  type: categorical
+  unique_count: 54
+- max: 0.01
+  min: 0.01
+  name: frac
+  type: numeric
+- name: scope
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - species
+- name: shotID
+  type: categorical
+  unique_count: 0
+  unique_values:
+  - null
+- name: family
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - '3'
+  - '0'
+  - '2'
+  - '1'
+  - '4'
+- name: genus
+  type: categorical
+  unique_count: 8
+  unique_values:
+  - '4'
+  - '6'
+  - '3'
+  - '2'
+  - '7'
+  - '5'
+  - '0'
+  - '1'
+- name: species
+  type: categorical
+  unique_count: 35
+- name: sourceID
+  type: categorical
+  unique_count: 0
+  unique_values:
+  - null
+- name: specimenID
+  type: categorical
+  unique_count: 0
+  unique_values:
+  - null
+- name: sampleID
+  type: categorical
+  unique_count: 0
+  unique_values:
+  - null
+- name: stackID
+  type: categorical
+  unique_count: 0
+  unique_values:
+  - null
+- max: 14.93260383605957
+  min: -10.764988899230957
+  name: x
+  type: numeric
+- max: 16.637121200561523
+  min: -21.89419937133789
+  name: y
+  type: numeric

@@ -1,0 +1,7 @@
+columns:
+- name: genus
+  type: categorical
+  unique_count: 48
+- name: family
+  type: categorical
+  unique_count: 12

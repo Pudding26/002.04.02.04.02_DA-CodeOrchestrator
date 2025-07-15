@@ -1,0 +1,118 @@
+columns:
+- name: citeKey
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - martins_2012
+- name: filename
+  type: categorical
+  unique_count: 2240
+- name: sourceNo
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - DS07
+- name: sourceFilePath_rel
+  type: categorical
+  unique_count: 2240
+- name: woodType
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - Hardwood
+  - Softwood
+- name: species
+  type: categorical
+  unique_count: 112
+- name: genus
+  type: categorical
+  unique_count: 87
+- name: specimenNo_old
+  type: categorical
+  unique_count: 20
+- name: source_UUID
+  type: categorical
+  unique_count: 2240
+- name: view
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - TS
+- name: microscopicTechnic
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - light microscopy
+- max: 25
+  min: 25
+  name: lens
+  type: numeric
+- name: DPI
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- max: 1
+  min: 1
+  name: totalNumberShots
+  type: numeric
+- name: institution
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - UPFR
+- name: contributor
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: digitizedDate
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: GPS_Alt
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: GPS_Lat
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- name: GPS_Long
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- max: 1
+  min: 1
+  name: sourceStoredLocally
+  type: numeric
+- name: institutionCode
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - UPFR
+- name: samplingPoint
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - unknown
+- max: 20
+  min: 1
+  name: specimenNo
+  type: numeric
+- max: 1
+  min: 1
+  name: shotNo
+  type: numeric
+- max: 768
+  min: 768
+  name: pixel_x
+  type: numeric
+- max: 1024
+  min: 1024
+  name: pixel_y
+  type: numeric

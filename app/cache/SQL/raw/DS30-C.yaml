@@ -1,0 +1,106 @@
+columns:
+- name: woodType
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - Hardwoods
+  - Softwoods
+- name: Wood species
+  type: categorical
+  unique_count: 28
+- max: 0.7
+  min: 0.1
+  name: "Bergen v [a\u22121]"
+  type: numeric
+- max: 0.15
+  min: 0.0
+  name: Bergen SD [-]
+  type: numeric
+- name: Bergen a [a]
+  type: categorical
+  unique_count: 6
+  unique_values:
+  - '7.1'
+  - '5.9'
+  - '8.4'
+  - '6.6'
+  - n.a.
+  - '8.1'
+- name: Bergen SD [-].1
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - '1.2'
+  - '1.51'
+  - '0.99'
+  - n.a.
+  - '0.52'
+- name: "\xC5s v [a\u22121]"
+  type: categorical
+  unique_count: 22
+- name: "\xC5s SD [-]"
+  type: categorical
+  unique_count: 11
+- name: "\xC5s a [a]"
+  type: categorical
+  unique_count: 4
+  unique_values:
+  - null
+  - '6.9'
+  - '7'
+  - n.a.
+  - '7.6'
+- name: "\xC5s SD [-].1"
+  type: categorical
+  unique_count: 4
+  unique_values:
+  - null
+  - '0'
+  - n.a.
+  - '1.26'
+  - '0.32'
+- name: "Oslo v [a\u22121]"
+  type: categorical
+  unique_count: 8
+  unique_values:
+  - null
+  - '0.28'
+  - '0.48'
+  - '0.16'
+  - '0.44'
+  - '0.17'
+  - '0.19'
+  - '0.35'
+  - '0.18'
+- name: Oslo SD [-]
+  type: categorical
+  unique_count: 8
+  unique_values:
+  - null
+  - '0.01'
+  - '0.34'
+  - '0.02'
+  - '0.04'
+  - '0.05'
+  - '0.1'
+  - '0'
+  - '0.11'
+- name: Oslo a [a]
+  type: categorical
+  unique_count: 4
+  unique_values:
+  - null
+  - '9.15'
+  - '8.35'
+  - n.a.
+  - '8.64'
+- name: Oslo SD [-].1
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - null
+  - '0.99'
+  - '0.81'
+  - '0.93'
+  - n.a.
+  - '1'

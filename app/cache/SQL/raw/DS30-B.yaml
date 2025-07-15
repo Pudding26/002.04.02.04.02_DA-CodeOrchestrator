@@ -1,0 +1,38 @@
+columns:
+- name: woodType
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - Hardwoods
+  - Softwoods
+- name: Wood species
+  type: categorical
+  unique_count: 28
+- max: 41.4
+  min: -3.2
+  name: EN 113 T. versicolor ML [%]
+  type: numeric
+- max: 5.0
+  min: 0.88
+  name: EN 113 T. versicolor kinh [-]
+  type: numeric
+- max: 50.4
+  min: -4.2
+  name: EN 113 C. puteana ML [%]
+  type: numeric
+- max: 5.0
+  min: 0.52
+  name: EN 113 C. puteana kinh [-]
+  type: numeric
+- name: EN 113 P. placenta ML [%]
+  type: categorical
+  unique_count: 12
+- name: EN 113 P. placenta kinh [-]
+  type: categorical
+  unique_count: 12
+- name: "EN 252 vmean [a\u22121]"
+  type: categorical
+  unique_count: 24
+- name: EN 252 kinh [-]
+  type: categorical
+  unique_count: 19

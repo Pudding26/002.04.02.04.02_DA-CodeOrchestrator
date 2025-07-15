@@ -1,0 +1,21 @@
+columns:
+- name: key
+  type: categorical
+  unique_count: 6
+  unique_values:
+  - Finished
+  - message
+  - progress
+  - start_time
+  - Status
+  - task_uuid
+- name: value
+  type: categorical
+  unique_count: 6
+  unique_values:
+  - '0.01'
+  - '2025-07-15 12:37:49'
+  - 'Checking segmenter jobs (status: ready)'
+  - running
+  - '0'
+  - 163502f3-572c-4f6c-87b5-f18f9624767b

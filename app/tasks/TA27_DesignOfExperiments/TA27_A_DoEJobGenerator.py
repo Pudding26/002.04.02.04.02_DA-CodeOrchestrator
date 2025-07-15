@@ -15,6 +15,7 @@ from app.utils.dataModels.Jobs.DoEJob import (
     DEAPMetadata, DEAPSubBranch, DEAPInnerMetadata
 )
 
+from app.tasks.TaskBase import TaskBase
 
 class TA27_A_DoEJobGenerator:
     @staticmethod
@@ -107,47 +108,52 @@ class TA27_A_DoEJobGenerator:
 
         jobs: List[DoEJob] = []
         logging.debug3(f"🧪 Starting job generation for {len(df)} rows...")
+        
+        with TaskBase.suppress_logging(logging.WARNING):
 
-        for idx, (_, row) in enumerate(df.iterrows()):
-            try:
-                injected = inject(deepcopy(template))
 
-                deap_metadata_obj = DEAPMetadata(root={
-                    row.get("branch_id"): {
-                        row.get("subbranch_id"): DEAPSubBranch(
-                            generation=row.get("generation", 0),
-                            metadata=DEAPInnerMetadata(
-                                origin=row.get("origin", "initial"),
-                                created_by=row.get("created_by", "TA28_DoECreator")
+            for idx, (_, row) in enumerate(df.iterrows()):
+                try:
+                    injected = inject(deepcopy(template))
+
+                    deap_metadata_obj = DEAPMetadata(root={
+                        row.get("branch_id"): {
+                            row.get("subbranch_id"): DEAPSubBranch(
+                                generation=row.get("generation", 0),
+                                metadata=DEAPInnerMetadata(
+                                    origin=row.get("origin", "initial"),
+                                    created_by=row.get("created_by", "TA28_DoECreator"),
+                                    mutation_config=row.get("mutation_config")
+                                    
+                                )
                             )
-                        )
-                    }
-                })
+                        }
+                    })
 
-                # Patch missing fields (if segmentation isn't in YAML)
-                segmentation_block = injected.get("segmentation", {"filterNo": ["GS"]})
+                    # Patch missing fields (if segmentation isn't in YAML)
+                    segmentation_block = injected.get("segmentation", {"filterNo": ["GS"]})
 
-                doe_cfg = DOE_config(
-                    primary_data=PrimaryData(**injected["primary_data"]),
-                    segmentation=SegmentationCfg(**segmentation_block),
-                    secondary_data=SecondaryData(**injected["secondary_data"]),
-                    preprocessing=PreProcessingCfg(**injected.get("preprocessing", {})),
-                    modeling=ModelingCfg(**injected.get("modeling", {}))
-                )
+                    doe_cfg = DOE_config(
+                        primary_data=PrimaryData(**injected["primary_data"]),
+                        segmentation=SegmentationCfg(**segmentation_block),
+                        secondary_data=SecondaryData(**injected["secondary_data"]),
+                        preprocessing=PreProcessingCfg(**injected.get("preprocessing", {})),
+                        modeling=ModelingCfg(**injected.get("modeling", {}))
+                    )
 
-                job = DoEJob(
-                    job_uuid=injected.get("DoE_UUID"),
-                    doe_config=doe_cfg.model_dump(),
-                    DEAP_metadata=json.loads(json.dumps(deap_metadata_obj.model_dump()))
-                )
+                    job = DoEJob(
+                        job_uuid=injected.get("DoE_UUID"),
+                        doe_config=doe_cfg.model_dump(),
+                        DEAP_metadata=json.loads(json.dumps(deap_metadata_obj.model_dump()))
+                    )
 
-                
+                    
 
 
-                jobs.append(job)
+                    jobs.append(job)
 
-            except Exception as e:
-                logging.warning(f"⛔ Failed to generate job from row {idx}: {e}", exc_info=True)
+                except Exception as e:
+                    logging.warning(f"⛔ Failed to generate job from row {idx}: {e}", exc_info=True)
 
         logging.info(f"✅ Generated {len(jobs)} DoEJob objects using template '{template_path}'")
 

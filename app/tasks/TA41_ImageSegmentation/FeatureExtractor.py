@@ -86,6 +86,12 @@ class FeatureExtractor:
 
         df = pd.DataFrame(props_dict, dtype="float32")
 
+
+        required_columns = ["perimeter", "major_axis_length", "minor_axis_length", "bbox-0", "bbox-1", "bbox-2", "bbox-3"]
+        if not all(col in df.columns for col in required_columns):
+            return pd.DataFrame()  # return empty df early
+
+
         # ── derived metrics (vectorised) ────────────────────────────────
         perim = df["perimeter"].replace(0, np.nan)
         maj   = df["major_axis_length"].replace(0, np.nan)
@@ -155,3 +161,5 @@ class FeatureExtractor:
         xp.cuda.runtime.deviceSynchronize()
         xp.get_default_memory_pool().free_all_blocks()
         return labelled, props
+
+

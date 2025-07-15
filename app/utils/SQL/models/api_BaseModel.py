@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.utils.SQL.models import enums
 
 from app.utils.SQL.errors import BulkInsertError
-from app.utils.logger.loggingWrapper import LoggingHandler
+from app.utils.logger.loggingWrapper import suppress_logging
 
 
 from app.utils.SQL.models.methods._bulk_save_objects import _bulk_save_objects
@@ -81,108 +81,109 @@ class api_BaseModel(BaseModel):
         from app.utils.SQL.DBEngine import DBEngine
         from sqlalchemy.orm import sessionmaker
         
-        LoggingHandler(logging_level=LOGGING_LEVEL)
+        with suppress_logging(level=LOGGING_LEVEL):
+
         
 
 
-        if db_key is not None:
-            logging.warning(f"🔍 DEPRECATED; db_key is fetched from api_instance.")
+            if db_key is not None:
+                logging.warning(f"🔍 DEPRECATED; db_key is fetched from api_instance.")
 
-        db_key = cls.db_key
+            db_key = cls.db_key
 
 
 
-        engine  = DBEngine(db_key).get_engine()
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        table_name = cls.orm_class.__tablename__
+            engine  = DBEngine(db_key).get_engine()
+            Session = sessionmaker(bind=engine)
+            session = Session()
+            table_name = cls.orm_class.__tablename__
 
-        try:
-            def _log_step(df, step_name, steps_log):
-                shape = df.shape
-                steps_log.append(f"{step_name}: shape = {shape}")
-                return df
-            # 1.  sanitise → coerce → drop incomplete
+            try:
+                def _log_step(df, step_name, steps_log):
+                    shape = df.shape
+                    steps_log.append(f"{step_name}: shape = {shape}")
+                    return df
+                # 1.  sanitise → coerce → drop incomplete
+                
+                steps_log = []
+                df = df.copy()
+                df = _log_step(to_SQLSanitizer().sanitize(df), "sanitize", steps_log)
+                df = _log_step(to_SQLSanitizer.sanitize_columns_from_model(df, cls), "sanitize_columns_from_model", steps_log)
+                df = _log_step(to_SQLSanitizer.coerce_numeric_fields_from_model(df, cls), "coerce_numeric_fields_from_model", steps_log)
+                df = _log_step(to_SQLSanitizer.coerce_string_fields_from_model(df, cls), "coerce_string_fields_from_model", steps_log)
+                df = _log_step(to_SQLSanitizer.coerce_datetime_fields_from_model(df, cls), "coerce_datetime_fields_from_model", steps_log)
+                df = _log_step(to_SQLSanitizer.drop_incomplete_rows_from_model(df, cls), "drop_incomplete_rows_from_model", steps_log)
+                df = _log_step(to_SQLSanitizer.drop_invalid_enum_rows_from_model(df, cls), "drop_invalid_enum_rows_from_model", steps_log)
+                df = _log_step(to_SQLSanitizer().sanitize(df), "final sanitize", steps_log)
+
+                summary = "\n".join(steps_log)
+                logging.debug2(f"\n=== DataFrame Shape Report ===\n{summary}")
+
+
+
+
+                # 2.  validate with Pydantic
+                validated = _model_validate_dataframe(cls, df)
+
+
+
+                # 3.  optional table truncate
+                if method == "replace":
+                    logging.warning(f"⚠️ 'replace' deletes all rows in {cls.orm_class.__tablename__}")
+                    session.query(cls.orm_class).delete()
+                    session.commit()
+
+
+                # 4.  choose persistence strategy
+                start = time()
+                if insert_method == "bulk_save_objects":
+                    _bulk_save_objects(
+                        orm_cls=cls.orm_class,
+                        records=validated,
+                        session=session,
+                        batch_size=5_000,
+                        switch_threshold=5,
+                        abort_threshold=15,
+                    )
+                    session.commit()
+
+                elif insert_method == "bulk_insert_mappings":
+                    session.bulk_insert_mappings(
+                        cls.orm_class,
+                        validated.to_dict(orient="records"),
+                    )
+                    session.commit()
+
+                elif insert_method == "to_sql":
+                    validated.to_sql(
+                        name=cls.orm_class.__tablename__,
+                        con=engine,
+                        if_exists=method,       # 'append' or 'replace'
+                        index=False,
+                        method="multi",
+                        chunksize=5_000,
+                    )
+
+                else:
+                    raise ValueError(f"Unknown insert_method: {insert_method}")
+
+                logging.debug3(
+                    f"✅ Stored {len(validated)} rows to "
+                    f"{cls.orm_class.__tablename__} in {time()-start:.2f}s "
+                    f"using {insert_method}"
+                )
+
+            except BulkInsertError:
+                # already logged in detail by the helper – don't spam again
+                session.rollback()
+                raise
+
+            except Exception as exc:
+                session.rollback()
+                logging.error(f"❌ store_dataframe failed: {exc}", exc_info=True)
             
-            steps_log = []
-            df = df.copy()
-            df = _log_step(to_SQLSanitizer().sanitize(df), "sanitize", steps_log)
-            df = _log_step(to_SQLSanitizer.sanitize_columns_from_model(df, cls), "sanitize_columns_from_model", steps_log)
-            df = _log_step(to_SQLSanitizer.coerce_numeric_fields_from_model(df, cls), "coerce_numeric_fields_from_model", steps_log)
-            df = _log_step(to_SQLSanitizer.coerce_string_fields_from_model(df, cls), "coerce_string_fields_from_model", steps_log)
-            df = _log_step(to_SQLSanitizer.coerce_datetime_fields_from_model(df, cls), "coerce_datetime_fields_from_model", steps_log)
-            df = _log_step(to_SQLSanitizer.drop_incomplete_rows_from_model(df, cls), "drop_incomplete_rows_from_model", steps_log)
-            df = _log_step(to_SQLSanitizer.drop_invalid_enum_rows_from_model(df, cls), "drop_invalid_enum_rows_from_model", steps_log)
-            df = _log_step(to_SQLSanitizer().sanitize(df), "final sanitize", steps_log)
-
-            summary = "\n".join(steps_log)
-            logging.debug2(f"\n=== DataFrame Shape Report ===\n{summary}")
-
-
-
-
-            # 2.  validate with Pydantic
-            validated = _model_validate_dataframe(cls, df)
-
-
-
-            # 3.  optional table truncate
-            if method == "replace":
-                logging.warning(f"⚠️ 'replace' deletes all rows in {cls.orm_class.__tablename__}")
-                session.query(cls.orm_class).delete()
-                session.commit()
-
-
-            # 4.  choose persistence strategy
-            start = time()
-            if insert_method == "bulk_save_objects":
-                _bulk_save_objects(
-                    orm_cls=cls.orm_class,
-                    records=validated,
-                    session=session,
-                    batch_size=5_000,
-                    switch_threshold=5,
-                    abort_threshold=15,
-                )
-                session.commit()
-
-            elif insert_method == "bulk_insert_mappings":
-                session.bulk_insert_mappings(
-                    cls.orm_class,
-                    validated.to_dict(orient="records"),
-                )
-                session.commit()
-
-            elif insert_method == "to_sql":
-                validated.to_sql(
-                    name=cls.orm_class.__tablename__,
-                    con=engine,
-                    if_exists=method,       # 'append' or 'replace'
-                    index=False,
-                    method="multi",
-                    chunksize=5_000,
-                )
-
-            else:
-                raise ValueError(f"Unknown insert_method: {insert_method}")
-
-            logging.debug3(
-                f"✅ Stored {len(validated)} rows to "
-                f"{cls.orm_class.__tablename__} in {time()-start:.2f}s "
-                f"using {insert_method}"
-            )
-
-        except BulkInsertError:
-            # already logged in detail by the helper – don't spam again
-            session.rollback()
-            raise
-
-        except Exception as exc:
-            session.rollback()
-            logging.error(f"❌ store_dataframe failed: {exc}", exc_info=True)
-        
-        finally:
-            session.close()
+            finally:
+                session.close()
 
 
     @classmethod
@@ -234,66 +235,70 @@ class api_BaseModel(BaseModel):
         db_key: Optional[str] = None,
         orm_class: Optional[type] = None,
         columns: Optional[list[str]] = None,
-        stream: bool = True,
+        stream: bool = False,
+        LOGGING_LEVEL: str = "WARNING"
+
     ) -> pd.DataFrame:
         """
         Fetch data from the database with optional filtering and column projection.
         Supports FilterModel-based structured filtering or legacy filter_dict.
         """
-    
-        if method is not None:
-            logging.warning(f"🔍 DEPRECATED; ALL is default and dsticntion comes form provided Filter or not")
-        if filter_dict is not None:
-            logging.warning(f"🔍 DEPRECATED; use FilterModel instead of filter_dict")
-        
-        cid = uuid4().hex[:8]
-        _cid.set(cid)
-        ctx = {"cid": cid}
 
-        orm_class = orm_class or getattr(cls, "orm_class", None)
-        db_key = db_key or getattr(cls, "db_key", "raw")
-        if orm_class is None:
-            raise ValueError("orm_class missing")
+        with suppress_logging(level=LOGGING_LEVEL):
+       
+            if method is not None:
+                logging.warning(f"🔍 DEPRECATED; ALL is default and dsticntion comes form provided Filter or not")
+            if filter_dict is not None:
+                logging.warning(f"🔍 DEPRECATED; use FilterModel instead of filter_dict")
+            
+            cid = uuid4().hex[:8]
+            _cid.set(cid)
+            ctx = {"cid": cid}
 
-        logging.info("📥 fetch start", extra=ctx)
-        start = time()
+            orm_class = orm_class or getattr(cls, "orm_class", None)
+            db_key = db_key or getattr(cls, "db_key", "raw")
+            if orm_class is None:
+                raise ValueError("orm_class missing")
 
-        session = DBEngine(db_key).get_session()
-        try:
-            # 🔧 Unified fetch builder: uses filter_model if provided
-            builder = SQL_FetchBuilder(orm_class, filter_model)
-            stmt = builder.build_select(method, columns).execution_options(stream_results=True)
+            logging.info("📥 fetch start", extra=ctx)
+            start = time()
 
-            logging.debug1("📝 SQL built", extra=ctx)
-            logging.debug1(
-                stmt.compile(compile_kwargs={"literal_binds": True}),
-                extra=ctx,
-            )
+            session = DBEngine(db_key).get_session()
+            try:
+                # 🔧 Unified fetch builder: uses filter_model if provided
+                builder = SQL_FetchBuilder(orm_class, filter_model)
+                stmt = builder.build_select(method, columns).execution_options(stream_results=True)
 
-            # 📤 Execute and collect
-            if stream:
-                result = session.execute(stmt)
-                rowcount = getattr(builder, "rowcount", None)
-                data = [
-                    cls.model_validate(r._mapping).model_dump()
-                    for r in tqdm(result.yield_per(5000), desc="stream", total=rowcount)
-                ]
-            else:
-                data = [
-                    cls.model_validate(r._mapping).model_dump()
-                    for r in session.execute(stmt).all()
-                ]
+                logging.debug1("📝 SQL built", extra=ctx)
+                logging.debug1(
+                    stmt.compile(compile_kwargs={"literal_binds": True}),
+                    extra=ctx,
+                )
 
-            df = pd.DataFrame(data, columns=columns or list(cls.model_fields))
-            logging.info(f"✅ fetched {len(df)} rows in {time()-start:.2f}s", extra=ctx)
-            logging.debug2(f"🔑 digest={df.select_dtypes('number').sum().sum()}", extra=ctx)
-            return df
+                # 📤 Execute and collect
+                if stream:
+                    result = session.execute(stmt)
+                    rowcount = getattr(builder, "rowcount", None)
+                    data = [
+                        cls.model_validate(r._mapping).model_dump()
+                        for r in tqdm(result.yield_per(5000), desc="stream", total=rowcount)
+                    ]
+                else:
+                    data = [
+                        cls.model_validate(r._mapping).model_dump()
+                        for r in session.execute(stmt).all()
+                    ]
 
-        except Exception as exc:
-            logging.error(f"❌ fetch failed: {exc}", extra=ctx, exc_info=True)
-            return pd.DataFrame()
-        finally:
-            session.close()
+                df = pd.DataFrame(data, columns=columns or list(cls.model_fields))
+                logging.info(f"✅ fetched {len(df)} rows in {time()-start:.2f}s", extra=ctx)
+                logging.debug2(f"🔑 digest={df.select_dtypes('number').sum().sum()}", extra=ctx)
+                return df
+
+            except Exception as exc:
+                logging.error(f"❌ fetch failed: {exc}", extra=ctx, exc_info=True)
+                return pd.DataFrame()
+            finally:
+                session.close()
 
 
     @classmethod

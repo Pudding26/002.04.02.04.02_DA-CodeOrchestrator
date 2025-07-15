@@ -1,22 +1,36 @@
 import numpy as np
 import cv2
+from typing import Tuple, Union
 
 class Preprocessor:
     def __init__(self, config: dict):
         self.cfg = config["preprocessing"]
-
-    def apply_one(self, image: np.ndarray) -> np.ndarray:
-        if len(image.shape) == 2 or image.shape[2] == 1:
-            gray_image = image if len(image.shape) == 2 else image[:, :, 0]
+    def apply_one(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray | None]:
+        # 1. Force 2D grayscale
+        if image.ndim == 2:
+            gray_image = image
             new_gray = None
+        elif image.ndim == 3:
+            if image.shape[2] == 1:
+                gray_image = image[:, :, 0]
+                new_gray = None
+            else:
+                gray_image = self._to_grayscale(image)
+                new_gray = gray_image
         else:
-            gray_image = self._to_grayscale(image)
-            new_gray = gray_image
+            raise ValueError(f"Unsupported image shape: {image.shape}")
+
+        # 2. Enforce uint8 and clean up
+        gray_image = np.clip(gray_image, 0, 255).astype(np.uint8)
+
+        # 3. Apply full preprocessing chain
         image = gray_image
         image = self._apply_contrast(image)
         image = self._apply_noise_filter(image)
         image = self._apply_normalization(image)
-        return image, new_gray
+
+        return image, new_gray.astype(np.uint8) if new_gray is not None else None
+
 
     def _to_grayscale(self, image):
         mode = self.cfg.get("gray_channel", "Luminance")

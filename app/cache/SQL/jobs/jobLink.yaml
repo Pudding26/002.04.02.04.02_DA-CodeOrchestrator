@@ -1,0 +1,17 @@
+columns:
+- name: parent_uuid
+  type: categorical
+  unique_count: 0
+  unique_values: []
+- name: child_uuid
+  type: categorical
+  unique_count: 0
+  unique_values: []
+- name: child_kind
+  type: categorical
+  unique_count: 0
+  unique_values: []
+- name: rel_state
+  type: categorical
+  unique_count: 0
+  unique_values: []

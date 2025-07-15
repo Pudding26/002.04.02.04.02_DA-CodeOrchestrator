@@ -1,0 +1,34 @@
+columns:
+- name: woodType
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - Hardwoods
+  - Softwoods
+- name: Wood species
+  type: categorical
+  unique_count: 25
+- max: 93.2
+  min: 23.2
+  name: W24 submersion mean [%]
+  type: numeric
+- max: 2.38
+  min: 0.59
+  name: W24 submersion kwa [-]
+  type: numeric
+- max: 17.8
+  min: 6.1
+  name: W24 100 % RH mean [%]
+  type: numeric
+- max: 2.9
+  min: 1.0
+  name: W24 100 % RH kwa [-]
+  type: numeric
+- max: 0.39
+  min: 0.02
+  name: CWU mean [g/cm2]
+  type: numeric
+- max: 4.62
+  min: 0.24
+  name: CWU kwa [-]
+  type: numeric

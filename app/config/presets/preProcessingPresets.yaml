@@ -1,33 +1,31 @@
-PP02:
-  name: "Random Oversampling"
-  description: "Duplicate minority class samples using shotID scope."
-  method: "resampling"
-  resampling:
-    submethod: "oversampling"
-    oversampling:
-      subsubmethod: "RandomOverSampler"
-      RandomOverSampler:
-        scope: "species"
-        random_state: 42
-      SMOTESampler: null
-    undersampling: null
-    bootstrapping: null
-    hybrid: null
-
 PP01:
   name: "SMOTE Oversampling"
   description: "SMOTE interpolation based on shotID labels, using GPU k-NN."
-  method: "resampling"
   resampling:
-    submethod: "oversampling"
-    oversampling:
-      subsubmethod: "SMOTESampler"
-      SMOTESampler:
-        scope: "species"
-        k_neighbors: 5
-        sampling_strategy: "auto"
-        random_state: 42
-      RandomOverSampler: null
-    undersampling: null
-    bootstrapping: null
-    hybrid: null
+    method: "SMOTESampler"
+    SMOTESampler:
+      scope: "species"
+      k_neighbors: 3
+      sampling_strategy: "auto"
+      random_state: 42
+    RandomSampler: null
+  bootstrapping:
+    enabled: true
+    n_iterations: 3
+    n_samples: 20000
+
+PP02:
+  name: "Random Oversampling"
+  description: "Duplicate minority class samples using shotID scope."
+  resampling:
+    method: "RandomSampler"
+    RandomSampler:
+      scope: "genus"
+      sampling_strategy: "auto"
+      random_state: 42
+      mode: "under" # or "over" or "hybrid"
+      strategy: "median" # or "mean" or "min" or "max"
+  bootstrapping:
+    enabled: true
+    n_iterations: 2
+    n_samples: 1000

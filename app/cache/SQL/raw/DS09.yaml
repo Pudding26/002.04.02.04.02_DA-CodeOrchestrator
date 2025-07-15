@@ -1,0 +1,32 @@
+columns:
+- name: 'No'
+  type: categorical
+  unique_count: 297
+- name: Botanische Art
+  type: categorical
+  unique_count: 328
+- name: Code
+  type: categorical
+  unique_count: 328
+- name: Herkunft
+  type: categorical
+  unique_count: 13
+- name: Englischer Standardname
+  type: categorical
+  unique_count: 318
+- name: "Franz\xF6sicher Standardname"
+  type: categorical
+  unique_count: 323
+- name: Deutscher Standardname
+  type: categorical
+  unique_count: 324
+- name: 'Unnamed: 7'
+  type: categorical
+  unique_count: 5
+  unique_values:
+  - Kamarere
+  - Agathis
+  - Echte Zeder
+  - Podo
+  - null
+  - Kasai

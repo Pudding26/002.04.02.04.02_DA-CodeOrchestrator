@@ -139,16 +139,24 @@ class TA30_A_ProviderJobBuilder:
             all_jobs.append(job)
             if job_uuid in existing:
                 to_update.append(job)
+                if row_no % 500 == 0 or row_no == len(job_df) - 1:
+                    pass
+                    #logging.debug2(f"[ProviderBuilder] Adding job {job_uuid} ({row_no + 1}/{len(job_df)})| len_create={len(to_create)}; len_update={len(to_update)}")
+
 
             else:
                 to_create.append(job)
-                logging.debug2(f"[ProviderBuilder] Adding job {job_uuid} ({row_no + 1}/{len(job_df)})")
+                if row_no % 2500 == 0 or row_no == len(job_df) - 1 and row_no != 0:
+                    logging.debug2(f"[ProviderBuilder] Adding job {job_uuid} ({row_no + 1}/{len(job_df)})| len_create={len(to_create)}; len_update={len(to_update)}")
 
 
         from app.tasks.TA30_JobBuilder.TA30_0_JobBuilderWrapper import TA30_0_JobBuilderWrapper
             
         TA30_0_JobBuilderWrapper.store_and_update(to_create = to_create, to_update = to_update)
                 
- 
+        return {
+            "created": len(to_create),
+            "updated": len(to_update)
+        }
 
 

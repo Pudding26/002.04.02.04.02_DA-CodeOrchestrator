@@ -43,6 +43,7 @@ class orm_WorkerJobs(orm_BaseModel):
 
 
 
+
     @classmethod
     def update_row(cls, row: dict):
         job_uuid = row.pop("job_uuid", None)

@@ -1,0 +1,95 @@
+columns:
+- name: DoE_UUID
+  type: categorical
+  unique_count: 64
+- name: sourceNo
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - - DS01
+    - DS04
+    - DS07
+  - - DS04
+- name: woodType
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - - Softwood
+    - Hardwood
+  - - Softwood
+- name: family
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - - Pinaceae
+    - Fagaceae
+- name: genus
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - - Pinus
+    - Picea
+    - Abies
+    - Larix
+    - Tsuga
+    - Cedrus
+- name: species
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - - PinusSylvestris
+    - PiceaAbies
+    - AbiesAlba
+  - - LarixDecidua
+    - TsugaHeterophylla
+    - CedrusAtlantica
+- name: filterNo
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - - FF01
+- name: view
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - - TS
+- name: lens
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - - None
+  - - 10
+    - 25
+- name: maxShots
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - - 500
+  - - 1000
+- name: noShotsRange
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - - 1
+    - 8
+- name: secondaryDataBins
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - - SD01
+- name: preProcessingNo
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - - PPNO1
+- name: featureBins
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - - FB01
+- name: metricModelNo
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - - MM01
+  - - MM02

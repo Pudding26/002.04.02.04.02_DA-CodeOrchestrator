@@ -76,6 +76,7 @@ class TA01_A_SQLSetup:
             else:
                 logging.warning(f"⚠️ Environment variable '{key}' is not set — skipping.")
 
+
     @staticmethod
     def create_all_tables():
         

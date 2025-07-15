@@ -20,6 +20,7 @@ class DEAPInnerMetadata(BaseModel):
     parent_job_uuids: List[str] = Field(default_factory=list)
     score: Optional[float] = None
     created_by: Optional[str] = None
+    mutation_config: Optional[dict] = None 
 
 class DEAPSubBranch(BaseModel):
     generation: int
@@ -32,6 +33,14 @@ class DEAPMetadata(RootModel[Dict[str, Dict[str, DEAPSubBranch]]]):
     def dict(self, *args, **kwargs):
         return self.root  # Ensure you return the nested dict structure
 
+    def to_nested_dict(self) -> dict:
+        return {
+            branch: {
+                subbranch: meta.model_dump()
+                for subbranch, meta in subbranches.items()
+            }
+            for branch, subbranches in self.root.items()
+        }
 
 
 
@@ -56,8 +65,6 @@ class DoEJob(BaseJob):
 
 
     model_config = ConfigDict(populate_by_name=True)
-
-
 
 
 
@@ -124,7 +131,7 @@ class DoEJob(BaseJob):
             "payload": {
                 "doe_config": clean_dict["doe_config"],       
             },
-            "DEAP_metadata": self.DEAP_metadata.dict()
+            "DEAP_metadata": self.DEAP_metadata.to_nested_dict(),
 
 
         }
