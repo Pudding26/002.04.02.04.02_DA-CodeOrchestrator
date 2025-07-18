@@ -63,17 +63,20 @@ async def lifespan(app: FastAPI):
         ]
         auto_start_extra = []
         auto_start_extra = [
-        #    "TA30_0_JobBuilderWrapper",
-        #    "TA41_0_SegmentationOrchestrator"
+            "TA28_0_DoECreatorOrchestrator",
+            "TA30_0_JobBuilderWrapper",
+            "TA25_0_CreateWoodHDF",
+            "TA41_0_SegmentationOrchestrator",
         ]
 
         auto_start_default.extend(auto_start_extra)
-
+        a = 2
         for task_name in auto_start_default:
             try:
+
                 TaskBase.trigger_task_via_http(task_name)
                 logger.info(f"✅ Successfully started {task_name}")
-                time.sleep(1)  # Small delay to avoid overwhelming the server
+                time.sleep(2 * a * a)  # Small delay to avoid overwhelming the server
             except Exception as e:
                 logger.error(f"❌ Failed to start {task_name}: {e}")
        

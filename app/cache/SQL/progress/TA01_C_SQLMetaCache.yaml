@@ -12,8 +12,8 @@ columns:
   type: categorical
   unique_count: 5
   unique_values:
-  - '2025-07-15 15:23:16'
   - Starting task...
+  - 52cf564c-abd2-49e1-a198-7d7f5ac0a026
   - running
   - '0'
-  - 3ac7d346-734a-430d-ac8a-46b962488773
+  - '2025-07-18 10:05:07'

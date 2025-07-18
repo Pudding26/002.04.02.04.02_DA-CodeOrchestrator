@@ -1,25 +1,72 @@
-branch_linear_01:
-  mutation_strategy: linear
+branch_static_01:
+  mutation_strategy: static
   mutation_func: 'lambda gen: max(0.05, min(0.45, 1.000 * gen / 50))'
   control_branches:
-    - branch_linear_01_A
-    - branch_linear_01_B
+    - branch_static_01_A
+    - branch_static_01_B
+    - branch_static_01_C
   allow_multi_mutation: true
   fallback_on_invalid: true
   max_generations: 50
-  generation_size: 30
+  generation_size: 10
   elite_size: 5
   static_mutate_params:
     primary_data.sourceNo:
-      mutate_chance: 0.2
+      mutate_chance: 0.05
       mutation_rate: 0.3
-      must_contain: ["DS01", "DS04"]
+      must_contain: ["DS07", "DS11"]
+      must_not_contain: ["DS01", "DS04"]
+
+  dependent_mutate_params:
     primary_data.woodType:
-      mutate_chance: 0.2
+      mutate_chance: 0.05
       must_contain: ["Softwood"]
+      must_not_contain: ["Hardwood"]
+
+branch_static_02:
+  mutation_strategy: static
+  mutation_func: 'lambda gen: max(0.05, min(0.45, 1.000 * gen / 50))'
+  control_branches:
+    - branch_static_02_A
+    - branch_static_02_B
+    - branch_static_02_C
+  allow_multi_mutation: true
+  fallback_on_invalid: true
+  max_generations: 50
+  generation_size: 10
+  elite_size: 5
+  static_mutate_params:
+    primary_data.sourceNo:
+      mutate_chance: 0.05
+      mutation_rate: 0.3
+      must_contain: ["DS01", "DS04", "DS07", "DS11"]
+  dependent_mutate_params:
+    primary_data.woodType:
+      mutate_chance: 0.05
+      must_contain: ["Hardwood"]
+      must_not_contain: ["Softwood"]
+
+branch_static_03:
+  mutation_strategy: static
+  mutation_func: 'lambda gen: max(0.05, min(0.45, 1.000 * gen / 50))'
+  control_branches:
+    - branch_static_02_A
+    - branch_static_02_B
+    - branch_static_02_C
+  allow_multi_mutation: true
+  fallback_on_invalid: true
+  max_generations: 50
+  generation_size: 10
+  elite_size: 5
+  static_mutate_params:
+    primary_data.sourceNo:
+      mutate_chance: 0.05
+      mutation_rate: 0.3
+      must_contain: ["DS01", "DS04", "DS07", "DS11"]
+    primary_data.woodType:
+      mutate_chance: 0.05
   dependent_mutate_params:
     primary_data.genus:
-      mutate_chance: 0.1
-      #must_not_contain: ["Quercus", "Eucalyptus"]
-      must_contain: [null]
+      mutate_chance: 0.05
+      growth_bias: 0.3
 

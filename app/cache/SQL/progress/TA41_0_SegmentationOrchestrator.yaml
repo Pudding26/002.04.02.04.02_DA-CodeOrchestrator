@@ -1,23 +1,20 @@
 columns:
 - name: key
   type: categorical
-  unique_count: 7
+  unique_count: 6
   unique_values:
   - Finished
   - item_count
   - message
-  - progress
   - start_time
   - Status
   - task_uuid
 - name: value
   type: categorical
-  unique_count: 7
+  unique_count: 5
   unique_values:
-  - '0.003952569169960474'
-  - 011646b1-02bc-4e63-a57e-eb62d6d5fd86
-  - 'Loop 1: job 0/253'
-  - '2025-07-15 12:37:45'
+  - "Loop #2 \u2014 loading jobs"
+  - e589990f-9b32-4f5b-99b1-0b4029ef3750
   - running
+  - '2025-07-18 10:06:08'
   - '0'
-  - '253'

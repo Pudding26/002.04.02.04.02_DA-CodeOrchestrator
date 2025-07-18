@@ -1,14 +1,14 @@
 columns:
-- max: 8191086
+- max: 10072446
   min: 127441
   name: ROWID
   type: numeric
 - name: shotID
   type: categorical
-  unique_count: 22479
+  unique_count: 27705
 - name: stackID
   type: categorical
-  unique_count: 7007
+  unique_count: 8843
 - name: bin_label
   type: categorical
   unique_count: 4
@@ -29,15 +29,15 @@ columns:
   name: bin_count
   type: numeric
 - max: 0.7333333333333333
-  min: 0.0761129207383279
+  min: 0.07099143206854346
   name: bin_fraction
   type: numeric
 - name: feature_name
   type: categorical
   unique_count: 6
   unique_values:
-  - equivalent_diameter
   - area
+  - equivalent_diameter
   - minor_axis_length
   - perimeter
   - major_axis_length
@@ -46,13 +46,13 @@ columns:
   type: categorical
   unique_count: 5
   unique_values:
-  - min
   - mean
-  - max
+  - min
   - std
+  - max
   - skew
-- max: 6651957.0
-  min: -19.985029220581055
+- max: 9587218.0
+  min: -32.95639419555664
   name: feature_value
   type: numeric
 - name: unit
