@@ -21,7 +21,7 @@ def define_DoE_Options(wood_master_df):
             "multi": True
         },
         "primary_data.noShotsRange": {
-            "values": [[None], [[2, 15]], [[2, 100]], [[1, 5]], [[10, 25]]],
+            "values": [[[2, 15]], [[2, 100]], [[1, 5]], [[10, 25]]],
             "multi": False
         },
         "primary_data.filterNo": {

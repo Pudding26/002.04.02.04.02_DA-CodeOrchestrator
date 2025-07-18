@@ -13,8 +13,8 @@ columns:
   type: categorical
   unique_count: 5
   unique_values:
-  - '2025-07-15 12:11:06'
-  - 'No jobs found, sleeping for 60s (backoff #0)'
-  - c6390815-4e4a-40d0-9a04-c5220f7c4fc3
+  - '2025-07-18 10:05:59'
   - running
+  - 9305f29d-5f71-448e-b478-e4d2aa923eb2
   - '0'
+  - 'No jobs found, sleeping for 120s (backoff #1)'

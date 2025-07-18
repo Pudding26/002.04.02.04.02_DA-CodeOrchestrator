@@ -15,11 +15,10 @@ import logging
 import warnings
 import pandas as pd
 from copy import deepcopy
-from app.tasks.TA28_DoECreator.utils.generate_doe_uuid import generate_doe_uuid
 from app.tasks.TA27_DesignOfExperiments.TA27_A_DoEJobGenerator import TA27_A_DoEJobGenerator
 
 
-from app.tasks.TaskBase import TaskBase
+from app.utils.logger.loggingWrapper import suppress_logging
 
 class TA28_A_Initiater:
 
@@ -55,6 +54,7 @@ class TA28_A_Initiater:
 
         df = self.extract_dependent_factors(df, config, wildcard_flags)
         logging.debug3("After extract_dependent_factors, remaining rows: %d", len(df))
+ 
 
         logging.debug3("Generated config: %s", config)
         config = self.clean_config_dict(config)
@@ -114,6 +114,8 @@ class TA28_A_Initiater:
             if selected and field in df.columns:
                 df = df[df[field].isin(selected if isinstance(selected, list) else [selected])]
                 logging.debug2("After narrowing on %s, rows before=%d after=%d", field, before, len(df))
+            if selected is []:
+                logging.critical(f"Static factor {key} selected empty list! This may lead to no valid DoE jobs.")
 
         return df
 
@@ -214,6 +216,9 @@ class TA28_A_Initiater:
 
     def extract_dependent_factors(self, df, config, wildcard_flags={}):
         logging.debug3("Extracting dependent factors...")
+        
+        df_original = df.copy()
+        
         for key in self.DEPENDENT_FACTORS.keys():
             section, field = key.split(".")
             multi = self.DEPENDENT_FACTORS[key]["multi"]
@@ -250,6 +255,12 @@ class TA28_A_Initiater:
                 df = df[df[field].isin(final_selection)]
                 logging.debug2("After narrowing on dependent %s; rows before=%d after=%d", field, before, len(df))
 
+
+            if len(df) == 0:
+                    logging.critical("No valid rows left after extracting dependent factors! This may lead to no valid DoE jobs.")
+                    raise ValueError("No valid rows left after extracting dependent factors!")
+            
+    
         return df
 
     def build_wildcard_flags(self, branch_config):
@@ -324,7 +335,8 @@ class TA28_A_Initiater:
         flat_rows = []
 
         for _ in range(generation_size):
-            with TaskBase.suppress_logging(logging.WARNING):
+
+            with suppress_logging():
                 base_cfg = self.generate_random_doe_config(
                     static_params=static_params,
                     dependent_params=dependent_params,
@@ -356,9 +368,7 @@ class TA28_A_Initiater:
 
             flat_rows.append(flat_cfg)
 
-        # Add DoE_UUID to each row
-        for row in flat_rows:
-            row["DoE_UUID"] = generate_doe_uuid(row)
+
 
         df = pd.DataFrame(flat_rows)
 
@@ -393,3 +403,18 @@ class TA28_A_Initiater:
             "maxShots": new_row["primary_data"].get("maxShots", [500]),
             "noShotsRange": new_row["primary_data"].get("noShotsRange", [30])
         }
+
+
+# 🔹 Debugging check for empty lists in config:
+def _check_for_empty_lists(d, path=""):
+    check = False
+    for k, v in d.items():
+        current_path = f"{path}.{k}" if path else k
+        if isinstance(v, dict):
+            _check_for_empty_lists(v, current_path)
+        elif isinstance(v, list) and len(v) == 0:
+            check = True
+            return check
+            # Optional: raise exception for hard fail during debug:
+            # raise ValueError(f"Empty list at config path: {current_path}")
+

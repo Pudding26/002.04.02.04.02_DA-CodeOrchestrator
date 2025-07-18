@@ -140,9 +140,11 @@ class TA27_A_DoEJobGenerator:
                         preprocessing=PreProcessingCfg(**injected.get("preprocessing", {})),
                         modeling=ModelingCfg(**injected.get("modeling", {}))
                     )
+                    sorted_cfg = sort_nested(doe_cfg.model_dump())
+                    job_uuid = compute_doe_uuid(sorted_cfg)
 
                     job = DoEJob(
-                        job_uuid=injected.get("DoE_UUID"),
+                        job_uuid=job_uuid,
                         doe_config=doe_cfg.model_dump(),
                         DEAP_metadata=json.loads(json.dumps(deap_metadata_obj.model_dump()))
                     )
@@ -163,3 +165,46 @@ class TA27_A_DoEJobGenerator:
         return jobs
 
 
+def replace_none_with_string(data):
+    """
+    Recursively replace Python None with string 'None' for deterministic serialization.
+    """
+    if isinstance(data, dict):
+        return {k: replace_none_with_string(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [replace_none_with_string(x) for x in data]
+    elif data is None:
+        return "None"
+    else:
+        return data
+
+def sort_nested(data):
+    """
+    Recursively sort a nested dict/list structure deterministically for consistent serialization.
+    - Dict keys are sorted
+    - Lists are sorted if they contain sortable elements
+    """
+    if isinstance(data, dict):
+        return {k: sort_nested(v) for k, v in sorted(data.items())}
+    elif isinstance(data, list):
+        # Sort lists if elements are sortable (primitives)
+        try:
+            return sorted(sort_nested(x) for x in data)
+        except TypeError:
+            # If not sortable (e.g., list of dicts), recurse only
+            return [sort_nested(x) for x in data]
+    else:
+        return data
+
+def compute_doe_uuid(doe_config: dict) -> str:
+    """
+    Deterministically compute UUID for a given doe_config dict.
+    - Replace None with 'None'
+    - Sort keys and nested lists
+    - Serialize to canonical JSON
+    - MD5 hash and produce UUID
+    """
+    cleaned_config = replace_none_with_string(doe_config)
+    sorted_config = sort_nested(cleaned_config)
+    serialized = json.dumps(sorted_config, sort_keys=True, separators=(',', ':'))
+    return str("DoE_" + hashlib.md5(serialized.encode('utf-8')).hexdigest()[:10])

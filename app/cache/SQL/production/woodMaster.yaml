@@ -1,7 +1,7 @@
 columns:
 - name: stackID
   type: categorical
-  unique_count: 16855
+  unique_count: 16974
 - name: sampleID
   type: categorical
   unique_count: 4470
@@ -172,7 +172,7 @@ columns:
   unique_count: 108
 - name: path
   type: categorical
-  unique_count: 16855
+  unique_count: 16974
 - name: specimenID
   type: categorical
   unique_count: 3507

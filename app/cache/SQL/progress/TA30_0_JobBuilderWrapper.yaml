@@ -13,9 +13,9 @@ columns:
   type: categorical
   unique_count: 6
   unique_values:
+  - '2025-07-18 10:05:51'
   - '0.01'
-  - '2025-07-15 12:37:49'
-  - 'Checking segmenter jobs (status: ready)'
+  - aa0bc2a2-18e0-42d8-9c3d-4a765b80001d
   - running
   - '0'
-  - 163502f3-572c-4f6c-87b5-f18f9624767b
+  - 'Idle for 120s (backoff #1) after loop: #1'

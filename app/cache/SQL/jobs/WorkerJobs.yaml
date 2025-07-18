@@ -1,37 +1,36 @@
 columns:
 - name: job_uuid
   type: categorical
-  unique_count: 0
-  unique_values: []
+  unique_count: 9243
 - name: job_type
   type: categorical
-  unique_count: 0
-  unique_values: []
+  unique_count: 3
+  unique_values:
+  - provider
+  - modeler
+  - segmenter
 - name: status
   type: categorical
-  unique_count: 0
-  unique_values: []
-- max: null
-  min: null
+  unique_count: 2
+  unique_values:
+  - FAILED
+  - DONE
+- max: 0
+  min: 0
   name: attempts
   type: numeric
 - name: next_retry
   type: categorical
-  unique_count: 0
-  unique_values: []
+  unique_count: 9243
 - name: created
   type: categorical
-  unique_count: 0
-  unique_values: []
+  unique_count: 9243
 - name: updated
   type: categorical
-  unique_count: 0
-  unique_values: []
+  unique_count: 9243
 - name: payload
   type: categorical
-  unique_count: 0
-  unique_values: []
+  unique_count: 9227
 - name: parent_job_uuids
   type: categorical
-  unique_count: 0
-  unique_values: []
+  unique_count: 884

@@ -345,7 +345,7 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
                 backoff = 0  # reset backoff
                 self.controller.update_message("Running segmentation pipeline")
                 summary_df = self._run_pipeline(self.jobs,
-                                                num_loader_workers=round(max(1, min(len(self.jobs) // 60, 6))),
+                                                num_loader_workers=round(max(min(len(self.jobs), 4), min(len(self.jobs) // 60, 8))),
                                                 loop_no=loop_no)
                 
 
