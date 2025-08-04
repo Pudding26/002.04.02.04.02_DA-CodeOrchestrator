@@ -1,11 +1,11 @@
 columns:
-- max: 1895688
+- max: 1963021
   min: 1
   name: id
   type: numeric
 - name: DoE_UUID
   type: categorical
-  unique_count: 1083
+  unique_count: 1139
 - max: 3
   min: 0
   name: bootstrap_no
@@ -16,7 +16,7 @@ columns:
   type: numeric
 - name: job_uuid
   type: categorical
-  unique_count: 1083
+  unique_count: 1139
 - name: embedding_type
   type: categorical
   unique_count: 1
@@ -24,7 +24,7 @@ columns:
   - UMAP
 - name: shotID
   type: categorical
-  unique_count: 8412
+  unique_count: 8441
 - name: family
   type: categorical
   unique_count: 43
@@ -42,10 +42,10 @@ columns:
   unique_count: 3460
 - name: sampleID
   type: categorical
-  unique_count: 4380
+  unique_count: 4381
 - name: stackID
   type: categorical
-  unique_count: 8412
+  unique_count: 8441
 - max: 0.9734027777777777
   min: 0.3021505376344086
   name: score

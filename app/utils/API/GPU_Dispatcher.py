@@ -49,7 +49,7 @@ async def register_worker(request: Request):
         worker_registry[worker_name]["allow_jobs"] = False
         WORKER_BLACKLIST.append(worker_name)
 
-    if random.random() < 0.95:
+    if random.random() < 0.99:
         WORKER_BLACKLIST.clear()  # Clear blacklist with 95% probability
         logging.debug2("🔄 Worker blacklist cleared")
 

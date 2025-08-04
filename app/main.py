@@ -72,6 +72,7 @@ async def lifespan(app: FastAPI):
         ]
 
 
+
         auto_start_default.extend(auto_start_extra)
         a = 2
         for index, task_name in enumerate(auto_start_default):

@@ -8,6 +8,7 @@ import os
 import warnings
 import yaml
 from deap import creator
+from datetime import datetime
 from app.utils.dataModels.Jobs.DoEJob import DoEJob, DEAPMetadata, DEAPInnerMetadata
 import time        
 
@@ -38,7 +39,7 @@ class TA28_B_Mutator:
         self.last_gen_doe_df = last_gen_doe_df
         row = last_gen_doe_df.iloc[0]
         self.gen = gen
-        logging.debug3(f"Initializing TA28_B_Mutator with gen={self.gen}, branch_id={branch_id}, subbranch_id={subbranch_id}")
+        logging.debug3(f"Initializing TA28_B_Mutator with gen={self.gen}, branch_id={branch_id}, subbranch_id={subbranch_id}, working with len(last_gen_doe_df)={len(last_gen_doe_df)} and len(wood_master_df)={len(wood_master_df)}")
         
         self.branch_id = branch_id
         self.subbranch_id = subbranch_id
@@ -47,6 +48,7 @@ class TA28_B_Mutator:
 
         self.static_factors = static_factors
         self.dependent_factors = dependent_factors
+
 
         self.metadata_dict = self.extract_DEAP_metadata_dict(self.last_gen_doe_df, acc_type = self.branch_id, branch_name = self.subbranch_id)
         self._normalize_metadata_dict()
@@ -151,7 +153,7 @@ class TA28_B_Mutator:
             how="inner"
         )
         summary_df.rename(columns={"front": "pareto_front", "weight": "selection_weight"}, inplace=True)
-        summary_df["creation_date"] = pd.Timestamp.now()
+        summary_df["creation_date"] = datetime.now()
         
         keys_to_track = self.ordered_hierarchy_keys.copy()
         keys_to_track.remove("primary_data.noShotsRange")
@@ -707,34 +709,32 @@ class TA28_B_Mutator:
 
 
     def prepare_next_gen_for_storage(self, mutated_population):
-        
         from app.tasks.TA28_DoECreator.TA28_A_Initiater import TA28_A_Initiater
-        
-        next_gen = self.gen + 1  # increment generation number
 
+        next_gen = self.gen + 1
         mutated_records = []
-        
 
+        for individual_tuple in mutated_population:
+            # unwrap the DEAP mutate return (tuple)
+            individual = individual_tuple[0]
 
-        for individual in mutated_population:
-            
-            flat_row = _flatten_doe_row_mutator(individual[0]["doe_config"])
+            # flatten config for downstream generator
+            flat_row = _flatten_doe_row_mutator(individual["doe_config"])
             flat_row["branch_id"] = self.branch_id
             flat_row["subbranch_id"] = self.subbranch_id
-            flat_row["generation"] = next_gen
+
+            # ✅ inherit parent gens and append new one
+            parent_gens = individual.get("generation", [])
+            if isinstance(parent_gens, int):
+                parent_gens = [parent_gens]
+            flat_row["generation"] = parent_gens + [next_gen]
 
             # 🔔 Add flat fields that generate() expects:
             flat_row["origin"] = "mutation"
             flat_row["created_by"] = "TA28_DoECreator"
             flat_row["score"] = None
             flat_row["parent_job_uuids"] = self.parent_job_uuids
-
             flat_row["mutation_config"] = self.metadata_dict.get("metadata", {}).get("mutation_config", {})
-
-
-
-
-            
 
             mutated_records.append(flat_row)
 
@@ -754,8 +754,8 @@ class TA28_B_Mutator:
                 )
 
         job_df = pd.DataFrame([job.to_sql_row() for job in jobs])
-
         return job_df
+
 
 
     ### UTILS
@@ -966,12 +966,14 @@ def summarize_species_and_factors(mutation_stats_df: pd.DataFrame, new_df: pd.Da
         log_lines.append(f"{short_name}: {factor_counts[short_name]}")
 
 
+
     log_lines.append("Species stats DataFrame:")
     log_lines.append(f"\n{species_df}")
     logging.debug3("\n".join(log_lines))
 
 
-    species_df["timestamp"] = pd.Timestamp.now()
+
+    species_df["timestamp"] = datetime.now()
     species_df["branch_id"] = branch_id
     species_df["subbranch_id"] = subbranch_id
     species_df["generation"] = gen

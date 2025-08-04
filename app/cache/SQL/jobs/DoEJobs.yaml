@@ -1,7 +1,7 @@
 columns:
 - name: job_uuid
   type: categorical
-  unique_count: 829
+  unique_count: 225
 - name: job_type
   type: categorical
   unique_count: 1
@@ -20,9 +20,10 @@ columns:
   - DONE
 - name: segmenter_status
   type: categorical
-  unique_count: 2
+  unique_count: 3
   unique_values:
   - FAILED
+  - READY
   - DONE
 - name: extractor_status
   type: categorical
@@ -31,10 +32,11 @@ columns:
   - BLOCKED
 - name: modeler_status
   type: categorical
-  unique_count: 3
+  unique_count: 4
   unique_values:
   - FAILED
   - READY
+  - BLOCKED
   - DONE
 - name: validator_status
   type: categorical
@@ -49,16 +51,16 @@ columns:
   type: numeric
 - name: next_retry
   type: categorical
-  unique_count: 829
+  unique_count: 225
 - name: created
   type: categorical
-  unique_count: 829
+  unique_count: 225
 - name: updated
   type: categorical
-  unique_count: 829
+  unique_count: 225
 - name: payload
   type: categorical
-  unique_count: 829
+  unique_count: 225
 - name: parent_job_uuids
   type: categorical
   unique_count: 1
@@ -66,4 +68,4 @@ columns:
   - []
 - name: DEAP_metadata
   type: categorical
-  unique_count: 61
+  unique_count: 13

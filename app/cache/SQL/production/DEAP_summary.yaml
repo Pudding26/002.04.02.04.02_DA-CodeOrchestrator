@@ -1,11 +1,11 @@
 columns:
-- max: 45419
+- max: 77
   min: 1
   name: id
   type: numeric
 - name: DoE_UUID
   type: categorical
-  unique_count: 37792
+  unique_count: 74
 - name: acc_type
   type: categorical
   unique_count: 2
@@ -14,20 +14,23 @@ columns:
   - rf_acc
 - name: sub_branch_id
   type: categorical
-  unique_count: 29
-- max: 40
+  unique_count: 2
+  unique_values:
+  - Unrestricted_02_A
+  - Unrestricted_01_A
+- max: 2
   min: 0
   name: gen
   type: numeric
-- max: 0.7246769186340335
+- max: 0.6875
   min: 0.0
   name: score_acc
   type: numeric
-- max: 0.12360357390905123
+- max: 0.01859939493107629
   min: 0.0
   name: score_sample
   type: numeric
-- max: 1.0
+- max: 0.9962313475394016
   min: 0.0
   name: score_entropy
   type: numeric
@@ -43,14 +46,22 @@ columns:
   min: 0.0
   name: entropy_weight_sum
   type: numeric
-- max: 6
+- max: 4
   min: 1
   name: pareto_front
   type: numeric
 - max: 0.5
-  min: 0.015625
+  min: 0.0625
   name: selection_weight
   type: numeric
 - name: creation_date
   type: categorical
-  unique_count: 839
+  unique_count: 7
+  unique_values:
+  - 2025-08-04 09:35:35.302695+00:00
+  - 2025-08-04 10:10:00.947512+00:00
+  - 2025-08-04 10:10:18.588724+00:00
+  - 2025-08-04 09:35:24.524248+00:00
+  - 2025-08-04 09:35:18.652846+00:00
+  - 2025-08-04 10:31:07.598388+00:00
+  - 2025-08-04 09:35:29.588267+00:00

@@ -16,6 +16,8 @@ from app.tasks.TaskBase import TaskBase
 from collections import defaultdict
 from sqlalchemy import cast, Integer, select, update
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import text
+
 
 from copy import deepcopy
 
@@ -174,6 +176,7 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
                                 gen=current_gen
                             )
                             
+
                             last_gen_doe_df = last_gen_doe_df_raw[last_gen_doe_df_raw["modeler_status"] == "DONE"]
                             if self.debug_mode == True:
                                 last_gen_doe_df = last_gen_doe_df_raw
@@ -248,6 +251,7 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
         
 
 
+
             branch_instructions = {
                 k: v for k, v in branch_instructions_raw.items()
                 if k != "archived"
@@ -308,7 +312,7 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
                     SELECT
                         :branch AS branch,
                         subbranch.key AS subbranch,
-                        (branch.value->>'generation')::int AS gen,
+                        jsonb_array_elements_text(branch.value->'generation')::int AS gen,
                         COUNT(*) AS total_jobs,
                         COUNT(*) FILTER (WHERE "modeler_status" = 'DONE') AS done_count,
                         COUNT(*) FILTER (WHERE "modeler_status" = 'FAILED') AS failed_count,
@@ -458,6 +462,7 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
 
 
 
+
     def get_DoEs_of_last_gen(self, branch_id: str, subbranch_id: str, gen: int) -> pd.DataFrame:
         """
         Fetch all DoE job rows from a specific generation for a given (branch_id, subbranch_id),
@@ -466,28 +471,32 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
         session = DBEngine(db_key="jobs").get_session()
 
         try:
-            stmt = select(orm_DoEJobs).where(
-                cast(
-                    orm_DoEJobs.DEAP_metadata[branch_id][subbranch_id]["generation"].astext,
-                    Integer
-                ) == gen,
-                #orm_DoEJobs.modeler_status.in_(['DONE', 'FAILED'])
+            sql = text("""
+                SELECT *
+                FROM "DoEJobs"
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements_text("DoEJobs"."DEAP_metadata"->:branch->:subbranch->'generation') AS gen_val
+                    WHERE gen_val::int = :target_gen
+                )
+            """)
 
-            )
-
-            results = session.execute(stmt).scalars().all()
+            results = session.execute(sql, {
+                "branch": branch_id,
+                "subbranch": subbranch_id,
+                "target_gen": gen
+            }).fetchall()
 
             if not results:
                 logging.info(f"ℹ️ No DONE jobs found for ({branch_id}, {subbranch_id}) at gen={gen}")
                 return pd.DataFrame()
 
             rows = []
-            for job in results:
-                row = job.__dict__.copy()
-                row.pop('_sa_instance_state', None)  # Remove SQLAlchemy's internal metadata
-                rows.append(row)
+            for r in results:
+                rows.append(dict(r._mapping))   # convert SQLAlchemy Row → dict
 
             df = pd.DataFrame(rows)
+
             logging.debug2(f"✅ Fetched {len(df)} DONE jobs for ({branch_id}, {subbranch_id}) gen={gen}")
             return df
 

@@ -356,7 +356,7 @@ class TA28_A_Initiater:
             flat_cfg.update({
                 "branch_id": branch_id,
                 "subbranch_id": subbranch_id,
-                "generation": 0,
+                "generation": [0],
                 "origin": "init",
                 "created_by": "TA28_DoECreator",
                 "mutation_config": {

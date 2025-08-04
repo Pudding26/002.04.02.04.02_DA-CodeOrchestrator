@@ -23,8 +23,16 @@ class DEAPInnerMetadata(BaseModel):
     mutation_config: Optional[dict] = None 
 
 class DEAPSubBranch(BaseModel):
-    generation: int
+    generation: List[int]   # track multiple gens
     metadata: DEAPInnerMetadata
+
+    @field_validator("generation", mode="before")
+    def ensure_list(cls, v):
+        # normalize old int to list[int]
+        if isinstance(v, int):
+            return [v]
+        return v
+
 
 class DEAPMetadata(RootModel[Dict[str, Dict[str, DEAPSubBranch]]]):
     def get(self, branch: str, subbranch: str) -> Optional[DEAPSubBranch]:

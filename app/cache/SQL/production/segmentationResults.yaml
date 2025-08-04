@@ -36,8 +36,8 @@ columns:
   type: categorical
   unique_count: 6
   unique_values:
-  - area
   - equivalent_diameter
+  - area
   - minor_axis_length
   - perimeter
   - major_axis_length
@@ -46,8 +46,8 @@ columns:
   type: categorical
   unique_count: 5
   unique_values:
-  - min
   - mean
+  - min
   - std
   - max
   - skew
