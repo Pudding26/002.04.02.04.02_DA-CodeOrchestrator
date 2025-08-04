@@ -5,7 +5,7 @@ from typing import List
 import yaml
 import random
 import hashlib
-
+from collections import Counter
 
 from app.tasks.TaskBase import TaskBase
 
@@ -43,7 +43,6 @@ class TA30_C_ModelerJobBuilder:
             return
 
         job_df_raw = job_df.copy()
-        logging.info("CWD =", os.getcwd())
         
         with open("app/config/presets/preProcessingPresets.yaml") as file:
             PREP_PRESETS = yaml.safe_load(file)
@@ -152,13 +151,27 @@ class TA30_C_ModelerJobBuilder:
             len(to_create) + len(to_update),
         )
 
+        metric_counts = Counter(job.input.metricModelNo for job in to_create)
+        prep_counts = Counter(job.input.preProcessingNo for job in to_create)
+
+        # Merge into one dictionary
+        all_counts = {**metric_counts, **prep_counts}
+
+
+
+        if all_counts:
+            summary_df = pd.DataFrame([all_counts])
+            logging.debug3("[ModelerJobBuilder] Breakdown of created jobs:\n%s", summary_df.to_string(index=False))
+        else:
+            logging.debug3("[ModelerJobBuilder] No new jobs created, skipping breakdown.")
 
         from app.tasks.TA30_JobBuilder.TA30_0_JobBuilderWrapper import TA30_0_JobBuilderWrapper
         TA30_0_JobBuilderWrapper.store_and_update(
-            to_create=to_create, to_update=to_update
-        )
-
+            to_create=to_create,
+            to_update=to_update
+            )
         return {
             "created": len(to_create),
             "updated": len(to_update)
         }
+

@@ -1,11 +1,29 @@
 MM01:
-  name: "PCA with binning"
+  name: "PCA with shape and abiotic resilience bin"
 
   binning_cfg:
     strategy: "implicit"              # ["none","explicit","implicit"]
     implicit:
       ignore_case: true
-      agg_func: "mean"
+      patterns:
+        geo_shape:  ["area", "roundness", "aspect"]
+    explicit: null                    # keep the key so the schema is constant
+
+  dim_reduction_cfg:
+    method: "PCA"
+    PCA:
+      dummy: null
+    manifold: null
+    encoder: null
+    t-SNE: null
+
+MM02:
+  name: "PCA with shape bin  and no duplicates"
+
+  binning_cfg:
+    strategy: "implicit"              # ["none","explicit","implicit"]
+    implicit:
+      ignore_case: true
       patterns:
         geo_shape:  ["area", "roundness", "aspect"]
     explicit: null                    # keep the key so the schema is constant
@@ -14,8 +32,36 @@ MM01:
   dim_reduction_cfg:
     method: "PCA"
     PCA:
-      n_components: 0.95
-      whiten: false
+      dummy: null
     manifold: null
     encoder: null
     t-SNE: null
+    duplicates_allowed: False
+
+MM03:
+  name: "t-SNE with shape bin and no duplicates"
+  binning_cfg:
+    strategy: "implicit"              # ["none","explicit","implicit"]
+    implicit:
+      ignore_case: true
+      patterns:
+        geo_shape:  ["area", "roundness", "aspect"]
+    explicit: null
+  dim_reduction_cfg:
+    method: "t-SNE"
+    t-SNE:
+      n_components: 2
+      perplexity: 30
+      learning_rate: 200
+      n_iter: 500
+
+MM04:
+  name: "t-SNE without binning and no duplicates"
+  binning_cfg:
+  dim_reduction_cfg:
+    method: "t-SNE"
+    t-SNE:
+      n_components: 2
+      perplexity: 30
+      learning_rate: 200
+      n_iter: 500

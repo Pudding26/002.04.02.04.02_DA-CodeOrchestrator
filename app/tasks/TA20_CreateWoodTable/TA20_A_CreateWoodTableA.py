@@ -202,6 +202,9 @@ class TA20_A_CreateWoodTableA(TaskBase):
         logging.debug2(f"🧹 Filtered down to {len(cleaned)} rows, dropped {len(drop_cols)} columns.")
         return cleaned
 
+
+
+
     def add_woodType(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Adds woodType based on family and genus.

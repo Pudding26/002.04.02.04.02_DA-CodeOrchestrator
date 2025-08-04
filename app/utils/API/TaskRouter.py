@@ -10,6 +10,7 @@ from app.utils.controlling.TaskController import TaskController
 router = APIRouter()
 handler = TaskHandler()
 
+@router.get("")
 @router.get("/")
 def get_tasks():
     logging.debug1("Fetching tasks")

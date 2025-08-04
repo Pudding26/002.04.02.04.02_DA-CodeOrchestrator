@@ -1,14 +1,14 @@
 columns:
-- max: 10072446
+- max: 10113278
   min: 127441
   name: ROWID
   type: numeric
 - name: shotID
   type: categorical
-  unique_count: 27705
+  unique_count: 27818
 - name: stackID
   type: categorical
-  unique_count: 8843
+  unique_count: 8928
 - name: bin_label
   type: categorical
   unique_count: 4
@@ -46,8 +46,8 @@ columns:
   type: categorical
   unique_count: 5
   unique_values:
-  - mean
   - min
+  - mean
   - std
   - max
   - skew

@@ -20,6 +20,12 @@ from app.tasks.TA27_DesignOfExperiments.TA27_A_DoEJobGenerator import TA27_A_DoE
 
 from app.utils.logger.loggingWrapper import suppress_logging
 
+
+from app.tasks.TA28_DoECreator.utils.apply_must_rules import apply_must_rules
+
+
+
+
 class TA28_A_Initiater:
 
     def __init__(self, wood_master_df, static_factors, dependent_factors):
@@ -61,23 +67,26 @@ class TA28_A_Initiater:
 
         return config
 
+
+
+
+
+
+
     def filter_out_must_not_contain(self, df, branch_config):
-        logging.debug3("Filtering must_not_contain across static and dependent factors.")
         df_result = df.copy()
         for key in list(self.STATIC_FACTORS.keys()) + list(self.DEPENDENT_FACTORS.keys()):
             section, field = key.split(".")
-            params = branch_config.get('static_mutate_params', {}).get(key, {})
-            must_not_contain = params.get('must_not_contain', [])
-            if not must_not_contain:
-                params = branch_config.get('dependent_mutate_params', {}).get(key, {})
-                must_not_contain = params.get('must_not_contain', [])
-
-            if must_not_contain and field in df_result.columns:
-                before = len(df_result)
-                df_result = df_result[~df_result[field].isin(must_not_contain)]
-                logging.debug2("Filtered %s must_not_contain=%s; rows before=%d after=%d",
-                              key, must_not_contain, before, len(df_result))
+            params = branch_config.get("static_mutate_params", {}).get(key, {})
+            if not params:
+                params = branch_config.get("dependent_mutate_params", {}).get(key, {})
+            if field in df_result.columns:
+                df_result = apply_must_rules(df_result, params, field)
+            else:
+                logging.debug2(f"Skipping must_not_contain for {field} (not in DataFrame)")
         return df_result
+
+
 
     def extract_static_factors(self, df, config, static_params, wildcard_flags = {}):
         logging.debug3("Extracting static factors...")
@@ -129,17 +138,12 @@ class TA28_A_Initiater:
         def _apply_must_not_contain(df):
             for key in list(self.STATIC_FACTORS.keys()) + list(self.DEPENDENT_FACTORS.keys()):
                 section, field = key.split(".")
-                params = branch_config.get('static_mutate_params', {}).get(key, {})
-                must_not_contain = params.get('must_not_contain', [])
-                if not must_not_contain:
-                    params = branch_config.get('dependent_mutate_params', {}).get(key, {})
-                    must_not_contain = params.get('must_not_contain', [])
-
-                if must_not_contain and field in df.columns:
-                    before = len(df)
-                    df = df[~df[field].isin(must_not_contain)]
-                    logging.debug2("Re-cleanup filter %s; rows before=%d after=%d", key, before, len(df))
+                params = branch_config.get("static_mutate_params", {}).get(key, {})
+                if not params:
+                    params = branch_config.get("dependent_mutate_params", {}).get(key, {})
+                df = apply_must_rules(df, params, field)
             return df
+
 
         # 🔹 Local helper: get higher hierarchy keys
         def _get_higher_hierarchy_keys(key):
@@ -183,9 +187,12 @@ class TA28_A_Initiater:
                     logging.debug2("Applied must_contain=NaN filter for %s; rows before=%d after=%d",
                                 field, before, len(df_subset))
                 else:
-                    df_subset = df_subset[df_subset[field].isin(must_contain)]
-                    logging.debug2("Applied must_contain filter for %s=%s; rows before=%d after=%d",
-                                field, must_contain, before, len(df_subset))
+                    if field in df_subset.columns:
+                        df_subset = df_subset[df_subset[field].isin(must_contain)]
+                        logging.debug2("Applied must_contain filter for %s=%s; rows before=%d after=%d",
+                                    field, must_contain, before, len(df_subset))
+                    else:
+                        logging.debug2("Skipping must_contain for %s (not in DataFrame)", field)
 
                 if not is_wildcard:
                     config.setdefault(section, {})[field] = must_contain

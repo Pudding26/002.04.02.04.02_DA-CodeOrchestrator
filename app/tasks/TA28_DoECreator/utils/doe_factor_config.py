@@ -21,8 +21,8 @@ def define_DoE_Options(wood_master_df):
             "multi": True
         },
         "primary_data.noShotsRange": {
-            "values": [[[2, 15]], [[2, 100]], [[1, 5]], [[10, 25]]],
-            "multi": False
+            "values": [[2, 15], [2, 100], [1, 5], [10, 25]],
+            "multi": True
         },
         "primary_data.filterNo": {
             "values": _load_yaml_keys("app/config/presets/segmentationFilterPresets.yaml"),
@@ -42,18 +42,19 @@ def define_DoE_Options(wood_master_df):
         }
     }
 
+
     DEPENDENT_FACTORS = {
-        "primary_data.view": {
+        "primary_data.woodType": {
             "multi": True,
             "depends_on": ["primary_data.sourceNo"]
         },
+        "primary_data.view": {
+            "multi": True,
+            "depends_on": ["primary_data.sourceNo", "primary_data.woodType"]
+        },
         "primary_data.lens": {
             "multi": True,
-            "depends_on": ["primary_data.view", "primary_data.sourceNo"]
-        },
-        "primary_data.woodType": {
-            "multi": True,
-            "depends_on": ["primary_data.view", "primary_data.sourceNo"]
+            "depends_on": ["primary_data.sourceNo", "primary_data.woodType"]
         },
         "primary_data.family": {
             "multi": True,

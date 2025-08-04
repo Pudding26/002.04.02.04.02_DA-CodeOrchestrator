@@ -1,16 +1,16 @@
 columns:
 - name: task_uuid
   type: categorical
-  unique_count: 2685
+  unique_count: 4697
 - name: task_name
   type: categorical
-  unique_count: 32
+  unique_count: 33
 - name: start_time
   type: categorical
-  unique_count: 2660
+  unique_count: 4672
 - name: finish_time
   type: categorical
-  unique_count: 2685
+  unique_count: 4697
 - name: status
   type: categorical
   unique_count: 4
@@ -30,7 +30,7 @@ columns:
   - '1'
 - name: message
   type: categorical
-  unique_count: 217
+  unique_count: 242
 - max: 11.11111111111111
   min: 0.0
   name: progress
@@ -47,7 +47,7 @@ columns:
   min: 0.0
   name: data_transferred_gb
   type: numeric
-- max: 5997
+- max: 6356
   min: 0
   name: item_count
   type: numeric

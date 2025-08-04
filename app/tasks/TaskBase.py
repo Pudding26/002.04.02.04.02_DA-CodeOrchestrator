@@ -135,8 +135,8 @@ class TaskBase(ABC):
 
     @staticmethod
     def trigger_task_via_http(task_name):
-        BACKEND_ORCH_BASE_PORT = os.getenv("BACKEND_ORCH_BASE_PORT")
-        api_base_url = f"http://localhost:{BACKEND_ORCH_BASE_PORT}"
+        BACKEND_PORT_PRIVATE = os.getenv("BACKEND_PORT_PRIVATE")
+        api_base_url = f"http://localhost:{BACKEND_PORT_PRIVATE}"
         
         url = f"{api_base_url}/tasks/start"
         payload = {"task_name": task_name}

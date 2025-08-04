@@ -8,3 +8,5 @@ __pycache__/
 .git/
 venv_002.04.02.04.02_DA-CodeOrchestrator
 data
+compose_files
+

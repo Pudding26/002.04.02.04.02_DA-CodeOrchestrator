@@ -1,10 +1,10 @@
 columns:
 - name: parent_uuid
   type: categorical
-  unique_count: 305
+  unique_count: 829
 - name: child_uuid
   type: categorical
-  unique_count: 9243
+  unique_count: 14167
 - name: child_kind
   type: categorical
   unique_count: 3
@@ -14,7 +14,8 @@ columns:
   - segmenter
 - name: rel_state
   type: categorical
-  unique_count: 2
+  unique_count: 3
   unique_values:
   - FAILED
+  - READY
   - DONE

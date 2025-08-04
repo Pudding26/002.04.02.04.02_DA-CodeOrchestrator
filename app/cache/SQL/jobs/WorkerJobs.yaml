@@ -1,7 +1,7 @@
 columns:
 - name: job_uuid
   type: categorical
-  unique_count: 9243
+  unique_count: 14167
 - name: job_type
   type: categorical
   unique_count: 3
@@ -11,9 +11,10 @@ columns:
   - segmenter
 - name: status
   type: categorical
-  unique_count: 2
+  unique_count: 3
   unique_values:
   - FAILED
+  - READY
   - DONE
 - max: 0
   min: 0
@@ -21,16 +22,16 @@ columns:
   type: numeric
 - name: next_retry
   type: categorical
-  unique_count: 9243
+  unique_count: 14167
 - name: created
   type: categorical
-  unique_count: 9243
+  unique_count: 14167
 - name: updated
   type: categorical
-  unique_count: 9243
+  unique_count: 14167
 - name: payload
   type: categorical
-  unique_count: 9227
+  unique_count: 14141
 - name: parent_job_uuids
   type: categorical
-  unique_count: 884
+  unique_count: 3477

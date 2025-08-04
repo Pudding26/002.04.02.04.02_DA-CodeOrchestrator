@@ -77,7 +77,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
             nonlocal backoff, loop_no
             session: Session = DBEngine("Jobs").get_session()
 
-            if not work_done:
+            if work_done == False:
                 backoff += 1
                 total_sleep = min(60 * (2 ** backoff), max_sleep)
                 remaining_sleep = total_sleep
@@ -87,6 +87,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                 )
 
                 session = DBEngine("jobs").get_session()
+                roll_up_all_statuses(session)
 
                 while remaining_sleep > 0:
                     if self.controller.should_stop():
@@ -94,8 +95,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                         break
 
 
-                    rebuild_all_joblinks_with_status(session)
-                    roll_up_all_statuses(session)
+                    #rebuild_all_joblinks_with_status(session)
 
                     sleep_chunk = min(30, remaining_sleep)
                     logging.debug5(f"[TA30] Idle chunk: sleeping {sleep_chunk}s (remaining {remaining_sleep}s)")
@@ -105,17 +105,18 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                 session.close()
                 work_done = False  # still idle
             else:
-                rebuild_all_joblinks_with_status(session)
+                #rebuild_all_joblinks_with_status(session)
                 roll_up_all_statuses(session)
                 backoff = 0
-                sleep_time = 10
-                time.sleep(15)
+                work_done = False
             return work_done
 
 
 
         try:
             ###MONKEYPATCH Logging level gets supset somewhere in the code, so we have to set it here again
+            from app.utils.logger.loggingWrapper import LoggingHandler
+            
             LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "DEBUG-2")
             LoggingHandler(logging_level=LOGGING_LEVEL)
 
@@ -132,7 +133,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
 
 
-            while loop == True:
+            while True:
                 if self.controller.should_stop():
                     logging.info("[TA30] Stopping job builder loop as requested.")
                     self.controller.finalize_success()
@@ -144,9 +145,10 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                 logging.info(f"[TA30] Job loop started at {loop_start.isoformat()}")
 
                 self.controller.update_message("Scanning for new DoE Jobs")
-                builders = ["provider", "segmenter", "extractor", "modeler"]
+                builders = ["provider", "segmenter", "modeler"]
 
                 for b in builders:
+                    
                     _unblock_follow_up_tasks(session = DBEngine("jobs").get_session(), FOLLOW_UP_STEPS = self.FOLLOW_UP_STEPS, loop_no = loop_no)
                     
                     
@@ -216,8 +218,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
                         case _:
                             continue  # Skip unsupported builders for now
-                        #case "modeler":
-                        #    BuilderClass = TA30_C_ModelerJobBuilder
+
 
                     self.controller.update_message(f"Checking {b} jobs (status: ready)")
                     logging.debug5(f"[TA30] Starting builder loop for: {b}")
@@ -228,10 +229,9 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
                     if raw_df.empty:
                         logging.debug(f"[TA30] No '{b}' jobs found.")
-                        work_done = go_idle(work_done)  # No work to do, go idle
                         continue 
 
-                    work_done = True
+
 
                     jobs = []
                     id_field = "job_uuid"
@@ -257,7 +257,6 @@ class TA30_0_JobBuilderWrapper(TaskBase):
 
                     if job_df.empty:
                         logging.warning(f"[TA30] No stack rows matched for {b} jobs.")
-                        work_done = go_idle(work_done)  # No work to do, go idle
                         
                         continue
 
@@ -265,7 +264,6 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                     result = BuilderClass.build(job_df, jobs)
                     
                     
-                    work_done = go_idle(work_done)  # After processing, go idle
 
 
                     created = result.get("created", 0)
@@ -274,14 +272,17 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                     prev = last_activity.get(b, {"created": -1, "updated": -1})
                     last_activity[b] = {"created": created, "updated": updated}
 
-                    if prev == last_activity[b]:
-                        work_done = False
-                    else:
+                    if prev != last_activity[b]:
+                      
+                        logging.debug2(f"Job Loop for {b} detectect changes. Work Done is set to True")
                         work_done = True
 
-                    work_done = go_idle(work_done)
+
+                work_done = go_idle(work_done)
+                work_done = False
 
                 
+
 
 
 
@@ -417,6 +418,7 @@ class TA30_0_JobBuilderWrapper(TaskBase):
                 try:
                     job.update_timestamp()  # Ensure timestamps are fresh
                     row = job.to_sql_row()
+                    
                     
                     
                     

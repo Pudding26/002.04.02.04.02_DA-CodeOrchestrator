@@ -219,8 +219,9 @@ class TaskController:
             filtered_tables = [row[0] for row in res if row[0] not in {"progressArchive", "profileArchive"}]
             
             for table_name in filtered_tables:
-                sql_dict = SQL_Dict(db_key="progress", table_name=table_name)
+
                 try:
+                    sql_dict = SQL_Dict(db_key="progress", table_name=table_name)
                     status = sql_dict.get("Status")
                     if status != "Ready":
                         results.append({

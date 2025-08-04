@@ -1,0 +1,21 @@
+{
+  "name": "DA Backend Dev",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "s003-c9501_lele-da-app",
+
+  // Backend folder is the workspace root
+  "workspaceFolder": "/workspace/002.04.02.04.02_DA-CodeOrchestrator",
+
+  "remoteUser": "root",
+  "shutdownAction": "stopCompose",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy"
+        
+      ]
+    }
+  }
+}

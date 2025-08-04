@@ -1,12 +1,12 @@
 mutate_chance:
   primary_data.family: 0.4
-  primary_data.genus: 0.7
-  primary_data.species: 0.8
+  primary_data.genus: 0.8
+  primary_data.species: 0.9
 
 mutation_rate:
-  primary_data.family: 0.3
+  primary_data.family: 0.2
   primary_data.genus: 0.4
-  primary_data.species: 0.4
+  primary_data.species: 0.5
 
 growth_bias:
   primary_data.family: 0.1

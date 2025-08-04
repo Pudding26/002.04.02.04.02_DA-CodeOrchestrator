@@ -1,36 +1,29 @@
 columns:
-- max: 6313
+- max: 45419
   min: 1
   name: id
   type: numeric
 - name: DoE_UUID
   type: categorical
-  unique_count: 5288
+  unique_count: 37792
 - name: acc_type
   type: categorical
-  unique_count: 1
+  unique_count: 2
   unique_values:
   - knn_acc
+  - rf_acc
 - name: sub_branch_id
   type: categorical
-  unique_count: 7
-  unique_values:
-  - branch_static_02_A
-  - branch_static_01_C
-  - branch_static_02_C
-  - branch_static_01_B
-  - branch_linear_01_A
-  - branch_static_01_A
-  - branch_static_02_B
-- max: 49
+  unique_count: 29
+- max: 40
   min: 0
   name: gen
   type: numeric
-- max: 0.9663624929218173
+- max: 0.7246769186340335
   min: 0.0
   name: score_acc
   type: numeric
-- max: 0.2560948333706094
+- max: 0.12360357390905123
   min: 0.0
   name: score_sample
   type: numeric
@@ -50,14 +43,14 @@ columns:
   min: 0.0
   name: entropy_weight_sum
   type: numeric
-- max: 5
+- max: 6
   min: 1
   name: pareto_front
   type: numeric
 - max: 0.5
-  min: 0.03125
+  min: 0.015625
   name: selection_weight
   type: numeric
 - name: creation_date
   type: categorical
-  unique_count: 684
+  unique_count: 839

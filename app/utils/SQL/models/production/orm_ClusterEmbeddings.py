@@ -11,24 +11,29 @@ class orm_ClusterEmbeddings(orm_BaseModel):
     __tablename__ = "clusterEmbeddings"
 
 
-
-    # Primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     DoE_UUID = Column(String, index=True)
-    frac = Column(Float)
-    scope = Column(String, index=True)
+    bootstrap_no = Column(Integer, index=True)
+    fold_no = Column(Integer, index=True)
+    job_uuid = Column(String, index=True)
+    embedding_type = Column(String, index=True)
+
+
 
     # Hierarchical labels
-    family = Column(Integer, index=True)
-    genus = Column(Integer, index=True)
-    species = Column(Integer, index=True)
+    shotID = Column(String, index=True)
+    family = Column(String, index=True)
+    genus = Column(String, index=True)
+    species = Column(String, index=True)
     sourceID = Column(String, index=True)
     specimenID = Column(String, index=True)
     sampleID = Column(String, index=True)
     stackID = Column(String, index=True)
     shotID = Column(String, index=True)
 
+
+    score = Column(Float, nullable=True)
     x = Column(Float)
     y = Column(Float)
 

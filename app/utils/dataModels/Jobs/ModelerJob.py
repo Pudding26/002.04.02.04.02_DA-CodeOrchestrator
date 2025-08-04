@@ -47,7 +47,7 @@ class BootstrappingConfig(BaseModel):
     Configuration for running N bootstrap resampling iterations on the input data.
     """
     enabled: bool = False                # Activate bootstrapping
-    n_iterations: int = 10              # How many bootstrap replicates to run
+    n_iterations: int = 1              # How many bootstrap replicates to run
     n_samples: Optional[int] = None     # Optional override for sample size (defaults to len(data))
 
 

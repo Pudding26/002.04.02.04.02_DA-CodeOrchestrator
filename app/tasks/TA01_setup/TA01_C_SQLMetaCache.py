@@ -38,6 +38,8 @@ class TA01_C_SQLMetaCache(TaskBase):
 
     def cleanup(self):
         logging.info("🧹 Cleaning up SQLMetaCache task.")
+        self.controller.archive_with_orm()
+
 
     @staticmethod
     def update_cache(db_key: str, table_name: str):

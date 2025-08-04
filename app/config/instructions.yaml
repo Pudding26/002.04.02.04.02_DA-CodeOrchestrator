@@ -25,7 +25,26 @@ tasks:
       taskName: TA02_0_HDF5Storer
       HDF5_file_path: "data/productionData/primaryData.hdf5"
 
-  
+  TA03_GPUDispatcher:
+    TA03_0_GPUDispatcher:
+      taskName: TA03_0_GPUDispatcher
+      max_jobs_per_worker: 3
+      local_workers: [
+        0,
+        5, #Flippo
+        6, #Juri
+        7, #Jannis
+        8, #Ecki
+        9, #Olli-1
+
+      ]
+      runpod_workers: [
+        1, #Runpod-1
+        2, #Runpod-2
+        3, #Runpod-3
+
+      ]
+
 
   TA11_DataImport:
     TA11_0_DataImportWrapper:
@@ -206,6 +225,7 @@ tasks:
       src_db_key: "production"
       HDF5_file_path: "data/productionData/primaryData.hdf5"
       debug_sample_rate: 20
+      max_sleep_time: 300
   
   TA27_DesignOfExperiments:
     TA27_0_DoEWrapper:
@@ -247,3 +267,4 @@ tasks:
     TA41_0_SegmentationOrchestrator:
       taskName: TA41_0_SegmentationOrchestrator
       HDF5_file_path: "data/productionData/primaryData.hdf5"
+      max_sleep_time: 300

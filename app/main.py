@@ -8,6 +8,7 @@ import time
 from app.utils.logger.loggingWrapper import LoggingHandler
 from app.utils.API.TaskRouter import router as task_router
 from app.utils.API.VisuRouter import router as visu_router
+from app.utils.API.GPU_Dispatcher import GPUDispatcherRouter
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -67,16 +68,18 @@ async def lifespan(app: FastAPI):
             "TA30_0_JobBuilderWrapper",
             "TA25_0_CreateWoodHDF",
             "TA41_0_SegmentationOrchestrator",
+            "TA03_0_GPUDispatcher",
         ]
+
 
         auto_start_default.extend(auto_start_extra)
         a = 2
-        for task_name in auto_start_default:
+        for index, task_name in enumerate(auto_start_default):
             try:
 
                 TaskBase.trigger_task_via_http(task_name)
                 logger.info(f"✅ Successfully started {task_name}")
-                time.sleep(2 * a * a)  # Small delay to avoid overwhelming the server
+                time.sleep(2 * index)  # Small delay to avoid overwhelming the server
             except Exception as e:
                 logger.error(f"❌ Failed to start {task_name}: {e}")
        
@@ -104,6 +107,7 @@ app.add_middleware(
 
 app.include_router(task_router, prefix="/tasks", tags=["tasks"])
 app.include_router(visu_router, prefix="/visu")
+app.include_router(GPUDispatcherRouter)
 
 @app.get("/")
 def read_root():

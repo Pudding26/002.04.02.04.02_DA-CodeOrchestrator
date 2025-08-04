@@ -13,9 +13,9 @@ columns:
   type: categorical
   unique_count: 6
   unique_values:
-  - '2025-07-18 10:05:51'
   - '0.01'
-  - aa0bc2a2-18e0-42d8-9c3d-4a765b80001d
+  - '2025-08-03 21:05:25'
   - running
   - '0'
-  - 'Idle for 120s (backoff #1) after loop: #1'
+  - 'Checking modeler jobs (status: ready)'
+  - 7118c8b6-86ec-42cf-a4d4-a9cd3b386013

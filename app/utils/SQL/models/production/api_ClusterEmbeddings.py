@@ -10,9 +10,13 @@ class ClusterEmbeddings_Out(api_BaseModel):
 
     id: Optional[int] = None
 
+
     DoE_UUID: str
-    frac: float
-    scope: str
+    bootstrap_no: Optional[int] = None
+    fold_no: Optional[int] = None
+    job_uuid: str
+    embedding_type: str
+
 
     # Hierarchical labels
     family: Optional[str]
@@ -24,6 +28,7 @@ class ClusterEmbeddings_Out(api_BaseModel):
     stackID: Optional[str]
     shotID: Optional[str]
 
+    score: Optional[float] = None
     x: float
     y: float
  

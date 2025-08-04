@@ -12,7 +12,7 @@ PP01:
   bootstrapping:
     enabled: true
     n_iterations: 3
-    n_samples: 20000
+
 
 PP02:
   name: "Random Oversampling, hybird, median"
@@ -28,7 +28,7 @@ PP02:
   bootstrapping:
     enabled: true
     n_iterations: 3
-    n_samples: 1500
+
 
 PP03:
   name: "Random Oversampling, hybrid, max"
@@ -44,4 +44,30 @@ PP03:
   bootstrapping:
     enabled: true
     n_iterations: 3
-    n_samples: 1500
+
+
+PP04:
+  name: "SMOTE SAMPLING, no bootstrapping"
+  description: ""
+  resampling:
+    method: "SMOTESampler"
+    SMOTESampler:
+      scope: "species"
+      k_neighbors: 3
+      sampling_strategy: "auto"
+      random_state: 42
+  bootstrapping:
+    enabled: False
+
+PP05:
+  name: "SMOTE SAMPLING, no bootstrapping"
+  description: ""
+  resampling:
+    method: "SMOTESampler"
+    SMOTESampler:
+      scope: "family"
+      k_neighbors: 3
+      sampling_strategy: "auto"
+      random_state: 42
+  bootstrapping:
+    enabled: False

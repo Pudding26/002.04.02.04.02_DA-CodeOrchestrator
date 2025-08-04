@@ -1,30 +1,111 @@
 version: '3.8'
 
+volumes:
+  s003-v9501_lele-da-app_temp:
+    external: true
+  s003-v9502_lele-da-app_config:
+    external: true
+  s003-v9503_lele-da-app_data:
+    external: true
+  s003-v9105_lele-da-db:
+    external: true
+
+
+networks:
+  s003-n01_backend_general:
+    external: true
+  s003-n95_lele-da:
+    external: true
+  s003-n99_lele-da-ts:
+    driver: bridge
+
 services:
-  postgres:
+  s003-c9501_lele-da-app:
+    container_name: s003-c9501_lele-da-app
+    restart: unless-stopped
+    build:
+      dockerfile: Dockerfile.backend
+    env_file: .env
+    ports:
+      - "${BACKEND_PORT_PUBLIC}:${BACKEND_PORT_PRIVATE}"
+    #working_dir: /workspace/002.04.02.04.02_DA-CodeOrchestrator
+    #command: uvicorn app.main:app --host 0.0.0.0 --port=8000
+
+    volumes:
+      - .:/workspace/002.04.02.04.02_DA-CodeOrchestrator:cached
+      # Mount individual directories to external volumes
+      #- s003-v9503_lele-da-app_data:/workspace/002.04.02.04.02_DA-CodeOrchestrator/data
+      #- s003-v9501_lele-da-app_temp:/workspace/002.04.02.04.02_DA-CodeOrchestrator/temp
+      #- s003-v9502_lele-da-app_config:/workspace/002.04.02.04.02_DA-CodeOrchestrator/app/config
+      
+    depends_on:
+     # - s003-c9502_lele-da-front
+      - s003-c9505_lele-da-db
+    networks:
+      - s003-n95_lele-da
+
+
+  #s003-c9502_lele-da-front:
+  #  container_name: s003-c9502_lele-da-front
+  #  restart: unless-stopped
+#
+  #  build:
+  #    context: ./002.04.02.04.01_DA-CodeFrontend
+  #    dockerfile: Dockerfile.frontend
+#
+  #  env_file: .env
+  #  ports:
+  #    - "${FRONTEND_PORT_PUBLIC}:${FRONTEND_PORT_PRIVATE}"  # HostPort:ContainerPort
+  #    - "59555:5678"
+#
+  #  #working_dir: /workspace/002.04.02.04.01_DA-CodeFrontend
+  #  #command: python -m debugpy --listen 0.0.0.0:5678 app/main.py
+#
+  #  command: python -m debugpy --listen 0.0.0.0:5678 -m streamlit run app/main.py --server.address=0.0.0.0 --server.port=8501
+  #  #network_mode: "service:s003-c9599_lele-da-ts"
+  #  networks:
+  #    - s003-n95_lele-da
+
+  s003-c9505_lele-da-db:
+    container_name: s003-c9505_lele-da-db
+    restart: unless-stopped
+
     user: root
     image: postgres:13
-    container_name: my_postgres
     ports:
-      - "59502:5432"  # HostPort:ContainerPort
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: example  # Change this!
-      POSTGRES_DB: mydb
+      - "${DB_PORT_PUBLIC}:${DB_PORT_PRIVATE}"  # HostPort:ContainerPort
+    env_file: .env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - s003-v9105_lele-da-db:/var/lib/postgresql/data
+    #network_mode: "service:s003-c9599_lele-da-ts"
+    networks:
+      - s003-n95_lele-da
+         
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    restart: always
-    ports:
-      - "59503:80"  # Access pgAdmin at http://localhost:59503
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin  # Change this!
+
+#  s003-c9506_lele-da-pgpmyAdmin-db:
+#    image: dpage/pgadmin4
+#    container_name: s003-c9506_lele-da-pgpmyAdmin-db
+#    restart: unless-stopped
+#    ports:
+#      - "${PGADMIN_PORT_PUBLIC}:${PGADMIN_PORT_PRIVATE}"  # Access pgAdmin at http://localhost:59503
+#    environment:
+#      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+#      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+#    depends_on:
+#      - s003-c9505_lele-da-db
+#    networks:
+#      - s003-n95_lele-da
+
+  s003-c9598-cloudflared:
+    image: voyage6/cloudflared-with-init:1.0.0
+    container_name: cloudflared
+    entrypoint: /etc/cloudflared/cloudflare_init.sh
     depends_on:
-      - postgres
-
-volumes:
-  postgres_data:
+      - s003-c9505_lele-da-db
+      - s003-c9501_lele-da-app
+#      - s003-c9502_lele-da-front
+#      - s003-c9506_lele-da-pgpmyAdmin-db
+    env_file: .env
+    networks:
+      - s003-n95_lele-da

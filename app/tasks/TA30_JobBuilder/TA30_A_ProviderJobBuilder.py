@@ -152,11 +152,15 @@ class TA30_A_ProviderJobBuilder:
 
         from app.tasks.TA30_JobBuilder.TA30_0_JobBuilderWrapper import TA30_0_JobBuilderWrapper
             
-        TA30_0_JobBuilderWrapper.store_and_update(to_create = to_create, to_update = to_update)
+        TA30_0_JobBuilderWrapper.store_and_update(
+            to_create=to_create,
+            to_update=to_update
+        )
                 
         return {
             "created": len(to_create),
             "updated": len(to_update)
         }
+
 
 

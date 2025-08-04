@@ -40,21 +40,36 @@ from app.tasks.TA28_DoECreator.TA28_B_Mutator import TA28_B_Mutator
 
 from app.tasks.TA28_DoECreator.utils.doe_factor_config import define_DoE_Options
 from app.tasks.TA28_DoECreator.utils.store_or_update_jobs import store_or_update_jobs
+from app.tasks.TA28_DoECreator.utils.purge_invalid_branches import purge_invalid_branches
 
 
-FINISHING_RATIO = 0.95  # Ratio threshold to consider a generation finished
-
+FINISHING_RATIO = 1  # Ratio threshold to consider a generation finished
+ENFORCED_STOP_FILE = Path("app/config/DoE/enforced_stop.yaml")
 
 
 class TA28_0_DoECreatorOrchestrator(TaskBase):
     def setup(self):
         logging.info("🧵 Setting up DoE Creator Orchestrator")
-        self.TARGET_BRANCHES = ["knn_acc", "rf_acc", "combo_01"]
-        self.TARGET_BRANCHES = self.TARGET_BRANCHES[0:1]
+        self.debug_mode = False  # Set to True for debugging purposes
+        if self.debug_mode:
+            logging.info("🔧 Debug mode is enabled. Some operations will not persist changes."
+            )
+
+
+        self.TARGET_BRANCHES = ["knn_acc", "rf_acc", "combo_01"] #Cmbination is intended as weighted average of multiple different classifier results
+        self.TARGET_BRANCHES = self.TARGET_BRANCHES[0:2]
         self.orchestration_dict = {}
         self.SLEEP_SECONDS = 10
 
+        self.controller.update_message("Step 1: Initializing orchestration dictionary")
+        self.woodMasterPotential_full = WoodMasterPotential_Out.fetch_all()
+        
 
+        
+        self.STATIC_FACTORS, self.DEPENDENT_FACTORS = define_DoE_Options(self.woodMasterPotential_full)  # Derive vocabularies for DoE factors
+        self.branch_instructions = self.load_branch_instructions()  # Load canonical YAML template
+        self.branch_config = self.create_branch_config()  # Setup orchestration state
+        
         self.generation_progress_df = pd.DataFrame(columns=["branch", "subbranch", "gen", "count"])
 
     def run(self):
@@ -72,12 +87,6 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
         """
         try:
             logging.debug3("🚀 Step 1: Initialize orchestration dictionary and state")
-            self.controller.update_message("Step 1: Initializing orchestration dictionary")
-            self.woodMasterPotential_full = WoodMasterPotential_Out.fetch_all()
-            
-            self.STATIC_FACTORS, self.DEPENDENT_FACTORS = define_DoE_Options(self.woodMasterPotential_full)  # Derive vocabularies for DoE factors
-            self.branch_instructions = self.load_branch_instructions()  # Load canonical YAML template
-            self.branch_config = self.create_branch_config()  # Setup orchestration state
 
             # Constants for retry/backoff loop
             self.MAX_SLEEP_SECONDS = 600
@@ -90,11 +99,17 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
 
             # Main orchestration loop
             while True:
+                purge_invalid_branches()
+                
                 self.generation_progress_df = self.update_branch_generation_progress_df()
                 self.branch_config, summary_df = self.attach_current_gen()
+                self.enforced_stop_cfg = self.load_or_init_enforced_stop()
 
                 created_count = 0
                 updated_count = 0
+                skipped_branches = []   # 🔹 store skipped branch/subbranch IDs here
+
+
 
                 if self.controller.should_stop():
                     logging.debug3("🛑 Orchestration stopped by controller")
@@ -103,12 +118,19 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
                 for branch_id in self.TARGET_BRANCHES:
                     for subbranch_id, config in self.branch_config[branch_id].items():
                         ratio = config.get("current_ratio")
-                        current_gen = config.get("current_gen")
+                        current_gen = config.get("current_gen", -1) #MONKEYPATH -> detects new configs
+                        scheduled_gen = config.get("scheduled_gen", -2)
+                        
 
-                        # Check generation limit
-                        if current_gen >= config.get("max_generations"):
-                            logging.debug2(f"🔚 Branch {branch_id}/{subbranch_id} reached generation limit ({current_gen}). Skipping.")
-                            continue
+
+                        # 🔹 Determine effective max gen
+                        enforced = self.enforced_stop_cfg.get(subbranch_id, {}).get("enforced_max_gen")
+                        effective_max_gen = enforced if enforced is not None else config.get("max_generations")
+                        #if current_gen >= effective_max_gen:
+                        #    skipped_branches.append((branch_id, subbranch_id, effective_max_gen))
+                        #    continue
+
+
 
                         # Initialize population if needed
                         if current_gen == -1:
@@ -133,21 +155,30 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
 
                             config["gen0_created"] = True
                             logging.debug2(f"✅ Branch {branch_id}/{subbranch_id} initialized with initial population")
+                            continue  # Skip to next branch/subbranch
 
                         # Trigger mutation for ready branches
-                        if config.get("scheduled_gen") > config.get("current_gen"):
-                        #if 1 == 1:
+                        if self.debug_mode == True:
+                            if config.get("current_gen") != -2 or config.get("current_gen") != -1:
+                                scheduled_gen = config.get("current_gen") + 1
+                        if scheduled_gen > config.get("current_gen"):
+
 
 
                             current_gen = config["current_gen"]
                             logging.debug2(f"🔄 Branch {branch_id}/{subbranch_id} is ready for mutation at gen {current_gen}")
 
-                            last_gen_doe_df = self.get_DoEs_of_last_gen(
+                            last_gen_doe_df_raw = self.get_DoEs_of_last_gen(
                                 branch_id=branch_id,
                                 subbranch_id=subbranch_id,
                                 gen=current_gen
                             )
-                            #last_gen_doe_df = last_gen_doe_df[last_gen_doe_df["modeler_status"] == "DONE"]
+                            
+                            last_gen_doe_df = last_gen_doe_df_raw[last_gen_doe_df_raw["modeler_status"] == "DONE"]
+                            if self.debug_mode == True:
+                                last_gen_doe_df = last_gen_doe_df_raw
+
+
                             next_gen_df, selection_summary, mutation_summary =TA28_B_Mutator(
                                 last_gen_doe_df=last_gen_doe_df,
                                 wood_master_df=self.woodMasterPotential_full,
@@ -158,9 +189,11 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
                                 subbranch_id=subbranch_id,
                                 gen = current_gen,
                             ).mutate_generation()
+                            if self.debug_mode == True:
+                                logging.info(f"Debug mode active not persisitng changes ....")
 
                             DEAP_summary_Out.store_dataframe(selection_summary)
-                            created_count_i, updated_count_i = store_or_update_jobs(next_gen_df)
+                            created_count_i, updated_count_i =store_or_update_jobs(next_gen_df)
                             created_count += created_count_i
                             updated_count += updated_count_i
                             logging.debug2(f"✅ Branch {branch_id}/{subbranch_id} completed mutation for gen {current_gen}")
@@ -171,6 +204,12 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
                 created_count_total += created_count
                 updated_count_total += updated_count
 
+
+                if skipped_branches:
+                    logging.debug5(f"🔚 Skipped {len(skipped_branches)} branches this loop (due to enforced/initial max gen)")
+
+                    self.orchestration_dict["skipped_branches"] = skipped_branches
+
                 logging.debug5(f"📝 Created {created_count} jobs, updated {updated_count} jobs in this run")
                 if created_count == 0 and updated_count == 0:
                     sleep_time = min(self.BASE_SLEEP_SECONDS * (2 ** backoff), self.MAX_SLEEP_SECONDS)
@@ -178,6 +217,7 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
                     time.sleep(sleep_time)
                     loop_no += 1
                     continue
+
 
                 backoff = 0  # reset backoff if work was done
 
@@ -206,7 +246,13 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
         with open("app/config/DoE/DoE_Evolution.yaml", "r") as f:
             branch_instructions_raw = yaml.safe_load(f)
         
-        return branch_instructions_raw
+
+
+            branch_instructions = {
+                k: v for k, v in branch_instructions_raw.items()
+                if k != "archived"
+            }
+        return branch_instructions
     
 
     def create_branch_config(self) -> dict:
@@ -391,7 +437,18 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
 
         summary_df = pd.DataFrame(summary_rows)
 
-        logging.debug2(f"📊 Detailed Gen Summary:\n{summary_df.to_string(index=False)}")
+
+        skipped_branches = self.orchestration_dict.get("skipped_branches", [])
+
+        skipped_subs = [sub for _, sub, _ in skipped_branches]
+
+        # 🔹 Filter summary_df → only active subbranches
+        active_df = summary_df[~summary_df["subbranch"].isin(skipped_subs)]
+
+
+        logging.debug1(f"📊 Detailed Gen Summary:\n{summary_df.to_string(index=False)}")
+        logging.debug3(f"📊 Detailed Gen Summary (Active):\n{active_df.to_string(index=False)}"
+                       f" with additionally {len(skipped_branches)} inactive branches")
 
         return orchestration, summary_df
 
@@ -441,3 +498,35 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
         finally:
             session.close()
 
+
+    def load_or_init_enforced_stop(self) -> dict:
+        """
+        Load enforced_stop.yaml, then incrementally add missing subbranches.
+        - Never overwrite existing entries.
+        - New subbranches get (initial_max_gen, enforced_max_gen=None).
+        """
+        if ENFORCED_STOP_FILE.exists():
+            with open(ENFORCED_STOP_FILE, "r") as f:
+                cfg = yaml.safe_load(f) or {}
+        else:
+            cfg = {}
+
+        modified = False
+        # iterate over all branches + their control subbranches
+        for branch, group_cfg in self.branch_instructions.items():
+            for sub in group_cfg.get("control_branches", []):
+                if sub not in cfg:
+                    cfg[sub] = {
+                        "initial_max_gen": group_cfg.get("max_generations", 50),
+                        "enforced_max_gen": None,
+                    }
+                    modified = True
+
+        # Only write if we actually added something new
+        if modified:
+            ENFORCED_STOP_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(ENFORCED_STOP_FILE, "w") as f:
+                yaml.safe_dump(cfg, f, sort_keys=True)
+            logging.info("💾 enforced_stop.yaml updated with new subbranches")
+
+        return cfg

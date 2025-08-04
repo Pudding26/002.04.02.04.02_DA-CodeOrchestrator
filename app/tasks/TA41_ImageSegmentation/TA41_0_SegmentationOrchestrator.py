@@ -314,7 +314,7 @@ class TA41_0_SegmentationOrchestrator(TaskBase):
         
         loop_no = 1
         backoff = 0
-        max_sleep = 600
+        max_sleep = self.instructions.get("max_sleep_time", 600)
         base_sleep = self.instructions.get("sleep_time", 60)
         
         try:
