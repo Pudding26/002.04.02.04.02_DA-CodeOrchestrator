@@ -1,10 +1,10 @@
 columns:
 - name: validation_UUID
   type: categorical
-  unique_count: 5697570
+  unique_count: 6268073
 - name: DoE_UUID
   type: categorical
-  unique_count: 4390
+  unique_count: 5112
 - max: 10
   min: 0
   name: bootstrap_no
@@ -28,14 +28,14 @@ columns:
   type: categorical
   unique_count: 8
   unique_values:
-  - specimenID
-  - species
-  - shotID
-  - sampleID
-  - stackID
-  - sourceID
   - family
   - genus
+  - sampleID
+  - shotID
+  - sourceID
+  - species
+  - specimenID
+  - stackID
 - max: 1.0
   min: 0.0
   name: rf_acc
@@ -48,7 +48,7 @@ columns:
   min: 392
   name: initial_col_count
   type: numeric
-- max: 2979
+- max: 3644
   min: 7
   name: initial_row_count
   type: numeric
@@ -60,7 +60,7 @@ columns:
   min: 0
   name: validation_row_count
   type: numeric
-- max: 25
+- max: 43
   min: 1
   name: family_n_unique_train
   type: numeric
@@ -68,7 +68,7 @@ columns:
   min: 0.0
   name: family_entropy_train
   type: numeric
-- max: 25
+- max: 43
   min: 1
   name: family_n_unique_test
   type: numeric
@@ -76,7 +76,7 @@ columns:
   min: 0.0
   name: family_entropy_test
   type: numeric
-- max: 80
+- max: 162
   min: 1
   name: genus_n_unique_train
   type: numeric
@@ -84,7 +84,7 @@ columns:
   min: 0.0
   name: genus_entropy_train
   type: numeric
-- max: 80
+- max: 154
   min: 1
   name: genus_n_unique_test
   type: numeric
@@ -92,7 +92,7 @@ columns:
   min: 0.0
   name: genus_entropy_test
   type: numeric
-- max: 105
+- max: 286
   min: 2
   name: species_n_unique_train
   type: numeric
@@ -100,7 +100,7 @@ columns:
   min: 0.4147654836533458
   name: species_entropy_train
   type: numeric
-- max: 105
+- max: 239
   min: 1
   name: species_n_unique_test
   type: numeric
@@ -108,7 +108,7 @@ columns:
   min: 0.0
   name: species_entropy_test
   type: numeric
-- max: 105
+- max: 385
   min: 2
   name: sourceID_n_unique_train
   type: numeric
@@ -116,7 +116,7 @@ columns:
   min: 0.40544469743530814
   name: sourceID_entropy_train
   type: numeric
-- max: 105
+- max: 292
   min: 1
   name: sourceID_n_unique_test
   type: numeric
@@ -124,7 +124,7 @@ columns:
   min: 0.0
   name: sourceID_entropy_test
   type: numeric
-- max: 1680
+- max: 2821
   min: 4
   name: specimenID_n_unique_train
   type: numeric
@@ -132,7 +132,7 @@ columns:
   min: 0.35090604595216013
   name: specimenID_entropy_train
   type: numeric
-- max: 420
+- max: 724
   min: 2
   name: specimenID_n_unique_test
   type: numeric
@@ -140,7 +140,7 @@ columns:
   min: 0.37909903481568896
   name: specimenID_entropy_test
   type: numeric
-- max: 1680
+- max: 2915
   min: 5
   name: sampleID_n_unique_train
   type: numeric
@@ -148,7 +148,7 @@ columns:
   min: 0.35090604595216013
   name: sampleID_entropy_train
   type: numeric
-- max: 420
+- max: 729
   min: 2
   name: sampleID_n_unique_test
   type: numeric
@@ -156,7 +156,7 @@ columns:
   min: 0.37909903481568896
   name: sampleID_entropy_test
   type: numeric
-- max: 1680
+- max: 2915
   min: 5
   name: stackID_n_unique_train
   type: numeric
@@ -164,7 +164,7 @@ columns:
   min: 0.35090604595216013
   name: stackID_entropy_train
   type: numeric
-- max: 420
+- max: 729
   min: 2
   name: stackID_n_unique_test
   type: numeric
@@ -172,7 +172,7 @@ columns:
   min: 0.37909903481568896
   name: stackID_entropy_test
   type: numeric
-- max: 1680
+- max: 2915
   min: 5
   name: shotID_n_unique_train
   type: numeric
@@ -180,7 +180,7 @@ columns:
   min: 0.716545036104277
   name: shotID_entropy_train
   type: numeric
-- max: 596
+- max: 729
   min: 2
   name: shotID_n_unique_test
   type: numeric

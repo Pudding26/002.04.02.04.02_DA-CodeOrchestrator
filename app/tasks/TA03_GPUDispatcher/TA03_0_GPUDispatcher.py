@@ -7,7 +7,7 @@ from queue import Queue, Empty
 from collections import defaultdict
 import pandas as pd
 from datetime import datetime, timezone, timedelta
-
+import random
 
 import statistics
 
@@ -43,8 +43,8 @@ class TA03_0_GPUDispatcher(TaskBase):
         self.num_gpu_workers = int(self.instructions.get("num_gpu_workers", 5))
         self.max_jobs_per_worker = int(self.instructions.get("max_jobs_per_worker", 5))
         self.worker_registry = worker_registry
-        
         self.bulk_update_status_count = bulk_update_status()
+        
         
         self.worker_pool_registry = create_worker_pool_registry(local_workers=self.instructions.get("local_workers", [0]),
                                                                runpod_workers=self.instructions.get("runpod_workers", []))
@@ -85,6 +85,8 @@ class TA03_0_GPUDispatcher(TaskBase):
         backoff = 0
         while True:
             from app.utils.logger.loggingWrapper import LoggingHandler
+            if random.random() < 0.99:
+                self.bulk_update_status_count = bulk_update_status()
             
             LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "DEBUG-2")
             LoggingHandler(logging_level=LOGGING_LEVEL)
@@ -372,41 +374,44 @@ class TA03_0_GPUDispatcher(TaskBase):
                     .reset_index(drop=True)
                 )
 
+
+
         # ---- Step 3: Enriched view (worker-level aggregates across *all runs*) ----
-        agg_df = (
-            self.hist_stats
-            .groupby("worker_name", as_index=False)
-            .agg(
-                lt_proc_sum=("processed", "sum"),                # total processed across all runs
-                lt_max_proc=("processed", "max"),         # max processed across runs
-                total_inits=("start_time", "count"),                 # number of runs
-                lt_avg_through=("throughput", "mean"),      # avg throughput across runs
-                lt_avg_success=("success_rate", "mean"),  # avg success rate across runs
-                lt_max_up=("uptime_minutes", "max"),       # max uptime seen
-                lt_min_up=("uptime_minutes", "min"),       # min uptime seen
-                lt_avg_up=("uptime_minutes", "mean"),       # avg uptime across runs
-                idle_inits=("processed", lambda x: (x == 0).sum()),  # runs with 0 processed
+        if not self.hist_stats.empty:
+            agg_df = (
+                self.hist_stats
+                .groupby("worker_name", as_index=False)
+                .agg(
+                    lt_proc_sum=("processed", "sum"),                # total processed across all runs
+                    lt_max_proc=("processed", "max"),         # max processed across runs
+                    total_inits=("start_time", "count"),                 # number of runs
+                    lt_avg_through=("throughput", "mean"),      # avg throughput across runs
+                    lt_avg_success=("success_rate", "mean"),  # avg success rate across runs
+                    lt_max_up=("uptime_minutes", "max"),       # max uptime seen
+                    lt_min_up=("uptime_minutes", "min"),       # min uptime seen
+                    lt_avg_up=("uptime_minutes", "mean"),       # avg uptime across runs
+                    idle_inits=("processed", lambda x: (x == 0).sum()),  # runs with 0 processed
+                )
             )
-        )
 
 
 
-        enriched_df = pd.merge(
-            snapshot_df,
-            agg_df,
-            on="worker_name",
-            how="left"
-        )
+            enriched_df = pd.merge(
+                snapshot_df,
+                agg_df,
+                on="worker_name",
+                how="left"
+            )
 
-        # ---- Step 4: Logging ----
-        if not enriched_df.empty:
-            logging.info("\n📊 Worker Stats (current + lifetime):\n" + enriched_df.to_string(index=False))
+            # ---- Step 4: Logging ----
+            if not enriched_df.empty:
+                logging.info("\n📊 Worker Stats (current + lifetime):\n" + enriched_df.to_string(index=False))
 
-        # ---- Step 5: Persist ----
-        if (now - self.last_csv_flush) > timedelta(minutes=5):
-            self.hist_stats.to_csv("worker_stats.csv", index=False)
-            self.last_csv_flush = now
-            logging.info("💾 Worker stats persisted to worker_stats.csv")
+            # ---- Step 5: Persist ----
+            if (now - self.last_csv_flush) > timedelta(minutes=5):
+                self.hist_stats.to_csv("tmp/worker_stats.csv", index=False, mode='a')
+                self.last_csv_flush = now
+                logging.info("💾 Worker stats persisted to tmp/worker_stats.csv")
 
 
 

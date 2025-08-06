@@ -37,7 +37,6 @@ class TA28_B_Mutator:
     def __init__(self, last_gen_doe_df, wood_master_df, static_factors, dependent_factors, mutation_config_raw, branch_id, subbranch_id, config_path=None, gen = -1):
         
         self.last_gen_doe_df = last_gen_doe_df
-        row = last_gen_doe_df.iloc[0]
         self.gen = gen
         logging.debug3(f"Initializing TA28_B_Mutator with gen={self.gen}, branch_id={branch_id}, subbranch_id={subbranch_id}, working with len(last_gen_doe_df)={len(last_gen_doe_df)} and len(wood_master_df)={len(wood_master_df)}")
         
@@ -45,6 +44,7 @@ class TA28_B_Mutator:
         self.subbranch_id = subbranch_id
         self.shots_per_row = 3.8 # Hardcoded average of shots per stack in WoodMaster, to calculate the potential maxium size of the baseline dataset
         self.theoretical_max_size =  self.shots_per_row * len(wood_master_df)
+
 
         self.static_factors = static_factors
         self.dependent_factors = dependent_factors
@@ -94,10 +94,14 @@ class TA28_B_Mutator:
 
 
         if not hasattr(creator, "FitnessMulti"):
-            creator.create("FitnessMulti", base.Fitness, weights=(1.0, 1.0, 1.0))  #(score_acc, score_sample, score_entropy)
+            #creator.create("FitnessMulti", base.Fitness, weights=(1.0, 1.0, 1.0))  #(score_acc, score_sample, score_entropy)
+            creator.create("FitnessSingle", base.Fitness, weights=(1.0,))
+
 
         if not hasattr(creator, "Individual"):
-            creator.create("Individual", dict, fitness=creator.FitnessMulti)
+            #creator.create("Individual", dict, fitness=creator.FitnessMulti)
+            creator.create("Individual", dict, fitness=creator.FitnessSingle)
+
         raw_df = self.last_gen_doe_df.copy()
         init_pop_with_scores, summary_df = get_scores_and_attach(raw_df, acc_type=self.branch_id, theoretical_max_size=self.theoretical_max_size, subbranch_id=self.subbranch_id, gen=self.gen)
         
@@ -187,6 +191,7 @@ class TA28_B_Mutator:
 
 
 
+
     def create_pop(self, df):
         """
         Create a DEAP population from a DataFrame.
@@ -220,7 +225,8 @@ class TA28_B_Mutator:
             score_sample = row.get("score_sample", random.uniform(0, 1))
             score_entropy = row.get("score_entropy", random.uniform(0, 1))
             
-            individual.fitness.values = (score_acc, score_sample, score_entropy)
+            #individual.fitness.values = (score_acc, score_sample, score_entropy)
+            individual.fitness.values = (score_acc,)
             
             return individual
 
@@ -328,6 +334,7 @@ class TA28_B_Mutator:
             )
 
             return final, drop_n, add_n, overlap_shortfall
+
 
 
 
@@ -534,7 +541,6 @@ class TA28_B_Mutator:
         if "DEAP_metadata" not in df.columns:
             raise ValueError("DataFrame must contain 'DEAP_metadata' column.")
 
-        # Assume we work on first row for now — can be adjusted as needed:
         metadata = df.iloc[0]["DEAP_metadata"]
 
         # Ensure it's parsed:

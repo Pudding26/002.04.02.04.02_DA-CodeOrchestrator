@@ -11,11 +11,10 @@ columns:
   - task_uuid
 - name: value
   type: categorical
-  unique_count: 6
+  unique_count: 5
   unique_values:
-  - 3269dc84-167c-4e59-99b2-34d2b1fa9716
-  - '2025-08-04 10:32:38'
+  - "Loop #3 \u2014 loading jobs"
   - running
+  - 76de4564-582b-4fdd-b51f-e6f1c4b8e2b5
   - '0'
-  - Running segmentation pipeline
-  - '1'
+  - '2025-08-06 20:37:04'

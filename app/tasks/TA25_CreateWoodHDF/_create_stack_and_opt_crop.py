@@ -36,9 +36,12 @@ def _handle_single_input_array(img: np.ndarray) -> tuple[np.ndarray, bool, str]:
         if img.shape[-1] == 3:
             # Single RGB image
             return img[np.newaxis, ...], False, "RGB"
-        else:
-            # Stack of grayscale images
-            return img, False, "GS"
+        elif img.shape[-1] == 4:
+            # Single RGBA image
+            logging.warning("RGBA image detected, converting to RGB.")
+            img = img[..., :3]
+            return img[np.newaxis, ...], False, "RGB"
+
 
     elif img.ndim == 4 and img.shape[-1] == 3:
         # Stack of RGB images
@@ -65,6 +68,10 @@ def _handle_list_of_images(images: list[np.ndarray]) -> tuple[np.ndarray, bool, 
             return np.stack(images), False, "GS"
         elif len(first_shape) == 3 and first_shape[-1] == 3:
             return np.stack(images), False, "RGB"
+        elif len(first_shape) == 3 and first_shape[-1] == 4:
+            logging.warning("RGBA images detected, converting to RGB.")
+            images_rgb = [img[..., :3] for img in images]
+            return np.stack(images_rgb), False, "RGB"
         else:
             raise ValueError(f"Unsupported image shape: {first_shape}")
 
@@ -97,10 +104,16 @@ def _center_crop_and_stack(images: list[np.ndarray], reference_shape: tuple) -> 
 
     if len(final_shape) == 2:
         return np.stack(resized), True, "GS"
-    elif len(final_shape) == 3 and final_shape[-1] == 3:
-        return np.stack(resized), True, "RGB"
-    else:
-        raise ValueError(f"Unsupported final stacked shape: {final_shape}")
+    elif len(final_shape) == 3:
+        if final_shape[-1] == 3:
+            return np.stack(resized), True, "RGB"
+        elif final_shape[-1] == 4:
+            logging.warning("Resized image stack retains RGBA — converting to RGB.")
+            resized_rgb = [img[..., :3] for img in resized]
+            return np.stack(resized_rgb), True, "RGB"
+        else:
+            raise ValueError(f"Unsupported final shape after resize: {final_shape}")
+
 
 
 # ────────────────────────────────────────────────────────────────

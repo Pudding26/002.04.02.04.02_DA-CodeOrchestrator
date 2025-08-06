@@ -1,11 +1,11 @@
 columns:
-- max: 1963021
+- max: 4309260
   min: 1
   name: id
   type: numeric
 - name: DoE_UUID
   type: categorical
-  unique_count: 1139
+  unique_count: 1858
 - max: 3
   min: 0
   name: bootstrap_no
@@ -16,7 +16,7 @@ columns:
   type: numeric
 - name: job_uuid
   type: categorical
-  unique_count: 1139
+  unique_count: 1858
 - name: embedding_type
   type: categorical
   unique_count: 1
@@ -24,7 +24,7 @@ columns:
   - UMAP
 - name: shotID
   type: categorical
-  unique_count: 8441
+  unique_count: 8853
 - name: family
   type: categorical
   unique_count: 43
@@ -33,20 +33,20 @@ columns:
   unique_count: 162
 - name: species
   type: categorical
-  unique_count: 287
+  unique_count: 293
 - name: sourceID
   type: categorical
-  unique_count: 391
+  unique_count: 400
 - name: specimenID
   type: categorical
-  unique_count: 3460
+  unique_count: 3507
 - name: sampleID
   type: categorical
-  unique_count: 4381
+  unique_count: 4443
 - name: stackID
   type: categorical
-  unique_count: 8441
-- max: 0.9734027777777777
+  unique_count: 8853
+- max: 0.986578947368421
   min: 0.3021505376344086
   name: score
   type: numeric

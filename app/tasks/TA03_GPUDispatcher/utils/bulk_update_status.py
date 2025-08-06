@@ -44,10 +44,11 @@ def bulk_update_status() -> int:
     done_jobs = ModellingResults_Out.fetch_distinct_values(column="DoE_UUID")
 
     already_done = 0
-    for job in job_list:
+    for i, job in enumerate(job_list):
         try:
             if job.parent_job_uuids and job.parent_job_uuids[0] in done_jobs:
-                logging.debug2(f"[MARKER] Job {job.job_uuid} already processed, setting status DONE.")
+                if i % 100 == 0 or i == len(job_list):
+                    logging.debug2(f"[MARKER] Job {job.job_uuid} already processed, setting status DONE.")
                 job.status = JobStatus.DONE
                 job.update_db(fields_to_update=["status", "payload"])
                 already_done += 1

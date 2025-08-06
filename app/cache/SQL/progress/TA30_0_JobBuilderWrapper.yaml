@@ -3,19 +3,19 @@ columns:
   type: categorical
   unique_count: 6
   unique_values:
+  - Finished
   - message
-  - task_uuid
+  - progress
   - start_time
   - Status
-  - Finished
-  - progress
+  - task_uuid
 - name: value
   type: categorical
   unique_count: 6
   unique_values:
-  - '0'
-  - 'Checking segmenter jobs (status: ready)'
-  - '2025-08-04 10:32:19'
-  - 86aa00df-9840-4357-8fbe-0de72b1e395e
+  - '2025-08-06 20:36:48'
   - '0.01'
+  - 4ee2e376-25b3-4fbd-ab28-ecc9ee50ce65
   - running
+  - '0'
+  - 'Checking modeler jobs (status: ready)'

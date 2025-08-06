@@ -34,8 +34,8 @@ services:
     volumes:
       - .:/workspace/002.04.02.04.02_DA-CodeOrchestrator:cached
       # Mount individual directories to external volumes
-      #- s003-v9503_lele-da-app_data:/workspace/002.04.02.04.02_DA-CodeOrchestrator/data
-      #- s003-v9501_lele-da-app_temp:/workspace/002.04.02.04.02_DA-CodeOrchestrator/temp
+      #- s003-v9503_lele-da-app_data:/workspace/002.04.02.04.02_DA-CodeOrchestrator/data/productionData
+      #- s003-v9501_lele-da-app_tmp:/workspace/002.04.02.04.02_DA-CodeOrchestrator/tmp
       #- s003-v9502_lele-da-app_config:/workspace/002.04.02.04.02_DA-CodeOrchestrator/app/config
       
     depends_on:

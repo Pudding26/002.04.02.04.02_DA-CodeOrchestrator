@@ -1,10 +1,10 @@
 columns:
 - name: parent_uuid
   type: categorical
-  unique_count: 225
+  unique_count: 1664
 - name: child_uuid
   type: categorical
-  unique_count: 12097
+  unique_count: 14911
 - name: child_kind
   type: categorical
   unique_count: 3

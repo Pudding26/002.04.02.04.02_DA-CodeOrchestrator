@@ -14,6 +14,10 @@ WORKER_BLACKLIST = []
 
 
 
+
+
+
+
 @GPUDispatcherRouter.post("/worker/register")
 async def register_worker(request: Request):
     data = await request.json()
@@ -25,6 +29,8 @@ async def register_worker(request: Request):
 
     if worker_name in WORKER_BLACKLIST:
         return {"status": "error", "detail": f"Worker {worker_name} is blacklisted"}
+
+
 
     worker_registry[worker_name] = {
         "last_seen": datetime.now(timezone.utc),

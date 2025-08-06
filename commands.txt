@@ -1,0 +1,9 @@
+# build with the version tag
+docker build -f Dockerfile.backend -t voyage6/da-backend:1.0.0 .
+
+# tag the same image as latest
+docker tag voyage6/da-backend:1.0.0 voyage6/da-backend:latest
+
+# push both tags
+docker push voyage6/da-backend:1.0.0
+docker push voyage6/da-backend:latest

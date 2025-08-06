@@ -1,0 +1,69 @@
+columns:
+- name: job_uuid
+  type: categorical
+  unique_count: 1422
+- name: job_type
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - DoE
+- name: status
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - READY
+- name: provider_status
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - FAILED
+  - DONE
+- name: segmenter_status
+  type: categorical
+  unique_count: 2
+  unique_values:
+  - FAILED
+  - DONE
+- name: extractor_status
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - BLOCKED
+- name: modeler_status
+  type: categorical
+  unique_count: 3
+  unique_values:
+  - FAILED
+  - READY
+  - DONE
+- name: validator_status
+  type: categorical
+  unique_count: 3
+  unique_values:
+  - FAILED
+  - READY
+  - BLOCKED
+- max: 0
+  min: 0
+  name: attempts
+  type: numeric
+- name: next_retry
+  type: categorical
+  unique_count: 1422
+- name: created
+  type: categorical
+  unique_count: 1422
+- name: updated
+  type: categorical
+  unique_count: 1422
+- name: payload
+  type: categorical
+  unique_count: 1422
+- name: parent_job_uuids
+  type: categorical
+  unique_count: 1
+  unique_values:
+  - []
+- name: DEAP_metadata
+  type: categorical
+  unique_count: 161

@@ -59,13 +59,14 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
 
 
         self.TARGET_BRANCHES = ["knn_acc", "rf_acc", "combo_01"] #Cmbination is intended as weighted average of multiple different classifier results
-        self.TARGET_BRANCHES = self.TARGET_BRANCHES[0:2]
+        self.TARGET_BRANCHES = ["knn_acc"] #Cmbination is intended as weighted average of multiple different classifier results
         self.orchestration_dict = {}
         self.SLEEP_SECONDS = 10
 
         self.controller.update_message("Step 1: Initializing orchestration dictionary")
         self.woodMasterPotential_full = WoodMasterPotential_Out.fetch_all()
         
+
 
         
         self.STATIC_FACTORS, self.DEPENDENT_FACTORS = define_DoE_Options(self.woodMasterPotential_full)  # Derive vocabularies for DoE factors
@@ -94,6 +95,7 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
             self.MAX_SLEEP_SECONDS = 600
             self.BASE_SLEEP_SECONDS = 10
 
+
             created_count_total = 0
             updated_count_total = 0
             backoff = 0
@@ -109,7 +111,7 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
 
                 created_count = 0
                 updated_count = 0
-                skipped_branches = []   # 🔹 store skipped branch/subbranch IDs here
+                skipped_branches = set()   # 🔹 store skipped branch/subbranch IDs here
 
 
 
@@ -128,9 +130,12 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
                         # 🔹 Determine effective max gen
                         enforced = self.enforced_stop_cfg.get(subbranch_id, {}).get("enforced_max_gen")
                         effective_max_gen = enforced if enforced is not None else config.get("max_generations")
-                        #if current_gen >= effective_max_gen:
-                        #    skipped_branches.append((branch_id, subbranch_id, effective_max_gen))
-                        #    continue
+                        if current_gen >= effective_max_gen:
+                            skipped_branches.add((branch_id, subbranch_id, effective_max_gen))
+                            continue
+
+                        if branch_id == "rf_acc":
+                            skipped_branches.add((branch_id, subbranch_id, effective_max_gen))
 
 
 
@@ -177,9 +182,17 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
                             )
                             
 
+                            if last_gen_doe_df_raw.empty:
+                                continue #TODO Properly log dead ends
                             last_gen_doe_df = last_gen_doe_df_raw[last_gen_doe_df_raw["modeler_status"] == "DONE"]
+                            if last_gen_doe_df.empty:
+                                continue
+                            
                             if self.debug_mode == True:
                                 last_gen_doe_df = last_gen_doe_df_raw
+
+
+
 
 
                             next_gen_df, selection_summary, mutation_summary =TA28_B_Mutator(
@@ -210,6 +223,7 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
 
                 if skipped_branches:
                     logging.debug5(f"🔚 Skipped {len(skipped_branches)} branches this loop (due to enforced/initial max gen)")
+                    logging.debug2(f"{skipped_branches}")
 
                     self.orchestration_dict["skipped_branches"] = skipped_branches
 
@@ -539,3 +553,4 @@ class TA28_0_DoECreatorOrchestrator(TaskBase):
             logging.info("💾 enforced_stop.yaml updated with new subbranches")
 
         return cfg
+

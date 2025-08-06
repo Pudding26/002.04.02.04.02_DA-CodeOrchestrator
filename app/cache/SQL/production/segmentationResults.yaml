@@ -36,20 +36,20 @@ columns:
   type: categorical
   unique_count: 6
   unique_values:
-  - equivalent_diameter
   - area
+  - equivalent_diameter
   - minor_axis_length
-  - perimeter
   - major_axis_length
+  - perimeter
   - eccentricity
 - name: stat_type
   type: categorical
   unique_count: 5
   unique_values:
-  - mean
   - min
-  - std
+  - mean
   - max
+  - std
   - skew
 - max: 9587218.0
   min: -32.95639419555664

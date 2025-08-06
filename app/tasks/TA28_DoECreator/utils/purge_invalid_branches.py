@@ -96,16 +96,16 @@ def purge_invalid_branches():
         session.query(orm_JobLink).delete()
 
 
-        logging.info("🔄 Resetting DoEJobs statuses...")
-        session.execute(
-            update(orm_DoEJobs).values(
-                provider_status="READY",
-                segmenter_status="BLOCKED",
-                extractor_status="BLOCKED",
-                modeler_status="BLOCKED",
-                validator_status="BLOCKED",
-            )
-        )
+        #logging.info("🔄 Resetting DoEJobs statuses...")
+        #session.execute(
+        #    update(orm_DoEJobs).values(
+        #        provider_status="READY",
+        #        segmenter_status="BLOCKED",
+        #        extractor_status="BLOCKED",
+        #        modeler_status="BLOCKED",
+        #        validator_status="BLOCKED",
+        #    )
+        #)
 
 
         session.commit()

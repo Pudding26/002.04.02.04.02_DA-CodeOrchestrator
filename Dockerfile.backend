@@ -12,7 +12,15 @@ COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
-COPY . .
+COPY run.py ./run.py
+COPY app ./app
+COPY README.md ./README.md
+
+COPY data /data
+COPY tmp /tmp
+
+
+
 
 # Expose the port and set the default command
 EXPOSE 8000

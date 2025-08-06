@@ -353,6 +353,9 @@ class TA28_A_Initiater:
 
             flat_cfg = self._flatten_doe_row(base_cfg)
 
+
+
+
             flat_cfg.update({
                 "branch_id": branch_id,
                 "subbranch_id": subbranch_id,
@@ -389,6 +392,7 @@ class TA28_A_Initiater:
 
         return job_df
 
+
     @staticmethod
     def _flatten_doe_row(new_row):
         """
@@ -410,6 +414,8 @@ class TA28_A_Initiater:
             "maxShots": new_row["primary_data"].get("maxShots", [500]),
             "noShotsRange": new_row["primary_data"].get("noShotsRange", [30])
         }
+
+
 
 
 # 🔹 Debugging check for empty lists in config:

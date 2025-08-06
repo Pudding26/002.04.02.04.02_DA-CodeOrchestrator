@@ -1,27 +1,27 @@
-DS01_Branch_01_A:
-  enforced_max_gen: 25
-  initial_max_gen: 25
-DS01_Branch_01_B:
-  enforced_max_gen: 25
-  initial_max_gen: 25
 DS04_Branch_01_A:
-  enforced_max_gen: 25
+  enforced_max_gen: null
   initial_max_gen: 25
 DS04_Branch_01_B:
   enforced_max_gen: null
   initial_max_gen: 25
-DS05_Branch_01_B:
-  enforced_max_gen: 0
-  initial_max_gen: 50
+DS04_Branch_01_C:
+  enforced_max_gen: null
+  initial_max_gen: 25
 Fagaceae_Cannabaceae_01_A:
   enforced_max_gen: null
-  initial_max_gen: 25
+  initial_max_gen: 10
 Fagaceae_Cannabaceae_01_B:
   enforced_max_gen: null
-  initial_max_gen: 25
+  initial_max_gen: 10
 Fagaceae_Cannabaceae_01_C:
   enforced_max_gen: null
-  initial_max_gen: 15
+  initial_max_gen: 10
+Fagaceae_Cannabaceae_01_D:
+  enforced_max_gen: null
+  initial_max_gen: 10
+Fagaceae_Cannabaceae_01_E:
+  enforced_max_gen: null
+  initial_max_gen: 10
 Hardwood_01_A:
   enforced_max_gen: null
   initial_max_gen: 15
@@ -31,18 +31,6 @@ Hardwood_01_B:
 Hardwood_01_C:
   enforced_max_gen: null
   initial_max_gen: 15
-Quercus_01_A:
-  enforced_max_gen: null
-  initial_max_gen: 3
-Quercus_01_B:
-  enforced_max_gen: null
-  initial_max_gen: 3
-Quercus_01_C:
-  enforced_max_gen: null
-  initial_max_gen: 10
-Quercus_01_D:
-  enforced_max_gen: null
-  initial_max_gen: 10
 Softwood_01_A:
   enforced_max_gen: null
   initial_max_gen: 15
@@ -54,46 +42,25 @@ Softwood_01_C:
   initial_max_gen: 15
 Unrestricted_01_A:
   enforced_max_gen: null
-  initial_max_gen: 15
+  initial_max_gen: 10
 Unrestricted_01_B:
   enforced_max_gen: null
-  initial_max_gen: 15
-Unrestricted_01_C:
-  enforced_max_gen: null
-  initial_max_gen: 15
+  initial_max_gen: 10
 Unrestricted_02_A:
   enforced_max_gen: null
-  initial_max_gen: 15
-Unrestricted_02_B:
-  enforced_max_gen: null
   initial_max_gen: 5
-Unrestricted_02_C:
+Unrestricted_03_A:
   enforced_max_gen: null
-  initial_max_gen: 5
-branch_static_01_A:
-  enforced_max_gen: 25
-  initial_max_gen: 50
-branch_static_01_B:
-  enforced_max_gen: 25
-  initial_max_gen: 50
-branch_static_01_C:
-  enforced_max_gen: 25
-  initial_max_gen: 50
-branch_static_02_A:
-  enforced_max_gen: 25
-  initial_max_gen: 50
-branch_static_02_B:
-  enforced_max_gen: 25
-  initial_max_gen: 50
-branch_static_02_C:
-  enforced_max_gen: 25
-  initial_max_gen: 50
-branch_static_03_A:
-  enforced_max_gen: 25
-  initial_max_gen: 50
-branch_static_03_B:
-  enforced_max_gen: 25
-  initial_max_gen: 50
-branch_static_03_C:
-  enforced_max_gen: 25
-  initial_max_gen: 50
+  initial_max_gen: 30
+Unrestricted_03_B:
+  enforced_max_gen: null
+  initial_max_gen: 30
+Unrestricted_03_C:
+  enforced_max_gen: null
+  initial_max_gen: 30
+Unrestricted_03_D:
+  enforced_max_gen: null
+  initial_max_gen: 30
+Unrestricted_03_E:
+  enforced_max_gen: null
+  initial_max_gen: 30

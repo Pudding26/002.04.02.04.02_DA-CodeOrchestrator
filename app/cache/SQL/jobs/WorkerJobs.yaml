@@ -1,7 +1,7 @@
 columns:
 - name: job_uuid
   type: categorical
-  unique_count: 12097
+  unique_count: 14911
 - name: job_type
   type: categorical
   unique_count: 3
@@ -22,16 +22,16 @@ columns:
   type: numeric
 - name: next_retry
   type: categorical
-  unique_count: 12097
+  unique_count: 14911
 - name: created
   type: categorical
-  unique_count: 12097
+  unique_count: 14911
 - name: updated
   type: categorical
-  unique_count: 12097
+  unique_count: 14911
 - name: payload
   type: categorical
-  unique_count: 12094
+  unique_count: 14715
 - name: parent_job_uuids
   type: categorical
-  unique_count: 1311
+  unique_count: 4317

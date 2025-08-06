@@ -3,7 +3,7 @@ Unrestricted_01:
   mutation_func: 1
   control_branches:
     - Unrestricted_01_A
-    - Unrestricted_01_B
+    #- Unrestricted_01_B
     #- Unrestricted_01_C
   allow_multi_mutation: true
   fallback_on_invalid: true
@@ -45,13 +45,176 @@ Unrestricted_02:
     primary_data.genus:
       mutate_chance: 0.5
       growth_bias: 0.3
+
+
+# Effienc mode from here (no rf, single fintess) 
+
+Fagaceae_Cannabaceae_01:
+  mutation_strategy: static
+  mutation_func: 1
+  control_branches:
+    - Fagaceae_Cannabaceae_01_A
+    - Fagaceae_Cannabaceae_01_B
+    #- Fagaceae_Cannabaceae_01_C
+    #- Fagaceae_Cannabaceae_01_D
+    #- Fagaceae_Cannabaceae_01_E
+  allow_multi_mutation: true
+  fallback_on_invalid: true
+  max_generations: 10
+  generation_size: 10
+  elite_size: 5
+  static_mutate_params:
+    primary_data.sourceNo:
+      mutate_chance: 0
+      must_contain: ["DS04"]
+      must_not_contain: ["DS01", "DS07", "DS11"]
+    modeling.metricModelNo:
+      mutate_chance: 0.05
+      must_contain: ["MM02"]
+      must_not_contain: ["ALL"]
+    preprocessing.preProcessingNo:
+      mutate_chance: 0.05
+      must_contain: ["PP04"]
+      must_not_contain: ["ALL"]
+
+  dependent_mutate_params:
+    primary_data.family:
+      mutate_chance: 0
+      must_contain: ["Fagaceae", "Cannabaceae"]
+      must_not_contain: ["ALL"]
+
+DS04_Branch_01:
+  mutation_strategy: static
+  mutation_func: 1
+  control_branches:
+    - DS04_Branch_01_A
+    #- DS04_Branch_01_B
+    #- DS04_Branch_01_C
+  allow_multi_mutation: true
+  fallback_on_invalid: true
+  max_generations: 25
+  generation_size: 10
+  elite_size: 5
+  static_mutate_params:
+    primary_data.sourceNo:
+      mutate_chance: 0
+      must_contain: ["DS04"]
+      must_not_contain: ["DS01", "DS07", "DS11"]
+    modeling.metricModelNo:
+      mutate_chance: 0.05
+      must_contain: ["MM02"]
+      must_not_contain: ["ALL"]
+    preprocessing.preProcessingNo:
+      mutate_chance: 0.05
+      must_contain: ["PP04"]
+      must_not_contain: ["ALL"]
+  dependent_mutate_params:
+    primary_data.view:
+      must_contain: ["TS"]
+      must_not_contain: ["TLS", "RLS"]
+
     
 
 
+Unrestricted_03:
+  mutation_strategy: static
+  mutation_func: 1
+  control_branches:
+    - Unrestricted_03_A
+    #- Unrestricted_03_B
+    #- Unrestricted_03_C
+    #- Unrestricted_03_D
+    #- Unrestricted_03_E
+  allow_multi_mutation: true
+  fallback_on_invalid: true
+  max_generations: 30
+  generation_size: 5
+  elite_size: 5
+
+  static_mutate_params:
+    modeling.metricModelNo:
+      mutate_chance: 0.05
+      must_contain: ["MM04"]
+      must_not_contain: ["ALL"]
+    preprocessing.preProcessingNo:
+      must_contain: ["PP04"]
+      must_not_contain: ["ALL"]
+  dependent_mutate_params:
+    primary_data.view:
+      must_contain: ["TS"]
+      must_not_contain: ["TLS, RLS"]
+
+
+Hardwood_01:
+  mutation_strategy: static
+  mutation_func: 1
+  control_branches:
+    - Hardwood_01_A
+    - Hardwood_01_B
+    #- Hardwood_01_C
+  allow_multi_mutation: true
+  fallback_on_invalid: true
+  max_generations: 15
+  generation_size: 10
+  elite_size: 5
+
+  static_mutate_params:
+    modeling.metricModelNo:
+      mutate_chance: 0.05
+      must_contain: ["MM02"]
+      must_not_contain: ["ALL"]
+    preprocessing.preProcessingNo:
+      must_contain: ["PP04"]
+      must_not_contain: ["ALL"]
+
+  dependent_mutate_params:
+    primary_data.woodType:
+      mutate_chance: 0.05
+      must_contain: ["Hardwood"]
+      must_not_contain: ["Softwood"]
+
+Softwood_01:
+  mutation_strategy: static
+  mutation_func: 1
+  control_branches:
+    - Softwood_01_A
+    - Softwood_01_B
+    #- Softwood_01_C
+  allow_multi_mutation: true
+  fallback_on_invalid: true
+  max_generations: 15
+  generation_size: 10
+  elite_size: 5
+
+  static_mutate_params:
+
+    primary_data.sourceNo:
+      must_contain: ["DS07", "DS11"]
+      must_not_contain: ["DS01", "DS04"]
+    modeling.metricModelNo:
+      mutate_chance: 0.05
+      must_contain: ["MM02", "MM03", "MM04"]
+      must_not_contain: ["ALL"]
+    preprocessing.preProcessingNo:
+      must_contain: ["PP04"]
+      must_not_contain: ["ALL"]
+
+  dependent_mutate_params:
+  
+    primary_data.woodType:
+      mutate_chance: 0.05
+      must_contain: ["Softwood"]
+      must_not_contain: ["Hardwood"]  
 
 
 archived:
   temp:
+
+
+
+
+
+
     Unrestricted_02:
       mutation_strategy: static
       mutation_func: 1
@@ -84,11 +247,11 @@ archived:
       mutation_func: 1
       control_branches:
         - Fagaceae_Cannabaceae_01_A
-        - Fagaceae_Cannabaceae_01_B
-        - Fagaceae_Cannabaceae_01_C
+        #- Fagaceae_Cannabaceae_01_B
+        #- Fagaceae_Cannabaceae_01_C
       allow_multi_mutation: true
       fallback_on_invalid: true
-      max_generations: 15
+      max_generations: 10
       generation_size: 10
       elite_size: 5
       static_mutate_params:
